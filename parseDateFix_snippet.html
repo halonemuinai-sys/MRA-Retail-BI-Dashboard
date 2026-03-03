@@ -1,0 +1,21 @@
+/**
+ * Helper to parse various date formats safely
+ */
+function parseDateFix(dateVal) {
+    if (Object.prototype.toString.call(dateVal) === '[object Date]') return dateVal;
+    if (!dateVal) return new Date(0);
+
+    // Try YYYY-MM-DD
+    const parts = String(dateVal).split(/[-\/]/);
+    if (parts.length === 3) {
+        // Check if Year is first (e.g. 2024-01-01)
+        if (parts[0].length === 4) {
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+        // Check if Year is last (e.g. 01/01/2024)
+        if (parts[2].length === 4) {
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+    }
+    return new Date(dateVal);
+}

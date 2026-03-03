@@ -1,0 +1,382 @@
+<!-- 3. SAP / PRODUCT RANK VIEW COMPONENT -->
+<div id="viewSap" class="hidden">
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="font-display text-2xl font-bold text-brand-dark tracking-tight">Product Rank Analysis</h2>
+            <p class="text-xs text-slate-500 mt-1 font-medium">Top performing SAP Codes, Categories & Collections</p>
+        </div>
+
+        <!-- Sub-View Toggles -->
+        <div class="flex bg-slate-100/80 p-1 rounded-lg border border-slate-200 w-fit">
+            <button onclick="APP.switchSapSubView('topPerformers')" id="btnSapTopPerformers"
+                class="px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5">
+                Top Performers
+            </button>
+            <button onclick="APP.switchSapSubView('projection')" id="btnSapProjection"
+                class="px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                </svg>
+                Sales Projection
+            </button>
+        </div>
+    </div>
+
+    <!-- 3A. TOP PERFORMERS VIEW -->
+    <div id="sapTopPerformersView">
+
+        <!-- SAP KPI SUMMARY CARDS -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Card 1: Top SAP Val -->
+            <div
+                class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group hover:shadow-md transition-shadow">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10 flex flex-col h-full justify-between gap-2">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top Product (Sales)
+                        </h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Kode produk (SAP) yang mencetak nilai penjualan Net tertinggi.
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-mono text-xs font-bold text-brand-dark truncate" id="sapKpiTopValName">-</p>
+                        <p class="font-display text-xl font-bold text-emerald-600 tracking-tight" id="sapKpiTopValNet">-
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Top SAP Qty -->
+            <div
+                class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group hover:shadow-md transition-shadow">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10 flex flex-col h-full justify-between gap-2">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top Product (Qty)</h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Kode produk (SAP) yang terjual paling banyak secara kuantitas (Pcs).
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-mono text-xs font-bold text-brand-dark truncate" id="sapKpiTopQtyName">-</p>
+                        <p class="font-display text-xl font-bold text-blue-600 tracking-tight" id="sapKpiTopQtyVal">-
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Top Category -->
+            <div
+                class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group hover:shadow-md transition-shadow">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-purple-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10 flex flex-col h-full justify-between gap-2">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top Category</h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Kategori utama pencetak omset terbesar.
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-display text-sm font-bold text-brand-dark truncate" id="sapKpiTopCatName">-</p>
+                        <p class="font-mono text-lg font-bold text-purple-600 tracking-tight" id="sapKpiTopCatNet">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 4: Top Collection -->
+            <div
+                class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group hover:shadow-md transition-shadow">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-amber-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10 flex flex-col h-full justify-between gap-2">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top Collection</h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Koleksi Bvlgari favorit pelanggan pencetak omset terbesar.
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-display text-sm font-bold text-brand-dark truncate" id="sapKpiTopCollName">-</p>
+                        <p class="font-mono text-lg font-bold text-amber-600 tracking-tight" id="sapKpiTopCollNet">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP SAP CODES -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Top 10 Qty -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div class="p-5 border-b border-slate-100 bg-white">
+                    <h3 class="font-display text-base font-bold text-brand-dark flex items-center gap-2">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Top 10 SAP by Quantity
+                    </h3>
+                </div>
+                <div class="overflow-x-auto flex-grow max-h-96 custom-scrollbar">
+                    <table class="w-full text-sm text-left">
+                        <thead
+                            class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-10">
+                            <tr>
+                                <th class="py-3 px-5 font-bold w-12 text-center">#</th>
+                                <th class="py-3 px-5 font-bold">SAP Code</th>
+                                <th class="py-3 px-5 font-bold">Category</th>
+                                <th class="py-3 px-5 text-center font-bold">Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sapTableQty" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Top 10 Value -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div class="p-5 border-b border-slate-100 bg-white">
+                    <h3 class="font-display text-base font-bold text-brand-dark flex items-center gap-2">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Top 10 SAP by Value
+                    </h3>
+                </div>
+                <div class="overflow-x-auto flex-grow max-h-96 custom-scrollbar">
+                    <table class="w-full text-sm text-left">
+                        <thead
+                            class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-10">
+                            <tr>
+                                <th class="py-3 px-5 font-bold w-12 text-center">#</th>
+                                <th class="py-3 px-5 font-bold">SAP Code</th>
+                                <th class="py-3 px-5 font-bold">Category</th>
+                                <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sapTableVal" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- CATEGORY & COLLECTION PERFORMANCE -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Top Category -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div class="p-5 border-b border-slate-100 bg-white">
+                    <h3 class="font-display text-base font-bold text-brand-dark flex items-center gap-2">
+                        <span class="w-2 h-2 bg-purple-500 rounded-full"></span> Top Main Categories (By Sales)
+                    </h3>
+                </div>
+                <div class="overflow-x-auto flex-grow max-h-96 custom-scrollbar">
+                    <table class="w-full text-sm text-left">
+                        <thead
+                            class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-10">
+                            <tr>
+                                <th class="py-3 px-5 font-bold w-12 text-center">#</th>
+                                <th class="py-3 px-5 font-bold">Category</th>
+                                <th class="py-3 px-5 text-center font-bold">Qty</th>
+                                <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sapTableCat" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Top Collection -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div class="p-5 border-b border-slate-100 bg-white">
+                    <h3 class="font-display text-base font-bold text-brand-dark flex items-center gap-2">
+                        <span class="w-2 h-2 bg-amber-500 rounded-full"></span> Top 10 Collections (By Sales)
+                    </h3>
+                </div>
+                <div class="overflow-x-auto flex-grow max-h-96 custom-scrollbar">
+                    <table class="w-full text-sm text-left">
+                        <thead
+                            class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-10">
+                            <tr>
+                                <th class="py-3 px-5 font-bold w-12 text-center">#</th>
+                                <th class="py-3 px-5 font-bold">Collection</th>
+                                <th class="py-3 px-5 text-center font-bold">Qty</th>
+                                <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sapTableColl" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP CATALOGUE CODES (FULL WIDTH) -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mb-8">
+            <div class="p-5 border-b border-slate-100 bg-white">
+                <h3 class="font-display text-base font-bold text-brand-dark flex items-center gap-2">
+                    <span class="w-2 h-2 bg-red-500 rounded-full"></span> Top 10 Catalogue Codes (By Sales)
+                </h3>
+            </div>
+            <div class="overflow-x-auto flex-grow max-h-96 custom-scrollbar">
+                <table class="w-full text-sm text-left">
+                    <thead
+                        class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="py-3 px-5 font-bold w-12 text-center">#</th>
+                            <th class="py-3 px-5 font-bold">Catalogue Code</th>
+                            <th class="py-3 px-5 text-center font-bold">Qty</th>
+                            <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sapTableCatalogue" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3B. CATEGORY TREND VIEW -->
+    <div id="sapProjectionView" class="hidden">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
+            <div class="mb-6">
+                <h3 class="font-display text-lg font-bold text-brand-dark tracking-tight">Category Sales & Qty Trend
+                </h3>
+                <p class="text-xs text-slate-500 mt-1">Multi-year historically compared performance per category.</p>
+            </div>
+
+            <!-- TOP SECTION: Controls (Left) & KPIs (Right) -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+
+                <!-- Left Column: Filters & Toggles -->
+                <div class="lg:col-span-1 flex flex-col justify-center gap-4 border-r border-slate-100 pr-4">
+                    <!-- Metric Toggle -->
+                    <div
+                        class="flex items-center w-max bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-inner">
+                        <button type="button" id="btnSapMetricValue" onclick="APP.switchSapMetric('value')"
+                            class="px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5">Value
+                            (Rp)</button>
+                        <button type="button" id="btnSapMetricQty" onclick="APP.switchSapMetric('qty')"
+                            class="px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:text-brand-dark transition-all">Qty
+                            (Pcs)</button>
+                    </div>
+
+                    <!-- Category Pill Buttons -->
+                    <div class="flex flex-wrap gap-2" id="sapCategoryPills">
+                        <button type="button" onclick="APP.setSapTrendCategory('Jewelry')"
+                            class="sap-cat-btn px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border border-brand-blue text-brand-blue bg-blue-50"
+                            data-cat="Jewelry">Jewelry</button>
+                        <button type="button" onclick="APP.setSapTrendCategory('Watches')"
+                            class="sap-cat-btn px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue bg-white"
+                            data-cat="Watches">Watches</button>
+                        <button type="button" onclick="APP.setSapTrendCategory('Accessories')"
+                            class="sap-cat-btn px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue bg-white"
+                            data-cat="Accessories">Accessories</button>
+                    </div>
+                </div>
+
+                <!-- Right Column: 3 KPI Cards -->
+                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div
+                        class="bg-white p-4 rounded-lg border border-slate-200 flex flex-col justify-center items-center text-center shadow-sm">
+                        <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">2026 YTD <span
+                                class="trendMetricLabel">(Value)</span></p>
+                        <h4 class="font-display text-xl lg:text-3xl font-bold text-brand-dark leading-none"
+                            id="trendYtdActual">-</h4>
+                        <p class="text-[10px] text-slate-500 mt-2 font-medium"><span id="trendYtdMonths"
+                                class="text-brand-blue">0</span> months measured</p>
+                    </div>
+
+                    <div
+                        class="bg-white p-4 rounded-lg border border-slate-200 flex flex-col justify-center items-center text-center shadow-sm">
+                        <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">2025 YTD
+                            <span class="trendMetricLabel">(Value)</span>
+                        </p>
+                        <h4 class="font-display text-xl lg:text-3xl font-bold text-slate-600 leading-none"
+                            id="trendPrevActual">-</h4>
+                    </div>
+
+                    <div
+                        class="bg-white p-4 rounded-lg border border-slate-200 flex flex-col justify-center items-center text-center shadow-sm">
+                        <p class="text-[10px] uppercase font-bold text-blue-500 tracking-wider mb-2">YoY Growth</p>
+                        <h4 class="font-display text-xl lg:text-3xl font-bold text-brand-blue leading-none"
+                            id="trendGrowthPct">-</h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Chart -->
+            <div
+                class="w-full h-[360px] mx-auto flex jus1tify-center bg-white rounded-lg border border-slate-100 p-2 relative">
+                <!-- Legend (custom HTML for more control) -->
+                <div
+                    class="absolute top-2 right-2 flex items-center gap-2 text-[10px] font-bold text-slate-500 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-200 shadow-sm z-10">
+                    <button type="button" onclick="APP.toggleTrendYear(2026)" id="legend-2026"
+                        class="flex items-center gap-1 transition-opacity hover:opacity-80"><span
+                            class="w-3 h-3 rounded-full bg-blue-600"></span> 2026</button>
+                    <button type="button" onclick="APP.toggleTrendYear(2025)" id="legend-2025"
+                        class="flex items-center gap-1 transition-opacity hover:opacity-80"><span
+                            class="w-3 h-3 rounded-full bg-pink-600"></span> 2025</button>
+                    <button type="button" onclick="APP.toggleTrendYear(2024)" id="legend-2024"
+                        class="flex items-center gap-1 transition-opacity hover:opacity-80"><span
+                            class="w-3 h-3 rounded-full bg-amber-600"></span> 2024</button>
+                    <button type="button" onclick="APP.toggleTrendYear(2023)" id="legend-2023"
+                        class="flex items-center gap-1 transition-opacity hover:opacity-80"><span
+                            class="w-3 h-3 rounded-full bg-emerald-600"></span> 2023</button>
+                </div>
+                <canvas id="sapProjectionChart"></canvas>
+            </div>
+        </div> <!-- END category trend card -->
+    </div> <!-- END sapProjectionView -->
+
+</div> <!-- END viewSap -->

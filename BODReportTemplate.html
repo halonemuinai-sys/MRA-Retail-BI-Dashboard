@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOD Daily Sales Report</title>
+    <style>
+        @page {
+            size: landscape;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 8px;
+            /* Extremely dense to fit all the columns */
+            margin: 0;
+            padding: 0;
+            color: #000;
+        }
+
+        h2 {
+            font-size: 12px;
+            margin: 0 0 5px 0;
+            text-align: center;
+        }
+
+        h3 {
+            font-size: 10px;
+            margin: 0 0 15px 0;
+            text-align: center;
+            font-weight: normal;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid #000;
+            padding: 2px 4px;
+            text-align: right;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        th {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .bg-main {
+            background-color: #fce4d6;
+        }
+
+        .bg-pi {
+            background-color: #fbe5d6;
+        }
+
+        .bg-ps {
+            background-color: #e2efda;
+        }
+
+        .bg-bl {
+            background-color: #c9daf8;
+        }
+
+        .bg-ho {
+            background-color: #ddebf7;
+        }
+
+        .bg-total {
+            background-color: #fff2cc;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .title-cell {
+            width: 10%;
+        }
+
+        .store-cell {
+            width: 18%;
+        }
+
+        /* Shared among 5 groups = 75%, 10% title, 15% total */
+        td.empty {
+            border: none !important;
+        }
+
+        .header-org {
+            text-align: left;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .table-metrics {
+            margin-top: 5px;
+            border: none;
+        }
+
+        .col-gap {
+            width: 10%;
+            border: none;
+        }
+
+        .col-metrics {
+            width: 18%;
+            padding: 0 4px;
+            /* Padding for aesthetics */
+            border: none;
+            vertical-align: top;
+        }
+
+        .table-inner {
+            width: 100%;
+        }
+
+        .col-half {
+            width: 50%;
+        }
+
+        .border-none {
+            border: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header-org">
+        PT MOGEMS PUTRI INTERNATIONAL
+    </div>
+
+    <h2>DAILY SALES REPORT</h2>
+    <h3>
+        <?= dateStr ?>
+    </h3>
+
+    <!-- TABLE 1: Main Collection -->
+    <table>
+        <!-- Header Row 1 (Store Headers) -->
+        <tr>
+            <th class="title-cell bg-main" rowspan="2">Main Collection</th>
+            <th class="store-cell bg-pi" colspan="4">Plaza Indonesia</th>
+            <th class="store-cell bg-ps" colspan="4">Plaza Senayan</th>
+            <th class="store-cell bg-bl" colspan="4">Bali</th>
+            <th class="store-cell bg-ho" colspan="4">Head Office</th>
+            <th class="store-cell bg-total" colspan="4">Total</th>
+        </tr>
+        <!-- Header Row 2 (Metric Headers) -->
+        <tr>
+            <? for (let s=0; s<5; s++) { ?>
+            <th class="bg-main">Stock</th>
+            <th class="bg-main">Sales / Item</th>
+            <th class="bg-main">Sales Non SMI</th>
+            <th class="bg-main">Sales SMI</th>
+            <? } ?>
+        </tr>
+
+        <!-- Data Rows -->
+        <? 
+    let sysTotal = { stock:0, qty:0, nsmi:0, smi:0 };
+    categories.forEach(cat => { ?>
+        <tr>
+            <td class="text-left bold">
+                <?= cat ?>
+            </td>
+
+            <? 
+        let rowTotalS = 0, rowTotalQ = 0, rowTotalNS = 0, rowTotalSMI = 0;
+        stores.forEach(st => { 
+            const d = matrix[st].cats[cat];
+            rowTotalS += d.stock; rowTotalQ += d.qtySold; 
+            rowTotalNS += d.netNonSMI; rowTotalSMI += d.netSMI;
+            
+            // Add to system total
+            sysTotal.stock += d.stock; sysTotal.qty += d.qtySold;
+            sysTotal.nsmi += d.netNonSMI; sysTotal.smi += d.netSMI;
+        ?>
+            <td>
+                <?= d.stock ?>
+            </td>
+            <td>
+                <?= d.qtySold ?>
+            </td>
+            <td>
+                <?= d.netNonSMI > 0 ? Utilities.formatString("%,.0f", d.netNonSMI) : "0" ?>
+            </td>
+            <td>
+                <?= d.netSMI > 0 ? Utilities.formatString("%,.0f", d.netSMI) : "#N/A" ?>
+            </td>
+            <? }); ?>
+
+            <!-- ROW TOTAL -->
+            <td class="bg-total bold">
+                <?= rowTotalS ?>
+            </td>
+            <td class="bg-total bold">
+                <?= rowTotalQ ?>
+            </td>
+            <td class="bg-total bold">
+                <?= rowTotalNS > 0 ? Utilities.formatString("%,.0f", rowTotalNS) : "0" ?>
+            </td>
+            <td class="bg-total bold">
+                <?= rowTotalSMI > 0 ? Utilities.formatString("%,.0f", rowTotalSMI) : "#N/A" ?>
+            </td>
+        </tr>
+        <? }); ?>
+
+        <!-- Grand Total Row -->
+        <tr class="bg-main bold">
+            <td class="text-left">Total</td>
+            <? stores.forEach(st => { 
+         let sStock=0, sQty=0, sNsmi=0, sSmi=0;
+         categories.forEach(c => {
+           sStock += matrix[st].cats[c].stock;
+           sQty += matrix[st].cats[c].qtySold;
+           sNsmi += matrix[st].cats[c].netNonSMI;
+           sSmi += matrix[st].cats[c].netSMI;
+         });
+      ?>
+            <td>
+                <?= sStock ?>
+            </td>
+            <td>
+                <?= sQty ?>
+            </td>
+            <td>
+                <?= sNsmi > 0 ? Utilities.formatString("%,.0f", sNsmi) : "0" ?>
+            </td>
+            <td>
+                <?= sSmi > 0 ? Utilities.formatString("%,.0f", sSmi) : "#N/A" ?>
+            </td>
+            <? }); ?>
+
+            <td class="bg-total">
+                <?= sysTotal.stock ?>
+            </td>
+            <td class="bg-total">
+                <?= sysTotal.qty ?>
+            </td>
+            <td class="bg-total">
+                <?= sysTotal.nsmi > 0 ? Utilities.formatString("%,.0f", sysTotal.nsmi) : "0" ?>
+            </td>
+            <td class="bg-total">
+                <?= sysTotal.smi > 0 ? Utilities.formatString("%,.0f", sysTotal.smi) : "#N/A" ?>
+            </td>
+        </tr>
+
+    </table>
+
+    <!-- TABLE 2: MTD Metrics Grid -->
+    <table class="table-metrics">
+        <tr>
+            <td class="col-gap"></td>
+
+            <? 
+      let sysMtdSales = 0, sysTarget = 0, sysTodayCost = 0, sysTodayGross = 0;
+      let sysRegToday = 0, sysSmiToday = 0, sysCost = 0, sysGross = 0;
+      stores.forEach(st => { 
+         const m = matrix[st];
+         sysMtdSales += m.totalSales; sysTarget += m.target;
+         sysTodayCost += m.todayCost; sysTodayGross += m.todayGross;
+         sysRegToday += m.todaySalesNonSMI; sysSmiToday += m.todaySalesSMI;
+         sysCost += m.totalCost; sysGross += m.totalGross;
+         
+         const achv = m.target > 0 ? (m.totalSales / m.target)*100 : 0;
+         const scToday = m.todayGross > 0 ? (m.todayCost / m.todayGross)*100 : 0;
+         const scMtd = m.totalGross > 0 ? (m.totalCost / m.totalGross)*100 : 0;
+         const avgDiscMtd = m.totalGross > 0 ? (m.totalDisc / m.totalGross)*100 : 0;
+      ?>
+            <td class="col-metrics">
+                <table class="table-inner">
+                    <tr>
+                        <td class="text-left col-half">Cumulative Sales</td>
+                        <td>
+                            <?= Utilities.formatString("%,.0f", m.totalSales) ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-left">Sales % Target</td>
+                        <td>
+                            <?= achv.toFixed(2) ?>%
+                        </td>
+                        <td colspan="2" class="text-center">
+                            <?= Utilities.formatString("%,.0f", m.target) ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-left">Selling Cost Today</td>
+                        <td>
+                            <?= scToday.toFixed(2) ?>%
+                        </td>
+                        <td colspan="2" class="text-center">#N/A</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left">Reg Sales Today</td>
+                        <td>
+                            <?= Utilities.formatString("%,.0f", m.todaySalesNonSMI) ?>
+                        </td>
+                        <td colspan="2" class="text-center">#N/A</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left">SMI Sales Today</td>
+                        <td>
+                            <?= Utilities.formatString("%,.0f", m.todaySalesSMI) ?>
+                        </td>
+                        <td colspan="2" class="text-center">#N/A</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left" colspan="2">Selling Cost MTD</td>
+                        <td colspan="2" class="text-center">
+                            <?= scMtd.toFixed(2) ?>%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-left" colspan="2">Average Discount</td>
+                        <td colspan="2" class="text-center">
+                            <?= avgDiscMtd.toFixed(2) ?>%
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <? }); ?>
+
+            <td class="col-metrics">
+                <?
+           const sysAchv = sysTarget > 0 ? (sysMtdSales / sysTarget)*100 : 0;
+           const sysScMtd = sysGross > 0 ? (sysCost / sysGross)*100 : 0;
+         ?>
+                <table class="table-inner">
+                    <tr>
+                        <td class="text-left bold col-half">Total Sales MTD</td>
+                        <td class="bold bg-total">
+                            <?= Utilities.formatString("%,.0f", sysMtdSales) ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-left bold border-none"></td>
+                        <td class="bold bg-total">
+                            <?= sysAchv.toFixed(2) ?>%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border-none" colspan="2">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td class="border-none" colspan="2">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td class="border-none" colspan="2">&nbsp;</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>

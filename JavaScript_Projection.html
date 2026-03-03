@@ -1,0 +1,283 @@
+<script>
+    // ==========================================
+    // EXTENSION: CATEGORY MULTI-METRIC TREND
+    // ==========================================
+
+    // Ensure CHARTS namespace has the new property if not initialized
+    if (!STATE.charts.sapTrend) STATE.charts.sapTrend = null;
+
+    // Default metric state
+    STATE.sapMetric = 'value'; // 'value' or 'qty'
+    STATE.sapTrendData = null; // Cache the fetched data for fast toggling
+    STATE.sapTrendCategory = 'Jewelry'; // Default category
+    STATE.sapTrendYearsVisible = {
+        2026: true, 2025: true, 2024: true, 2023: true
+    };
+
+    // Extend APP with the sub-view toggle
+    APP.switchSapSubView = (view) => {
+        STATE.sapSubView = view;
+        const btnTop = document.getElementById('btnSapTopPerformers');
+        const btnProj = document.getElementById('btnSapProjection');
+        const viewTop = document.getElementById('sapTopPerformersView');
+        const viewProj = document.getElementById('sapProjectionView');
+
+        if (view === 'topPerformers') {
+            btnTop.classList.add('bg-white', 'text-brand-dark', 'shadow-sm', 'ring-1', 'ring-slate-900/5');
+            btnTop.classList.remove('text-slate-500', 'hover:text-brand-dark');
+            btnProj.classList.remove('bg-white', 'text-brand-dark', 'shadow-sm', 'ring-1', 'ring-slate-900/5');
+            btnProj.classList.add('text-slate-500', 'hover:text-brand-dark');
+            viewTop.classList.remove('hidden');
+            viewProj.classList.add('hidden');
+        } else {
+            btnProj.classList.add('bg-white', 'text-brand-dark', 'shadow-sm', 'ring-1', 'ring-slate-900/5');
+            btnProj.classList.remove('text-slate-500', 'hover:text-brand-dark');
+            btnTop.classList.remove('bg-white', 'text-brand-dark', 'shadow-sm', 'ring-1', 'ring-slate-900/5');
+            btnTop.classList.add('text-slate-500', 'hover:text-brand-dark');
+            viewProj.classList.remove('hidden');
+            viewTop.classList.add('hidden');
+
+            APP.loadSapTrend();
+        }
+    };
+
+    // Metric Toggle 
+    APP.switchSapMetric = (metric) => {
+        STATE.sapMetric = metric;
+
+        const btnVal = document.getElementById('btnSapMetricValue');
+        const btnQty = document.getElementById('btnSapMetricQty');
+
+        if (metric === 'value') {
+            btnVal.className = 'px-3 py-1 rounded-md text-[10px] font-bold transition-all bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5';
+            btnQty.className = 'px-3 py-1 rounded-md text-[10px] font-bold text-slate-500 hover:text-brand-dark transition-all';
+        } else {
+            btnQty.className = 'px-3 py-1 rounded-md text-[10px] font-bold transition-all bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5';
+            btnVal.className = 'px-3 py-1 rounded-md text-[10px] font-bold text-slate-500 hover:text-brand-dark transition-all';
+        }
+
+        // Re-render if we already have the data
+        if (STATE.sapTrendData) {
+            CHARTS.renderSapTrend(STATE.sapTrendData);
+        }
+    };
+
+    // Category Selection Toggle
+    APP.setSapTrendCategory = (category) => {
+        STATE.sapTrendCategory = category;
+
+        // Update UI Pills
+        const pills = document.querySelectorAll('.sap-cat-btn');
+        pills.forEach(btn => {
+            if (btn.dataset.cat === category) {
+                btn.className = 'sap-cat-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border border-brand-blue text-brand-blue bg-blue-50';
+            } else {
+                btn.className = 'sap-cat-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue bg-white';
+            }
+        });
+
+        // Fetch new data
+        APP.loadSapTrend();
+    };
+
+    // Year Legend Toggle
+    APP.toggleTrendYear = (year) => {
+        STATE.sapTrendYearsVisible[year] = !STATE.sapTrendYearsVisible[year];
+
+        // Update opacity on the legend button
+        const btn = document.getElementById(`legend-${year}`);
+        if (btn) {
+            btn.style.opacity = STATE.sapTrendYearsVisible[year] ? '1' : '0.4';
+        }
+
+        // Re-render chart if we have data
+        if (STATE.sapTrendData) {
+            CHARTS.renderSapTrend(STATE.sapTrendData);
+        }
+    };
+
+    // Data fetching for the trend view
+    APP.loadSapTrend = (isRefresh = false) => {
+        const month = document.getElementById('monthSelect').value;
+        const year = document.getElementById('yearSelect').value;
+        const category = STATE.sapTrendCategory;
+
+        UI.showLoader(true);
+        google.script.run
+            .withSuccessHandler((data) => {
+                UI.showLoader(false);
+                if (data.error) {
+                    UI.showToast(data.error);
+                    return;
+                }
+                STATE.sapTrendData = data; // Cache it
+                CHARTS.renderSapTrend(data);
+            })
+            .withFailureHandler((error) => {
+                UI.showLoader(false);
+                UI.showToast("Failed to load trend data: " + error.message, true);
+            })
+            .getCategoryTrendData(month, year, category, isRefresh);
+    };
+
+    // Extend CHARTS with the new trend chart renderer
+    CHARTS.renderSapTrend = (data) => {
+        const { multiYearStats, metrics, monthsMeasured } = data;
+        const activeMetric = STATE.sapMetric; // 'value' or 'qty'
+        const metricData = metrics[activeMetric];
+
+        // Update UI Cards
+        const isValue = activeMetric === 'value';
+
+        // Update Labels
+        document.querySelectorAll('.trendMetricLabel').forEach(el => el.textContent = isValue ? '(Value)' : '(Qty)');
+
+        // Formatter 
+        const formatMetricTooltip = (val) => isValue ? HELPERS.formatIDR(val) : new Intl.NumberFormat('id-ID').format(val);
+        const formatMetricCards = (val) => {
+            if (!isValue) return new Intl.NumberFormat('id-ID').format(val);
+            return HELPERS.formatIDR(val);
+        };
+
+        UI.setText('trendYtdActual', formatMetricCards(metricData.ytd));
+        UI.setText('trendPrevActual', formatMetricCards(metricData.prevYtd));
+        UI.setText('trendGrowthPct', HELPERS.formatPct(metricData.growth));
+        UI.setText('trendYtdMonths', monthsMeasured);
+
+        // UI Color for Growth
+        const growthEl = document.getElementById('trendGrowthPct');
+        if (metricData.growth > 0) {
+            growthEl.className = 'text-xl lg:text-3xl font-display font-bold tracking-tight text-emerald-600';
+        } else if (metricData.growth < 0) {
+            growthEl.className = 'text-xl lg:text-3xl font-display font-bold tracking-tight text-red-500';
+        } else {
+            growthEl.className = 'text-xl lg:text-3xl font-display font-bold tracking-tight text-slate-600';
+        }
+
+        const ctxEl = document.getElementById('sapProjectionChart');
+        if (!ctxEl) return;
+        const ctx = ctxEl.getContext('2d');
+
+        if (STATE.charts.sapTrend) STATE.charts.sapTrend.destroy();
+
+        const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        // Define Datasets for 2023-2026
+        const years = [2026, 2025, 2024, 2023];
+        const colors = {
+            2026: { border: '#2563EB', bg: '37, 99, 235' },   // Blue 600
+            2025: { border: '#DB2777', bg: '219, 39, 119' },  // Pink 600
+            2024: { border: '#D97706', bg: '217, 119, 6' },   // Amber 600
+            2023: { border: '#059669', bg: '5, 150, 105' }    // Emerald 600
+        };
+
+        const createGradient = (ctx, colorRgb) => {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, `rgba(${colorRgb}, 0.25)`);
+            gradient.addColorStop(1, `rgba(${colorRgb}, 0.0)`);
+            return gradient;
+        };
+
+        const activeYear = Number(document.getElementById('yearSelect').value) || 2026;
+        let datasets = [];
+
+        // Build Historical/Comparison Lines
+        years.forEach(year => {
+            const yearObj = multiYearStats[year];
+            if (!yearObj) return;
+
+            // Get the correct array based on active metric (net vs qty)
+            const yearData = activeMetric === 'value' ? yearObj.net : yearObj.qty;
+
+            // We want discrete data, but we stop projecting after the current month for the active year
+            let plotData = new Array(12).fill(null);
+            let hasData = false;
+
+            if (year === activeYear) {
+                // For active year, only plot up to current month (or all if year is past)
+                const currentMonth = new Date().getFullYear() === activeYear ? new Date().getMonth() : 11;
+                for (let i = 0; i <= currentMonth; i++) {
+                    // Always show 0 if it's a past month within the active year to show dropoffs
+                    plotData[i] = yearData[i] || 0;
+                    if (yearData[i] > 0) hasData = true;
+                }
+            } else {
+                // For past years, plot all 12 months
+                for (let i = 0; i < 12; i++) {
+                    plotData[i] = yearData[i] || 0;
+                    if (yearData[i] > 0) hasData = true;
+                }
+            }
+
+            if (hasData) {
+                const isSelected = year === activeYear;
+                const isVisible = STATE.sapTrendYearsVisible[year];
+
+                datasets.push({
+                    label: String(year),
+                    data: plotData,
+                    borderColor: colors[year].border,
+                    backgroundColor: isSelected ? createGradient(ctx, colors[year].bg) : 'transparent',
+                    borderWidth: isSelected ? 3 : 2,
+                    pointRadius: isSelected ? 4 : 2,
+                    pointBackgroundColor: isSelected ? '#FFFFFF' : colors[year].border,
+                    pointBorderColor: colors[year].border,
+                    pointBorderWidth: isSelected ? 2 : 1,
+                    pointHoverRadius: 6,
+                    fill: isSelected,
+                    tension: 0.4,
+                    hidden: !isVisible, // Hide based on state
+                    // Active year top z-index
+                    order: isSelected ? 1 : 2
+                });
+            }
+        });
+
+        STATE.charts.sapTrend = new Chart(ctxEl, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false }, // Using custom HTML legend
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#0F172A',
+                        bodyColor: '#334155',
+                        borderColor: '#E2E8F0',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                            label: function (context) {
+                                return context.dataset.label + ': ' + formatMetricTooltip(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Inter', size: 10 }, color: '#64748B' }
+                    },
+                    y: {
+                        grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                        ticks: {
+                            font: { family: 'Inter', size: 9 }, color: '#94A3B8',
+                            callback: (val) => {
+                                return activeMetric === 'qty' ? new Intl.NumberFormat('id-ID').format(val) : HELPERS.formatIDR(val);
+                            }
+                        },
+                        border: { display: false },
+                        beginAtZero: true
+                    }
+                },
+                layout: { padding: { top: 45, left: 0, right: 0, bottom: 0 } }
+            }
+        });
+    };
+</script>

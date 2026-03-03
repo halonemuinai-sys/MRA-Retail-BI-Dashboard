@@ -1,0 +1,29 @@
+# Bvlgari Dashboard Enhancements Walkthrough
+(Updated 25 Feb 2026)
+
+This document summarizes the recent enhancements made to the Bvlgari Sales Intelligence Dashboard.
+
+## 1. Product Rank Analysis (SAP & Category) UI Enhancement
+
+The Product Rank view has been overhauled to provide a more intuitive, premium visual experience, moving beyond standard data tables.
+
+### What Changed
+*   **KPI Summary Header:** Added 4 summary cards at the top of the "Top Performers" view. These cards instantly highlight the Top Product by Sales, Top Product by Quantity, Top Category, and Top Collection, complete with tooltips explaining each metric.
+*   **Podium Visuals:** The top 3 performers in each table now feature distinct, colored badges (Gold/Amber, Silver/Slate, Bronze/Orange) to emphasize rankings.
+*   **Mini Progress Bars:** Introduced visual bar charts directly within the table cells for Qty and Net Sales. This allows for immediate visual comparison of each item's contribution relative to the top performer in that list.
+*   **Enhanced Layout:** Upgraded typographic hierarchy and added subtle hover effects to table rows and KPI cards.
+
+### Validation Details
+*   Navigated to the "Product Rank" tab on the dashboard.
+*   Verified that the 4 KPI cards populate correctly based on the selected month's data.
+*   Confirmed that tooltips appear correctly on hover.
+*   Verified that the top 3 rows in each table correctly display the 1st, 2nd, and 3rd place badges.
+*   Confirmed that the mini progress bars accurately reflect the proportion of sales/qty relative to the maximum value in the list.
+
+## 2. Customer Data Intelligence
+
+In a previous update, the Customer Segmentation feature was enriched with deep-dive analytics.
+
+*   **Executive KPI Cards:** Added summaries for Total Active Customers, Avg. Lifetime Value, Top Spender, and New Customer Ratio.
+*   **Growth Trend Chart:** Implemented a visualization comparing New vs. Repeat customer acquisition over time.
+*   **Interactive Detailed Modal:** Created a pop-up modal to view an individual customer's transaction history, top collections, and lifetime value dynamically upon clicking "View Details" in the data table.

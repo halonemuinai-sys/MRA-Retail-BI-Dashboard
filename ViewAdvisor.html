@@ -1,0 +1,59 @@
+<!-- 4. ADVISOR View -->
+<div id="viewAdvisor" class="hidden">
+
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h2 class="font-display text-xl font-bold text-brand-dark">Advisor Performance Analysis</h2>
+            <p class="text-xs text-slate-500">Detailed performance metrics per advisor & store</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="EXPORT.excel('advisorTablesContainer', 'Advisor_Performance_Analysis')"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors text-xs font-bold bg-white shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                Export Excel
+            </button>
+            <button onclick="EXPORT.pdf('advisorTablesContainer', 'Advisor_Performance_Report')"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 transition-colors text-xs font-bold bg-white shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                    </path>
+                </svg>
+                Export PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Container for dynamically injected tables -->
+    <div id="advisorTablesContainer"></div>
+
+    <div class="mt-8 mb-4 border-t border-slate-100 pt-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <h3 class="font-display text-lg font-bold text-brand-dark">Annual Performance (YTD)</h3>
+                <span
+                    class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-bold border border-amber-100 uppercase tracking-wider">Aggregated</span>
+            </div>
+            <button onclick="APP.downloadAnnualAdvisorExcel()"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors text-xs font-bold bg-white shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                Export YTD Excel
+            </button>
+        </div>
+        <div id="annualAdvisorTableContainer"
+            class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[100px]">
+            <div class="flex items-center justify-center h-full text-slate-400 text-xs py-8">
+                Loading Annual Data...
+            </div>
+        </div>
+    </div>
+
+</div>

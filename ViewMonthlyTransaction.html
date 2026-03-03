@@ -1,0 +1,121 @@
+<!-- 2. MONTHLY TRANSACTION VIEW COMPONENT -->
+<div id="viewMonthlyTransaction" class="hidden">
+
+    <div class="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
+        <div>
+            <h2 class="font-display text-2xl font-bold text-brand-dark tracking-tight">Monthly Transaction Dashboard
+            </h2>
+            <p class="text-xs text-slate-500 mt-1 font-medium" id="monthlyTransactionDate">Loading Period...</p>
+        </div>
+        <!-- SUB-VIEW TOGGLE -->
+        <div class="flex items-center gap-2">
+            <button onclick="APP.switchMonthlySubView('table')" id="monthlySubTable"
+                class="px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm">
+                Tabular View
+            </button>
+            <button onclick="APP.switchMonthlySubView('heatmap')" id="monthlySubHeatmap"
+                class="px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent">
+                Heatmap Calendar
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN TABULAR VIEW -->
+    <div id="monthlyTableView">
+
+        <!-- KPI Cards (Monthly) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Monthly Sales</p>
+                <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight"
+                    id="monthlyKpiSales">-
+                </h3>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Monthly Target</p>
+                <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight"
+                    id="monthlyKpiTarget">-
+                </h3>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Qty Sold</p>
+                <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight" id="monthlyKpiQty">
+                    -
+                </h3>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Monthly Store Performance Table -->
+            <div
+                class="bg-white rounded-xl border border-slate-200 shadow-sm lg:col-span-2 overflow-hidden flex flex-col h-full">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                    <h3 class="font-display text-base font-bold text-brand-dark">Monthly Store Performance</h3>
+                </div>
+                <div class="overflow-x-auto flex-grow">
+                    <table class="w-full text-sm text-left">
+                        <thead
+                            class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
+                            <tr>
+                                <th class="py-3 px-5 font-bold">Store</th>
+                                <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                                <th class="py-3 px-5 text-center font-bold">Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTransactionTableBody" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Monthly Category Chart -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
+                <h3 class="font-display text-base font-bold text-brand-dark mb-1">Monthly Category Mix</h3>
+                <div class="relative flex-grow flex items-center justify-center min-h-[220px]"><canvas
+                        id="monthlyTransactionChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- DAILY BREAKDOWN TABLE -->
+        <div id="dailyBreakdownContainer"
+            class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                <h3 class="font-display text-lg font-bold text-brand-dark">Daily Breakdown (All Stores)</h3>
+                <div class="flex gap-2">
+                    <button onclick="EXPORT.excel('dailyBreakdownContainer', 'Daily_Breakdown_Report')"
+                        class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors text-xs font-bold bg-white shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                        Export Excel
+                    </button>
+                    <button onclick="EXPORT.pdf('dailyBreakdownContainer', 'Daily_Breakdown_Report')"
+                        class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 transition-colors text-xs font-bold bg-white shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        Export PDF
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left relative" id="dailyBreakdownTable">
+                    <thead id="dailyBreakdownTableHead"
+                        class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 bg-white z-10 shadow-sm">
+                        <!-- Headers injected via JS -->
+                    </thead>
+                    <tbody id="dailyBreakdownTableBody" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+        </div>
+    </div> <!-- END MAIN TABULAR VIEW -->
+
+    <!-- HEATMAP CALENDAR VIEW -->
+    <div id="monthlyHeatmapView" class="hidden">
+        <?!= include('ViewCalendar'); ?>
+    </div>
+
+</div> <!-- END viewMonthlyTransaction -->

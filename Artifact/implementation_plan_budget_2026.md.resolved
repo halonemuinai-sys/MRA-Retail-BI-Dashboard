@@ -1,0 +1,53 @@
+# Implementation Plan: Quarterly "Budget vs Actual 2026" Comparison
+
+## Goal Description
+The user has provided a new Google Sheet named `master_budget_store_2026` containing store-level budget targets for the year 2026. This sheet shares the exact same column structure as the existing `master_target_store`. The goal is to build a new sub-menu inside the **Quarterly Performance** view to compare actual sales against these new 2026 budget numbers.
+
+We need to fetch this budget data, calculate the variances and achievement percentages against the actual `clean_master` net sales, and display the comparison using a responsive table and progress visualizations in the UI.
+
+## Proposed Changes
+
+### 1. Configuration Updates
+*   **[MODIFY] [1-Config.gs](file:///d:/Bvlgari%20Dashboard/1-Config.gs)**:
+    *   Add the new sheet reference to the `CONFIG.SHEETS` object: `MASTER_BUDGET: 'master_budget_store_2026'`.
+
+### 2. Backend Logic (Apps Script)
+We need to replicate the existing target mapping logic for the new budget sheet.
+*   **[MODIFY] [6-Helpers.gs](file:///d:/Bvlgari%20Dashboard/6-Helpers.gs)**:
+    *   Create a new helper function `getBudgetMap(ss, monthName, year)` that mirrors [getTargetMap()](file:///d:/Bvlgari%20Dashboard/6-Helpers.gs#86-107), but targets `CONFIG.SHEETS.MASTER_BUDGET`.
+*   **[MODIFY] [8-API_Quarterly.gs](file:///d:/Bvlgari%20Dashboard/8-API_Quarterly.gs)**:
+    *   Since this is a heavy calculation, we will create a dedicated API endpoint `getQuarterlyBudgetData(quarterStr, yearStr)` rather than bogging down the main [getQuarterlyData](file:///d:/Bvlgari%20Dashboard/8-API_Quarterly.gs#6-196).
+    *   The function will:
+        1. Leverage `CacheService` similarly to existing endpoints.
+        2. Identify the months within the `quarterStr`.
+        3. Loop through `getBudgetMap` for each month in the quarter to sum the QTD Budget per store.
+        4. Loop through `clean_master` to sum the actual QTD Net Sales per store (ignoring Head Office).
+        5. Map and calculate `Variance (Actual - Budget)` and `Achievement % (Actual / Budget)`.
+        6. Return a sorted array of objects containing `{ store, actual, budget, variance, achievement, isAchieved }` along with `Total` summaries.
+
+### 3. Frontend UI Updates (Quarterly Dashboard)
+*   **[MODIFY] [ViewQuarterly.html](file:///d:/Bvlgari%20Dashboard/ViewQuarterly.html)**:
+    *   Add a new sub-view toggle button at the top header next to the "Quarterly Performance" title. The toggle should allow switching between "Standard View" and "Budget 2026 Compare".
+    *   Create a new hidden container `<div id="quarterlyBudgetView" class="hidden">`.
+    *   Inside this container, build the layout for:
+        *   Higher-level Summary KPI Cards (Total Actual, Total Budget, Total Variance, Total % Achieved).
+        *   A Store-level "Budget vs Actual" table with conditional styling (Red for under budget, Emerald for over budget).
+        *   Linear Progress Bars within the table to visually indicate achievement %.
+*   **[MODIFY] [JavaScript.html](file:///d:/Bvlgari%20Dashboard/JavaScript.html)**:
+    *   Update `STATE` to include a `quarterlySubView: 'standard'` variable.
+    *   Add a function `APP.switchQuarterlySubView(viewType)` to handle hiding/showing the respective containers (`quarterlyStandardView` vs `quarterlyBudgetView`) and updating the active button classes.
+    *   Add a data fetching function `APP.loadQuarterlyBudget(isRefresh = false)` that hits `google.script.run.getQuarterlyBudgetData`.
+    *   Add a new renderer function `RENDER.quarterlyBudget(data)` to parse the returned JSON and inject it into the DOM elements defined in [ViewQuarterly.html](file:///d:/Bvlgari%20Dashboard/ViewQuarterly.html).
+    *   Hook `APP.loadQuarterlyBudget()` into the main `APP.loadDashboard()` cycle so it refreshes when the Quarter/Year filters change.
+
+## Verification Plan
+1.  Open the Quarterly Performance tab.
+2.  Click the new "Budget 2026 Compare" toggle button.
+3.  Ensure the view switches to the new UI cleanly, hiding the standard Quarterly charts.
+4.  Verify that the Top-Level KPI cards correctly sum the QTD Actual and QTD Budget for the selected quarter.
+5.  Check the store table:
+    *   Ensure Actual values match the standard Quarterly view.
+    *   Verify the Budget values are being pulled from the `master_budget_store_2026` sheet.
+    *   Verify that Variance is mathematically correct (`Actual - Budget`).
+    *   Ensure conditional coloring is applied correctly (e.g., negative variance is Red, positive is Green).
+6.  Change the Quarter filter (e.g., from Q1 to Q2) and verify the data refreshes via [loadDashboard](file:///d:/Bvlgari%20Dashboard/JavaScript.html#200-240).

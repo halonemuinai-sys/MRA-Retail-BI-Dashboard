@@ -1,0 +1,108 @@
+<script>
+    /**
+     * EXPORT HANDLER (BACKEND GENERATION)
+     * Replaces client-side scraping with robust server-side generation.
+     */
+    const EXPORT = {
+
+        excel: (elementId, fileName) => {
+            const mEl = document.getElementById('monthSelect');
+            const yEl = document.getElementById('yearSelect');
+            const m = mEl ? mEl.value : "February";
+            const y = yEl ? yEl.value : "2026";
+
+            console.log(`[ExportHandler] Initiating Excel download: ${fileName} (${m} ${y})`);
+
+            if (fileName.includes("Advisor") || fileName.includes("Performance_Analysis")) {
+                UI.showToast("Generating Advisor Report (Excel)...", "info");
+                google.script.run
+                    .withSuccessHandler((res) => {
+                        console.log("[ExportHandler] Success:", res);
+                        EXPORT.saveFile(res);
+                    })
+                    .withFailureHandler((err) => {
+                        console.error("[ExportHandler] Failed:", err);
+                        UI.showToast("Export Failed: " + err.message, "error");
+                    })
+                    .downloadAdvisorReportExcel(String(m), Number(y));
+            } else {
+                // Default to Monthly Transaction Report logic
+                UI.showToast("Generating Monthly Transaction Report (Excel)...", "info");
+                google.script.run
+                    .withSuccessHandler(EXPORT.saveFile)
+                    .withFailureHandler(EXPORT.handleError)
+                    .downloadMonthlyTransReportExcel(String(m), Number(y));
+            }
+        },
+
+        pdf: (elementId, fileName) => {
+            if (fileName.includes("Advisor") || fileName.includes("Performance_Analysis")) {
+                const mEl = document.getElementById('monthSelect');
+                const yEl = document.getElementById('yearSelect');
+                const m = mEl ? mEl.value : "February";
+                const y = yEl ? yEl.value : "2026";
+                UI.showToast("Generating Advisor Report (PDF)...", "info");
+                google.script.run
+                    .withSuccessHandler(EXPORT.saveFile)
+                    .withFailureHandler(EXPORT.handleError)
+                    .downloadAdvisorReportPDF(String(m), Number(y));
+            } else if (fileName.includes("Quarterly")) {
+                const qEl = document.getElementById('quarterSelect');
+                const yEl = document.getElementById('quarterYearSelect');
+                const q = qEl ? qEl.value : "Q1";
+                const y = yEl ? yEl.value : "2026";
+                UI.showToast("Generating Quarterly Report (PDF)...", "info");
+                google.script.run
+                    .withSuccessHandler(EXPORT.saveFile)
+                    .withFailureHandler(EXPORT.handleError)
+                    .downloadQuarterlyReportPDF(String(q), Number(y));
+            } else {
+                const mEl = document.getElementById('monthSelect');
+                const yEl = document.getElementById('yearSelect');
+                const m = mEl ? mEl.value : "February";
+                const y = yEl ? yEl.value : "2026";
+                UI.showToast("Generating Monthly Transaction Report (PDF)...", "info");
+                google.script.run
+                    .withSuccessHandler(EXPORT.saveFile)
+                    .withFailureHandler(EXPORT.handleError)
+                    .downloadMonthlyTransReportPDF(String(m), Number(y));
+            }
+        },
+
+        saveFile: (res) => {
+            if (res.error) {
+                UI.showToast("Error: " + res.error, "error");
+                return;
+            }
+            if (!res.base64) {
+                UI.showToast("Error: No data received.", "error");
+                return;
+            }
+
+            const byteCharacters = atob(res.base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+
+            let mime = "application/pdf";
+            if (res.filename.endsWith(".csv")) mime = "text/csv;charset=utf-8;";
+
+            const blob = new Blob([byteArray], { type: mime });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = res.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            UI.showToast("Download started!", "success");
+        },
+
+        handleError: (err) => {
+            console.error(err);
+            UI.showToast("System Error during download.", "error");
+        }
+    };
+</script>

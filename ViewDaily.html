@@ -1,0 +1,60 @@
+<!-- 4. DAILY DETAIL REPORT VIEW COMPONENT -->
+<div id="viewDaily" class="hidden">
+
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h2 class="font-display text-2xl font-bold text-brand-dark tracking-tight">Daily Sales Report</h2>
+            <p class="text-xs text-slate-500 mt-1 font-medium" id="dailyReportDate">Loading Date...</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="REPORT_DAILY.sendEmail()" id="dailyEmailBtn"
+                class="bg-white text-indigo-600 px-3 py-1.5 rounded-md border border-indigo-200 hover:bg-indigo-50 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                    </path>
+                </svg> Email Report
+            </button>
+            <button onclick="APP.printDaily()" id="dailyPrintBtn"
+                class="bg-white text-slate-500 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                    </path>
+                </svg> Print
+            </button>
+            <button onclick="REPORT_DAILY.download()"
+                class="bg-white text-emerald-600 px-3 py-1.5 rounded-md border border-emerald-200 hover:bg-emerald-50 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                Excel Summary
+            </button>
+            <button onclick="REPORT_DAILY.downloadPDF()"
+                class="bg-white text-rose-600 px-3 py-1.5 rounded-md border border-rose-200 hover:bg-rose-50 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                    </path>
+                </svg>
+                PDF Summary
+            </button>
+            <button onclick="REPORT_DAILY.downloadBOD()"
+                class="bg-white text-orange-600 px-3 py-1.5 rounded-md border border-orange-200 hover:bg-orange-50 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                BOD Report
+            </button>
+            <div
+                class="bg-brand-blueLight text-brand-blue px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm border border-blue-100 flex items-center">
+                All Stores View</div>
+        </div>
+    </div>
+    <div id="dailyTopStores" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"></div>
+    <div id="dailyContainer"></div>
+</div>

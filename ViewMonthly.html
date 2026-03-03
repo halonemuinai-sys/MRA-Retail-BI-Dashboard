@@ -1,0 +1,253 @@
+<!-- 1. MONTHLY VIEW COMPONENT -->
+<div id="viewMonthly">
+
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h2 class="font-display text-xl font-bold text-brand-dark">Monthly Performance</h2>
+            <p class="text-xs text-slate-500">Key Performance Indicators & Store Breakdown</p>
+        </div>
+
+
+    </div>
+
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <!-- Annual Sales (Exc HO) -->
+        <div
+            class="bg-gradient-to-br from-blue-600 to-blue-700 p-5 rounded-xl border border-blue-500 shadow-lg text-white relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <svg class="w-24 h-24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                    </path>
+                </svg>
+            </div>
+            <p class="text-xs font-bold text-blue-100 uppercase tracking-widest mb-1">Annual Sales (YTD) - Exc. HO</p>
+            <h3 class="text-2xl lg:text-3xl font-display font-bold tracking-tight mb-2" id="kpiAnnualSales">-</h3>
+            <div class="flex items-center text-xs text-blue-200 bg-white/10 w-fit px-2 py-1 rounded">
+                <span id="kpiAnnualAchv" class="font-bold text-white mr-1">-</span> of Annual Target
+            </div>
+        </div>
+
+        <!-- Annual Target (Cumulative) -->
+        <div
+            class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div class="flex justify-between items-start mb-2">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Annual Target (Cumulative)</p>
+                <span
+                    class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">Jan
+                    - Dec</span>
+            </div>
+            <h3 class="text-2xl lg:text-3xl font-display font-bold text-brand-dark tracking-tight" id="kpiAnnualTarget">
+                -</h3>
+            <p class="text-xs text-slate-400 mt-2">Aggregated target for all stores (Excl. HO) for the selected year.
+            </p>
+        </div>
+    </div>
+
+    <!-- KPI Cards (Monthly) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex justify-between items-start mb-1">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Sales (All)</p><span
+                    class="text-[10px] bg-slate-100 text-slate-500 px-1.5 rounded">Inc. HO</span>
+            </div>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight truncate"
+                id="kpiSalesAll">-
+            </h3>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex justify-between items-start mb-1">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Store Sales</p><span
+                    class="text-[10px] bg-blue-50 text-brand-blue px-1.5 rounded">Exc. HO</span>
+            </div>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight truncate"
+                id="kpiSalesStore">-</h3>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Store Achievement</p>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight" id="kpiAchv">-</h3>
+        </div>
+        <div
+            class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative">
+            <div class="flex items-center gap-1 mb-1">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cost % (Gross)</p>
+                <div class="relative group/tooltip">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div
+                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-10 text-center leading-tight">
+                        Cost % = (Total Discount + Total Card Comm) / Gross Sales
+                        <div
+                            class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight" id="kpiCost">-</h3>
+        </div>
+        <div
+            class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative">
+            <div class="flex items-center gap-1 mb-1">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg Discount %</p>
+                <div class="relative group/tooltip">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div
+                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-10 text-center leading-tight">
+                        Avg Disc % = (Total Discount Value / Total Gross Sales)
+                        <div
+                            class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight" id="kpiDisc">-</h3>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm lg:col-span-2 overflow-hidden flex flex-col h-full">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                <h3 class="font-display text-base font-bold text-brand-dark">Store Performance</h3>
+                <span
+                    class="px-2.5 py-1 bg-slate-50 text-slate-500 rounded-md text-[10px] font-bold uppercase tracking-wider border border-slate-100">Live</span>
+            </div>
+            <div class="overflow-x-auto flex-grow">
+                <table class="w-full text-sm text-left">
+                    <thead
+                        class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
+                        <tr>
+                            <th class="py-3 px-5 font-bold">Location</th>
+                            <th class="py-3 px-5 text-right font-bold">Actual Sales</th>
+                            <th class="py-3 px-5 text-right font-bold text-rose-600">Selling Cost</th>
+                            <th class="py-3 px-5 text-right font-bold">Target</th>
+                            <th class="py-3 px-5 text-right font-bold text-slate-600">Remaining</th>
+                            <th class="py-3 px-5 text-right font-bold">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="storeTableBody" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+        </div>
+        <!-- Store Sales Contribution (Pie) -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
+            <h3 class="font-display text-base font-bold text-brand-dark mb-1">Store Sales Contribution</h3>
+            <div class="relative flex-grow flex items-center justify-center min-h-[220px]"><canvas
+                    id="catChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOMER ADVISOR PERFORMANCE (>100% ACHIEVEMENT) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Table Section (2/3 Width) -->
+        <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2 flex flex-col h-full">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                <h3 class="font-display text-base font-bold text-brand-dark">Customer Advisor Performance (>100%)</h3>
+            </div>
+            <div class="overflow-x-auto flex-grow custom-scrollbar">
+                <table class="w-full text-sm text-left align-middle">
+                    <thead
+                        class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 bg-white z-10">
+                        <tr>
+                            <th class="py-3 px-5 font-bold w-12 text-center">#</th>
+                            <th class="py-3 px-5 font-bold">Advisor Name</th>
+                            <th class="py-3 px-5 font-bold">Location</th>
+                            <th class="py-3 px-5 text-center font-bold">Trans No</th>
+                            <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                            <th class="py-3 px-5 text-right font-bold">Target</th>
+                            <th class="py-3 px-5 text-right font-bold">Achievement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyAdvisorTable" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Chart Section (1/3 Width) -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
+            <h3 class="font-display text-base font-bold text-brand-dark mb-1">Monthly Sales by Category</h3>
+            <div class="relative flex-grow flex items-center justify-center min-h-[200px]">
+                <canvas id="advisorCategoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- MULTI-YEAR TREND ANALYSIS (2023-2026) -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div>
+                <h3 class="font-display text-lg font-bold text-brand-dark flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                    Analisis Tren & Proyeksi Penjualan (Retail)
+                </h3>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="CHARTS.toggleYear(2026)" id="btnYear2026"
+                    class="px-3 py-1 rounded text-xs font-bold transition-all bg-blue-600 text-white shadow-sm ring-1 ring-blue-600">2026</button>
+                <button onclick="CHARTS.toggleYear(2025)" id="btnYear2025"
+                    class="px-3 py-1 rounded text-xs font-bold transition-all bg-pink-500 text-white shadow-sm ring-1 ring-pink-500">2025</button>
+                <button onclick="CHARTS.toggleYear(2024)" id="btnYear2024"
+                    class="px-3 py-1 rounded text-xs font-bold transition-all bg-amber-500 text-white shadow-sm ring-1 ring-amber-500 opacity-50 line-through">2024</button>
+                <button onclick="CHARTS.toggleYear(2023)" id="btnYear2023"
+                    class="px-3 py-1 rounded text-xs font-bold transition-all bg-emerald-500 text-white shadow-sm ring-1 ring-emerald-500 opacity-50 line-through">2023</button>
+            </div>
+        </div>
+
+        <div class="relative h-80 w-full"><canvas id="comparisonChart"></canvas></div>
+    </div>
+
+    <!-- ANNUAL TREND -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="font-display text-lg font-bold text-brand-dark">Annual Performance Trend</h3>
+        </div>
+        <div class="relative h-72 w-full"><canvas id="trendChart"></canvas></div>
+    </div>
+
+    <!-- DAILY SALES TREND (CURRENT MONTH) -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="font-display text-lg font-bold text-brand-dark">Daily Sales Trend (<span
+                    id="titleDailyTrend">Current Month</span>)</h3>
+        </div>
+        <div class="relative h-72 w-full"><canvas id="dailyChart"></canvas></div>
+    </div>
+
+    <!-- CATEGORY TREND CHARTS -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Sales Trend -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-display text-lg font-bold text-brand-dark">Graphic Sales By Category (<span
+                        id="titleCatSales">Current Month</span>)</h3>
+            </div>
+            <div class="relative h-72 w-full"><canvas id="categoryTrendChart"></canvas></div>
+        </div>
+
+        <!-- Qty Trend -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-display text-lg font-bold text-brand-dark">Graphic Qty Sold By Category (<span
+                        id="titleCatQty">Current Month</span>)</h3>
+            </div>
+            <div class="relative h-72 w-full"><canvas id="categoryTrendQtyChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- TABEL ADVISOR SUDAH DIHAPUS DARI SINI AGAR TIDAK KONFLIK ID -->
+
+</div>

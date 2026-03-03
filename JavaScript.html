@@ -1,0 +1,1692 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+<script>
+    /**
+     * RETAIL DASHBOARD - FRONT END CONTROLLER (CORE)
+     * File: JavaScript.html
+     * Description: Single controller containing ALL logic.
+     * Status: UPDATED (Added Direct PDF Download)
+     */
+
+    // ==========================================
+    // 1. CONSTANTS & THEME
+    // ==========================================
+    const THEME = {
+        colors: {
+            chart: ['#3B82F6', '#F59E0B', '#10B981', '#EC4899', '#8B5CF6', '#6366F1'],
+            gradientBlue: ['rgba(37, 99, 235, 0.8)', 'rgba(37, 99, 235, 0.2)'],
+            gradientGreen: ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.2)'],
+            catColors: { "Jewelry": "#F59E0B", "Watches": "#3B82F6", "Accessories": "#EC4899", "Perfume": "#10B981" },
+            segments: {
+                "Prospect": "#94A3B8", "Potential": "#2563EB", "High Potential": "#0D9488",
+                "Elite": "#9333EA", "Top": "#1E293B", "Inactive": "#E11D48"
+            }
+        },
+        chartDefaults: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, position: 'right', labels: { usePointStyle: true, font: { family: 'Inter', size: 11 } } },
+                datalabels: { color: '#fff', font: { weight: 'bold', size: 10 } }
+            },
+            layout: { padding: 20 }
+        }
+    };
+
+    // ==========================================
+    // 2. STATE MANAGEMENT
+    // ==========================================
+    const STATE = {
+        currentMode: 'monthly',
+        globalAdvisorData: [], // Stores advisor data for Modal access
+        customerData: [],      // Stores customer data for Client-side Search
+        activeSegmentFilter: null, // Stores active customer segment filter
+        sapSubView: 'topPerformers', // Tracks SAP Top vs Projection sub-view
+        quarterlySubView: 'standard', // Tracks Quarterly Standard vs Budget view
+        crossingSubView: 'crossing', // Tracks Crossing vs Footfall view
+        footfallData: null, // Stores active Footfall data for CSV Export
+        charts: {
+            cat: null, trend: null, daily: null, monthlyTrans: null,
+            categoryTrend: null, categoryTrendQty: null, advisorStore: null,
+            custSegment: null, custRevenue: null, comparison: null, advisorCategory: null
+        }
+    };
+
+    // ==========================================
+    // 3. CORE & HELPERS
+    // ==========================================
+    const HELPERS = {
+        formatIDR: (num) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(num),
+        formatPct: (num) => num ? num.toFixed(1) + "%" : "0.0%",
+        formatDate: (dateStr) => { const d = new Date(dateStr); return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }); },
+
+        getStatusColor: (achv) => {
+            if (achv >= 100) return { text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', bar: 'bg-blue-600' };
+            if (achv >= 80) return { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', bar: 'bg-emerald-500' };
+            return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', bar: 'bg-rose-500' };
+        },
+
+        getSegmentBadge: (segment) => {
+            const styles = {
+                "Prospect": "bg-slate-100 text-slate-600 border-slate-200", "Potential": "bg-blue-50 text-blue-600 border-blue-100",
+                "High Potential": "bg-teal-50 text-teal-600 border-teal-100", "Elite": "bg-purple-50 text-purple-600 border-purple-100",
+                "Top": "bg-slate-800 text-amber-400 border-slate-700 shadow-sm", "Inactive": "bg-rose-50 text-rose-600 border-rose-100"
+            };
+            const cls = styles[segment] || "bg-gray-50 text-gray-500";
+            return `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${cls}">${segment}</span>`;
+        },
+
+        getChartPlugins: () => { return (typeof ChartDataLabels !== 'undefined') ? [ChartDataLabels] : []; }
+    };
+
+    // ==========================================
+    // 4. UI FUNCTIONS
+    // ==========================================
+    const UI = {
+        showToast: (message) => {
+            const toast = document.getElementById("toast");
+            if (toast) { toast.innerText = message; toast.className = "show"; setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000); }
+        },
+        showLoader: (show) => { const loader = document.getElementById('loader'); if (loader) loader.classList.toggle('hidden', !show); },
+
+        // UPDATE: Set default dates correctly
+        initDefaults: () => {
+            const now = new Date();
+
+            // Calculate Yesterday
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+
+            // --- MONTHLY DEFAULTS (Current Month) ---
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
+            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+            if (monthSelect) {
+                // FORCE: Always select current month (World Calendar)
+                monthSelect.value = months[now.getMonth()];
+            }
+            if (yearSelect) {
+                // FORCE: Always select current year (World Calendar)
+                yearSelect.value = String(now.getFullYear());
+            }
+
+            // --- DAILY DEFAULTS (Yesterday) ---
+            const dateInput = document.getElementById('dateInput');
+            if (dateInput && dateInput.value === "") {
+                const yyyy = yesterday.getFullYear();
+                const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+                const dd = String(yesterday.getDate()).padStart(2, '0');
+                dateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+
+            // --- QUARTERLY DEFAULTS ---
+            const quarterYearSelect = document.getElementById('quarterlyYearSelect');
+            if (quarterYearSelect) {
+                quarterYearSelect.value = String(now.getFullYear());
+                quarterYearSelect.addEventListener('change', (e) => {
+                    if (STATE.quarterlySubView === 'budget') {
+                        if (e.target.value !== '2026') {
+                            document.getElementById('quarterlyBudgetErrorMsg').classList.remove('hidden');
+                            document.getElementById('quarterlyBudgetContent').classList.add('hidden');
+                        } else {
+                            document.getElementById('quarterlyBudgetErrorMsg').classList.add('hidden');
+                            document.getElementById('quarterlyBudgetContent').classList.remove('hidden');
+                            APP.loadDashboard(); // trigger reload to get data
+                        }
+                    }
+                });
+            }
+        },
+        setText: (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; },
+        setHTML: (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+    };
+
+    // ==========================================
+    // 5. APPLICATION LOGIC
+    // ==========================================
+    const APP = {
+
+        switchTab: (mode) => {
+            STATE.currentMode = mode;
+
+            // Update Tab Classes
+            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransaction', 'tabQuarterly', 'tabSap', 'tabCustomer', 'tabAdvisor', 'tabCrossing'];
+            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing'];
+
+            tabs.forEach(t => {
+                const el = document.getElementById(t);
+                if (el) el.className = "px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap";
+            });
+            const activeTabEl = document.getElementById('tab' + mode.charAt(0).toUpperCase() + mode.slice(1));
+            if (activeTabEl) activeTabEl.className = "px-5 py-2 rounded-md text-xs font-bold transition-all duration-200 tab-active border border-transparent tracking-wide whitespace-nowrap";
+
+            // Toggle View Visibility
+            views.forEach(v => { const el = document.getElementById(v); if (el) el.classList.add('hidden'); });
+            const activeViewEl = document.getElementById('view' + mode.charAt(0).toUpperCase() + mode.slice(1));
+            if (activeViewEl) activeViewEl.classList.remove('hidden');
+
+            // Handle Filter Visibility
+            const monthlyFilter = document.getElementById('filterMonthly');
+            const dailyFilter = document.getElementById('filterDaily');
+
+            if (monthlyFilter) monthlyFilter.classList.add('hidden');
+            if (dailyFilter) dailyFilter.classList.add('hidden');
+
+            if (mode === 'daily') {
+                if (dailyFilter) dailyFilter.classList.remove('hidden');
+                if (monthlyFilter) monthlyFilter.classList.remove('hidden'); // Heatmap needs monthly filter
+            } else if (mode === 'customer' || mode === 'quarterly') {
+                // Customer and Quarterly views don't need the default monthly filter
+                if (monthlyFilter) monthlyFilter.classList.add('hidden');
+            } else {
+                // Monthly, Transaction, SAP, Advisor, and Crossing views use Monthly filter
+                if (monthlyFilter) monthlyFilter.classList.remove('hidden');
+            }
+
+            APP.loadDashboard();
+        },
+
+        switchMonthlySubView: (subView) => {
+            STATE.monthlySubView = subView;
+
+            // Toggle Buttons
+            const btnTable = document.getElementById('monthlySubTable');
+            const btnHeatmap = document.getElementById('monthlySubHeatmap');
+
+            if (subView === 'table') {
+                btnTable.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
+                btnHeatmap.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
+                document.getElementById('monthlyTableView').classList.remove('hidden');
+                document.getElementById('monthlyHeatmapView').classList.add('hidden');
+            } else {
+                btnHeatmap.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
+                btnTable.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
+                document.getElementById('monthlyHeatmapView').classList.remove('hidden');
+                document.getElementById('monthlyTableView').classList.add('hidden');
+            }
+
+            APP.loadDashboard();
+        },
+
+        switchQuarterlySubView: (subView) => {
+            STATE.quarterlySubView = subView;
+
+            // Toggle Buttons
+            const btnStandard = document.getElementById('btnQuarterlyStandard');
+            const btnBudget = document.getElementById('btnQuarterlyBudget');
+
+            if (subView === 'standard') {
+                btnStandard.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5";
+                btnBudget.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200";
+                document.getElementById('quarterlyStandardView').classList.remove('hidden');
+                document.getElementById('quarterlyBudgetView').classList.add('hidden');
+            } else {
+                btnBudget.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5";
+                btnStandard.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200";
+                document.getElementById('quarterlyBudgetView').classList.remove('hidden');
+                document.getElementById('quarterlyStandardView').classList.add('hidden');
+            }
+
+            APP.loadDashboard();
+        },
+
+        switchCrossingSubView: (subView) => {
+            STATE.crossingSubView = subView;
+
+            // Toggle Buttons
+            const btnCrossing = document.getElementById('btnCrossSales');
+            const btnFootfall = document.getElementById('btnCrossFootfall');
+
+            if (subView === 'crossing') {
+                btnCrossing.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
+                btnFootfall.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
+                document.getElementById('crossingSalesSubView').classList.remove('hidden');
+                document.getElementById('crossingFootfallSubView').classList.add('hidden');
+            } else {
+                btnFootfall.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
+                btnCrossing.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
+                document.getElementById('crossingFootfallSubView').classList.remove('hidden');
+                document.getElementById('crossingSalesSubView').classList.add('hidden');
+            }
+
+            APP.loadDashboard();
+        },
+
+        syncData: () => {
+            UI.showLoader(true);
+            google.script.run.withSuccessHandler((res) => {
+                UI.showLoader(false);
+                if (res.success) { UI.showToast(res.message); APP.loadDashboard(true); }
+                else { UI.showToast(res.message); }
+            }).runDataSync();
+        },
+
+        loadDashboard: (isRefresh = false) => {
+            UI.showLoader(true);
+            const { currentMode } = STATE;
+
+            if (currentMode === 'monthly' || currentMode === 'monthlyTransaction') {
+                const m = document.getElementById('monthSelect').value;
+                const y = document.getElementById('yearSelect').value;
+
+                if (currentMode === 'monthlyTransaction' && STATE.monthlySubView === 'heatmap') {
+                    google.script.run.withSuccessHandler(RENDER.calendar).getDashboardData(m, y, isRefresh);
+                } else {
+                    const handler = currentMode === 'monthly' ? RENDER.monthly : RENDER.monthlyTransaction;
+                    google.script.run.withSuccessHandler(handler).getDashboardData(m, y, isRefresh);
+                }
+
+            } else if (currentMode === 'advisor') {
+                const m = document.getElementById('monthSelect').value;
+                const y = document.getElementById('yearSelect').value;
+                // Panggil RENDER.advisor
+                google.script.run.withSuccessHandler(RENDER.advisor).getDashboardData(m, y, isRefresh);
+
+            } else if (currentMode === 'daily') {
+                const d = document.getElementById('dateInput').value;
+                google.script.run.withSuccessHandler(RENDER.daily).getDetailedDailyData(d);
+            } else if (currentMode === 'sap') {
+                const m = document.getElementById('monthSelect').value;
+                const y = document.getElementById('yearSelect').value;
+                if (STATE.sapSubView === 'projection') {
+                    APP.loadSapTrend(isRefresh);
+                } else {
+                    google.script.run.withSuccessHandler(RENDER.sapPerformance).getSapPerformance(m, y, isRefresh);
+                }
+            } else if (currentMode === 'customer') {
+                google.script.run.withSuccessHandler(RENDER.customer).getCustomerSegmentationData();
+            } else if (currentMode === 'quarterly') {
+                const q = document.getElementById('quarterSelect').value;
+                const y = document.getElementById('quarterYearSelect').value;
+
+                if (STATE.quarterlySubView === 'standard') {
+                    document.getElementById('quarterlyBudgetErrorMsg').classList.add('hidden');
+                    document.getElementById('quarterlyBudgetContent').classList.add('hidden');
+                    google.script.run.withSuccessHandler(RENDER.quarterly).getQuarterlyData(q, y, isRefresh);
+                } else {
+                    if (y !== '2026') {
+                        document.getElementById('quarterlyBudgetErrorMsg').classList.remove('hidden');
+                        document.getElementById('quarterlyBudgetContent').classList.add('hidden');
+                        UI.showLoader(false);
+                    } else {
+                        document.getElementById('quarterlyBudgetErrorMsg').classList.add('hidden');
+                        document.getElementById('quarterlyBudgetContent').classList.remove('hidden');
+                        google.script.run.withSuccessHandler(RENDER.quarterlyBudget).getQuarterlyBudgetData(q, y, isRefresh);
+                    }
+                }
+            } else if (currentMode === 'crossing') {
+                if (STATE.crossingSubView === 'footfall') {
+                    const m = document.getElementById('monthSelect').value;
+                    const y = document.getElementById('yearSelect').value;
+                    google.script.run
+                        .withFailureHandler((err) => {
+                            console.error("GAS Error:", err);
+                            UI.showToast("Error fetching footfall: " + err.message);
+                            UI.showLoader(false);
+                        })
+                        .withSuccessHandler((res) => {
+                            console.log("Footfall Data Response:", res);
+                            STATE.footfallData = res;
+                            UI.showLoader(false);
+                            CHARTS.renderCustomerFootfall(res);
+                        })
+                        .getFootfallData(m, y);
+                } else {
+                    APP.loadCrossingSales(isRefresh);
+                }
+            }
+        },
+
+        loadCrossingSales: (isRefresh = false) => {
+            UI.showLoader(true);
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+            google.script.run.withSuccessHandler(RENDER.crossingSales).withFailureHandler((err) => {
+                UI.showToast("Error: " + err.message); UI.showLoader(false);
+            }).getCrossingSalesData(m, y, isRefresh);
+        },
+
+        exportFootfallCSV: () => {
+            if (!STATE.footfallData || !STATE.footfallData.dailyTrend || STATE.footfallData.dailyTrend.length === 0) {
+                UI.showToast("No Footfall data available to export. Please load data first.");
+                return;
+            }
+
+            const month = document.getElementById('monthSelect').value;
+            const year = document.getElementById('yearSelect').value;
+
+            let csvContent = "Date,PI In,PI Out,PS In,PS Out,Total Combined In\n";
+
+            STATE.footfallData.dailyTrend.forEach((d, idx) => {
+                const day = idx + 1;
+                const fullDate = `${day}-${month.substring(0, 3)}-${year}`;
+                const piIn = d.PI_In || 0;
+                const piOut = d.PI_Out || 0;
+                const psIn = d.PS_In || 0;
+                const psOut = d.PS_Out || 0;
+                const totalIn = piIn + psIn;
+
+                csvContent += `${fullDate},${piIn},${piOut},${psIn},${psOut},${totalIn}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Store_Footfall_Breakdown_${month}_${year}.csv`);
+            link.style.visibility = 'hidden';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            UI.showToast("CSV Footfall downloaded.");
+        },
+
+        downloadCrossingSales: (type) => {
+            UI.showLoader(true);
+            document.getElementById('loaderText').innerText = "GENERATING " + type.toUpperCase() + "...";
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+
+            if (type === 'pdf') {
+                google.script.run.withSuccessHandler(handleExportDownload).withFailureHandler((err) => {
+                    UI.showToast("Export failed: " + err.message); UI.showLoader(false); document.getElementById('loaderText').innerText = "Processing Data...";
+                }).downloadCrossingSalesReportPDF(m, y);
+            } else {
+                google.script.run.withSuccessHandler(handleExportDownload).withFailureHandler((err) => {
+                    UI.showToast("Export failed: " + err.message); UI.showLoader(false); document.getElementById('loaderText').innerText = "Processing Data...";
+                }).downloadCrossingSalesReportExcel(m, y);
+            }
+        },
+
+        printDaily: () => {
+            document.body.classList.add('print-mode-daily');
+            window.print();
+            document.body.classList.remove('print-mode-daily');
+        },
+
+        downloadAnnualAdvisorExcel: () => {
+            const elYear = document.getElementById('yearSelect');
+            const selectedYear = elYear ? Number(elYear.value) : new Date().getFullYear();
+            UI.showToast("Preparing Excel format...");
+            google.script.run.withSuccessHandler((res) => {
+                if (res.error) {
+                    UI.showToast("Error: " + res.error);
+                } else {
+                    const blob = new Blob([Uint8Array.from(atob(res.base64), c => c.charCodeAt(0))], { type: 'text/csv' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = res.filename;
+                    link.click();
+                    UI.showToast("Download started!");
+                }
+            }).downloadAnnualAdvisorReportExcel(selectedYear);
+        },
+
+
+
+
+        // CUSTOMER FILTER LOGIC (Centralized)
+        filterCustomerTable: () => {
+            const input = document.getElementById('custSearchInput');
+            const searchText = input ? input.value.toLowerCase() : "";
+            const segmentFilter = STATE.activeSegmentFilter; // "Prospect", "Elite", etc. or null
+
+            const filteredData = STATE.customerData.filter(c => {
+                const matchesSearch = c.name.toLowerCase().includes(searchText);
+                const matchesSegment = segmentFilter ? c.segment === segmentFilter : true;
+                return matchesSearch && matchesSegment;
+            });
+
+            RENDER.renderCustomerTable(filteredData);
+        },
+
+        // Called by Search Input
+        searchCustomer: () => {
+            APP.filterCustomerTable();
+        },
+
+        // Called by Segment Chips
+        toggleSegmentFilter: (segment) => {
+            // Toggle Logic
+            if (STATE.activeSegmentFilter === segment) {
+                STATE.activeSegmentFilter = null; // Turn off if clicked again
+            } else {
+                STATE.activeSegmentFilter = segment; // Set new filter
+            }
+
+            // Update UI (Chips)
+            const segments = ["Prospect", "Potential", "High Potential", "Elite", "Top", "Inactive"];
+            segments.forEach(seg => {
+                const btn = document.getElementById(`seg-${seg}`);
+                if (btn) {
+                    if (STATE.activeSegmentFilter === seg) {
+                        // ACTIVE STATE STYLES
+                        btn.style.borderColor = "#9333ea"; // Purple outline
+                        btn.style.backgroundColor = "#faf5ff";
+                        btn.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)";
+                        btn.style.transform = "scale(1.05)";
+                    } else {
+                        // RESET STYLES (Clear inline styles to revert to class defaults)
+                        btn.style.borderColor = "";
+                        btn.style.backgroundColor = "";
+                        btn.style.boxShadow = "";
+                        btn.style.transform = "";
+                    }
+                }
+            });
+
+            APP.filterCustomerTable();
+        },
+
+        viewAdvisorDetails: (index) => {
+            const advisor = STATE.globalAdvisorData[index];
+            if (!advisor) return;
+
+            UI.setText('modalAdvName', advisor.name);
+            UI.setText('modalAdvLoc', advisor.location);
+            UI.setText('modalAdvSales', HELPERS.formatIDR(advisor.netSales));
+
+            // Reset chart instance to prevent ghosting
+            if (STATE.charts.advisorStore) {
+                STATE.charts.advisorStore.destroy();
+                STATE.charts.advisorStore = null;
+            }
+
+            const storeData = advisor.storeData || { totalSales: 0, target: 0, achievement: 0, status: "-", advisorContrib: 0 };
+            UI.setText('modalAdvContrib', HELPERS.formatPct(storeData.advisorContrib));
+            UI.setText('modalStoreActual', HELPERS.formatIDR(storeData.totalSales));
+            UI.setText('modalStoreTarget', HELPERS.formatIDR(storeData.target));
+
+            const colors = HELPERS.getStatusColor(storeData.achievement);
+            const elStatus = document.getElementById('modalStoreStatus');
+            if (elStatus) {
+                elStatus.innerText = storeData.status + ` (${HELPERS.formatPct(storeData.achievement)})`;
+                elStatus.className = `font-bold ${colors.text}`;
+            }
+
+            const elBar = document.getElementById('modalStoreBar');
+            if (elBar) {
+                elBar.style.width = Math.min(storeData.achievement, 100) + "%";
+                elBar.className = `h-2 rounded-full transition-all duration-500 ${colors.bar}`;
+            }
+
+            let catHtml = "";
+            if (advisor.categoryMix && advisor.categoryMix.length > 0) {
+                advisor.categoryMix.forEach(cat => { catHtml += `<tr class="border-b border-slate-50 last:border-0"><td class="p-2.5 text-slate-700 font-medium">${cat.category}</td><td class="p-2.5 text-center font-mono text-slate-600">${cat.qty}</td><td class="p-2.5 text-right font-mono text-slate-500">${HELPERS.formatIDR(cat.amount)}</td><td class="p-2.5 text-right text-brand-blue font-bold">${cat.pct.toFixed(1)}%</td></tr>`; });
+            } else {
+                catHtml = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No category data available</td></tr>`;
+            }
+            UI.setHTML('modalCatTableBody', catHtml);
+
+            if (advisor.storeMix && advisor.storeMix.length > 0) {
+                CHARTS.renderAdvisorStore(advisor.storeMix);
+            }
+
+            const modal = document.getElementById('advisorModal');
+            const content = document.getElementById('advisorModalContent');
+            if (modal) modal.classList.remove('hidden');
+            if (content) { setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); }
+        },
+
+        closeAdvisorModal: () => {
+            const modal = document.getElementById('advisorModal');
+            const content = document.getElementById('advisorModalContent');
+            if (content) { content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0'); }
+            if (modal) { setTimeout(() => { modal.classList.add('hidden'); }, 300); }
+        },
+
+        // --- NEW: Customer Detail Modal Logic ---
+        viewCustomerDetails: (customerName) => {
+            UI.showLoader(true);
+            UI.setText('loaderText', `Fetching ${customerName}...`);
+            google.script.run.withSuccessHandler(res => {
+                UI.showLoader(false);
+                if (res.error) { UI.showToast(res.error); return; }
+
+                UI.setText('modalCustName', customerName);
+
+                // Find segment from state
+                const custInfo = STATE.customerData.find(c => c.name === customerName);
+                if (custInfo) {
+                    const elSegment = document.getElementById('modalCustSegment');
+                    if (elSegment) elSegment.innerHTML = HELPERS.getSegmentBadge(custInfo.segment);
+                    UI.setText('modalCustFirstVisit', custInfo.recency + " days ago");
+                    // Last visit assumption for now based on current year or history list below
+                }
+
+                UI.setText('modalCustTotalSpend', HELPERS.formatIDR(res.totalSpend));
+
+                let totalQty = 0;
+                let firstVisitStr = "-";
+                let lastVisitStr = "-";
+
+                // History Table
+                let histHtml = "";
+                if (res.history && res.history.length > 0) {
+                    res.history.forEach(h => {
+                        histHtml += `<tr class="border-b border-slate-50 hover:bg-slate-100 transition-colors"><td class="py-2.5 px-4 font-mono text-slate-500 whitespace-nowrap">${h.date}</td><td class="py-2.5 px-4 text-center font-bold text-slate-700">${h.qty}</td><td class="py-2.5 px-4"><span class="font-bold text-brand-dark block">${h.collection}</span><span class="text-xs text-slate-400 block">${h.category} • ${h.location}</span></td><td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-600">${HELPERS.formatIDR(h.net)}</td></tr>`;
+                        totalQty += h.qty;
+                    });
+
+                    lastVisitStr = res.history[0].date;
+                    firstVisitStr = res.history[res.history.length - 1].date;
+
+                } else {
+                    histHtml = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No transaction history found</td></tr>`;
+                }
+
+                UI.setText('modalCustTotalQty', totalQty);
+                UI.setText('modalCustLastVisit', lastVisitStr);
+                UI.setText('modalCustFirstVisit', firstVisitStr); // Override with exact date
+
+                UI.setHTML('modalCustHistoryBody', histHtml);
+                UI.setText('modalCustTrxCount', res.history ? `${res.history.length} Trx. Records` : '0 Records');
+
+                // Top Collections List
+                let collHtml = "";
+                if (res.topCollections && res.topCollections.length > 0) {
+                    res.topCollections.forEach((c, idx) => {
+                        collHtml += `
+                            <li class="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100 shadow-sm">
+                                <div class="flex items-center gap-3 w-3/5">
+                                    <span class="w-5 text-center font-bold text-slate-300 text-xs">${idx + 1}</span>
+                                    <span class="font-bold text-brand-dark truncate" title="${c.name}">${c.name}</span>
+                                </div>
+                                <div class="text-right w-2/5">
+                                    <span class="block font-mono font-bold text-emerald-600 text-xs">${HELPERS.formatIDR(c.spend)}</span>
+                                    <span class="block text-[10px] text-slate-400">${c.qty} pcs</span>
+                                </div>
+                            </li>`;
+                    });
+                } else {
+                    collHtml = `<li class="text-center text-slate-400 italic py-4 text-xs">No collections found</li>`;
+                }
+                UI.setHTML('modalCustTopCollList', collHtml);
+
+                // Show Modal
+                const modal = document.getElementById('customerDetailModal');
+                const content = document.getElementById('customerDetailModalContent');
+                if (modal) modal.classList.remove('hidden');
+                if (content) { setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); }
+
+            }).withFailureHandler(err => {
+                UI.showLoader(false);
+                UI.showToast("Failed loading details: " + err.message);
+            }).getCustomerDetails(customerName);
+        },
+
+        closeCustomerModal: () => {
+            const modal = document.getElementById('customerDetailModal');
+            const content = document.getElementById('customerDetailModalContent');
+            if (content) { content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0'); }
+            if (modal) { setTimeout(() => { modal.classList.add('hidden'); }, 300); }
+        }
+    };
+
+    // ==========================================
+    // 6. RENDERERS
+    // ==========================================
+    const RENDER = {
+
+        // --- ADVISOR RENDERER (Grouped by Store) ---
+        advisor: (data) => {
+            UI.showLoader(false);
+
+            if (data.error) {
+                UI.showToast(data.error);
+                UI.setHTML('advisorTablesContainer', `<div class="text-center text-rose-500 py-10 italic">${data.error}</div>`);
+                return;
+            }
+
+            // Update Global State
+            STATE.globalAdvisorData = data.advisorData || [];
+
+            // 1. Grouping Data
+            const groupedAdvisors = {};
+            STATE.globalAdvisorData.forEach(adv => {
+                const loc = adv.location ? adv.location.trim() : "Unknown";
+                if (!groupedAdvisors[loc]) groupedAdvisors[loc] = [];
+                groupedAdvisors[loc].push(adv);
+            });
+
+            // 2. Sorting Store (Prioritas)
+            const priorityStores = ["Plaza Indonesia", "Plaza Senayan", "Bali"];
+            const availableStores = Object.keys(groupedAdvisors).sort((a, b) => {
+                const idxA = priorityStores.indexOf(a);
+                const idxB = priorityStores.indexOf(b);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return a.localeCompare(b);
+            });
+
+            let finalHtml = "";
+            if (availableStores.length === 0) {
+                finalHtml = `<div class="text-center py-10 text-slate-400 italic text-sm">No advisor data available for this period.</div>`;
+            } else {
+                availableStores.forEach(storeName => {
+                    const advisors = groupedAdvisors[storeName];
+                    // Sort Advisor: Achievement High to Low
+                    advisors.sort((a, b) => b.achievement - a.achievement);
+
+                    // Build Rows
+                    let rows = "";
+                    advisors.forEach((adv, rankIdx) => {
+                        const globalIndex = STATE.globalAdvisorData.indexOf(adv);
+                        const advColors = HELPERS.getStatusColor(adv.achievement);
+                        rows += `
+                    <tr class="hover:bg-blue-50 transition-colors cursor-pointer group" onclick="APP.viewAdvisorDetails(${globalIndex})">
+                        <td class="py-3 px-5 text-center font-bold text-slate-400 text-xs">${rankIdx + 1}</td>
+                        <td class="py-3 px-5 font-semibold text-slate-700 text-xs group-hover:text-brand-blue underline decoration-dotted decoration-slate-300 underline-offset-4">${adv.name}</td>
+                        <td class="py-3 px-5 text-center font-mono text-slate-600 font-bold text-[11px]">${adv.transCount || 0}</td>
+                        <td class="py-3 px-5 text-right font-mono text-slate-600 font-bold text-[11px] whitespace-nowrap">${HELPERS.formatIDR(adv.netSales)}</td>
+                        <td class="py-3 px-5 text-right font-mono text-slate-400 text-[11px] whitespace-nowrap">${HELPERS.formatIDR(adv.target)}</td>
+                        <td class="py-3 px-5 text-right font-mono text-xs font-bold ${advColors.text}">${HELPERS.formatPct(adv.achievement)}</td>
+                        <td class="py-3 px-5 text-right font-mono text-xs text-slate-500">${HELPERS.formatPct(adv.contribution)}</td>
+                    </tr>`;
+                    });
+
+                    // Build Table Block
+                    finalHtml += `
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8 fade-in">
+                    <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+                        <div class="w-1.5 h-6 bg-brand-blue rounded-full"></div>
+                        <h3 class="font-display text-base font-bold text-brand-dark">${storeName}</h3>
+                        <span class="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500 font-medium ml-auto">${advisors.length} Advisors</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-white text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
+                                <tr>
+                                    <th class="py-3 px-5 font-bold w-12 text-center">Rank</th>
+                                    <th class="py-3 px-5 font-bold">Advisor Name</th>
+                                    <th class="py-3 px-5 font-bold text-center">Trans No</th>
+                                    <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                                    <th class="py-3 px-5 text-right font-bold">Target</th>
+                                    <th class="py-3 px-5 text-right font-bold">Achv %</th>
+                                    <th class="py-3 px-5 text-right font-bold text-brand-blue">Contrib %</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">${rows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+                });
+            }
+
+            // Inject to ViewAdvisor.html container
+            UI.setHTML('advisorTablesContainer', finalHtml);
+
+            // --- Trigger Annual Data Fetch ---
+            // Fetch for the SELECTED YEAR from the dropdown, fallback to current year if implicit
+            const elYear = document.getElementById('yearSelect');
+            const selectedYear = elYear ? Number(elYear.value) : new Date().getFullYear();
+
+            // Show loading state in the container
+            UI.setHTML('annualAdvisorTableContainer', `<div class="flex items-center justify-center h-full text-slate-400 text-xs py-8">Loading Annual Data for ${selectedYear}...</div>`);
+
+            google.script.run
+                .withSuccessHandler(RENDER.annualAdvisor)
+                .withFailureHandler((err) => {
+                    console.error("Annual Fetch Failed", err);
+                    UI.setHTML('annualAdvisorTableContainer', `<div class="p-8 text-center text-rose-500 italic">Failed to load annual data for ${selectedYear}: ${err.message}</div>`);
+                })
+                .getAnnualAdvisorData(selectedYear);
+        },
+
+        // --- ANNUAL ADVISOR RENDERER ---
+        annualAdvisor: (data) => {
+            // data is array of objects from getAnnualAdvisorData
+            if (!data || data.length === 0) {
+                UI.setHTML('annualAdvisorTableContainer', `<div class="p-8 text-center text-slate-400 italic">No annual data available for this year yet.</div>`);
+                return;
+            }
+
+            let rows = "";
+            data.forEach((adv, i) => {
+                const advColors = HELPERS.getStatusColor(adv.achievement);
+                rows += `
+                 <tr class="hover:bg-amber-50 transition-colors border-b border-slate-50 last:border-0">
+                     <td class="py-3 px-5 text-center font-bold text-slate-400 text-xs">${i + 1}</td>
+                     <td class="py-3 px-5 font-semibold text-slate-700 text-xs">${adv.name}</td>
+                     <td class="py-3 px-5 text-center text-slate-500 text-[11px]">${adv.location}</td>
+                     <td class="py-3 px-5 text-center font-mono text-slate-600 font-bold text-[11px]">${adv.transCount}</td>
+                     <td class="py-3 px-5 text-center font-mono text-brand-blue font-bold text-[11px]">${adv.productiveMonths}</td>
+                     <td class="py-3 px-5 text-right font-mono text-slate-600 font-bold text-[11px] whitespace-nowrap">${HELPERS.formatIDR(adv.netSales)}</td>
+                     <td class="py-3 px-5 text-right font-mono text-slate-400 text-[11px] whitespace-nowrap">${HELPERS.formatIDR(adv.target)}</td>
+                     <td class="py-3 px-5 text-right font-mono text-xs font-bold ${advColors.text}">${HELPERS.formatPct(adv.achievement)}</td>
+                     <td class="py-3 px-5 text-right font-mono text-xs text-slate-500">${HELPERS.formatPct(adv.contribution)}</td>
+                 </tr>`;
+            });
+
+            const html = `
+             <div class="overflow-x-auto">
+                 <table class="w-full text-sm text-left">
+                     <thead class="bg-amber-50 text-amber-700 uppercase text-[10px] tracking-wider border-b border-amber-100">
+                         <tr>
+                             <th class="py-3 px-5 font-bold w-12 text-center">Rank</th>
+                             <th class="py-3 px-5 font-bold">Advisor Name</th>
+                             <th class="py-3 px-5 font-bold text-center">Location</th>
+                             <th class="py-3 px-5 font-bold text-center">Trans Count</th>
+                             <th class="py-3 px-5 font-bold text-center">Months</th>
+                             <th class="py-3 px-5 text-right font-bold">YTD Sales</th>
+                             <th class="py-3 px-5 text-right font-bold">YTD Target</th>
+                             <th class="py-3 px-5 text-right font-bold w-24">Achv %</th>
+                             <th class="py-3 px-5 text-right font-bold w-24">Contrib %</th>
+                         </tr>
+                     </thead>
+                     <tbody class="divide-y divide-slate-50">${rows}</tbody>
+                 </table>
+             </div>`;
+
+            UI.setHTML('annualAdvisorTableContainer', html);
+        },
+
+        // --- QUARTERLY RENDERER ---
+        quarterly: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            // KPI Highlights
+            UI.setText('kpiQtdSales', HELPERS.formatIDR(data.qtdSales));
+            UI.setText('kpiQtdTarget', HELPERS.formatIDR(data.qtdTarget));
+            UI.setText('kpiQtdYoy', HELPERS.formatPct(data.yoyGrowth));
+
+            const achvColors = HELPERS.getStatusColor(data.qtdAchv);
+            UI.setText('kpiQtdAchvPct', HELPERS.formatPct(data.qtdAchv));
+
+            const achvBar = document.getElementById('kpiQtdAchvBar');
+            if (achvBar) {
+                achvBar.style.width = Math.min(data.qtdAchv, 100) + '%';
+                achvBar.className = `h-1.5 rounded-full ${achvColors.bar}`;
+            }
+
+            // Monthly Breakdown Table
+            let htmlTable = "";
+            data.monthlyPacing.forEach(m => {
+                const colors = HELPERS.getStatusColor(m.achv);
+                htmlTable += `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="py-3 px-5 font-semibold text-slate-700 text-xs">${m.name}</td>
+                    <td class="py-3 px-5 text-right font-mono text-slate-600 font-bold text-[11px]">${HELPERS.formatIDR(m.sales)}</td>
+                    <td class="py-3 px-5 text-right font-bold text-[11px] ${colors.text}">${HELPERS.formatPct(m.achv)}</td>
+                </tr>`;
+            });
+            UI.setHTML('quarterlyMonthsTableBody', htmlTable);
+
+            // Render Charts
+            CHARTS.renderQuarterlyPacing(data.monthlyPacing);
+            CHARTS.renderQuarterlyCategoryPie(data.categories);
+
+            // Render Top Collection
+            let collHtml = "";
+            if (data.topCollections && data.topCollections.length > 0) {
+                data.topCollections.forEach((c, idx) => {
+                    collHtml += `
+                    <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                        <td class="py-2 px-3 text-slate-500 text-xs text-center font-medium">${idx + 1}</td>
+                        <td class="py-2 px-3 font-semibold text-slate-700 text-xs">
+                            <span class="block">${c.name}</span>
+                            <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200 mt-0.5 inline-block">${c.cat}</span>
+                        </td>
+                        <td class="py-2 px-3 text-center font-mono text-slate-600 font-bold text-xs">${c.qty}</td>
+                        <td class="py-2 px-3 text-right font-mono text-emerald-600 font-bold text-xs">${HELPERS.formatIDR(c.value)}</td>
+                    </tr>`;
+                });
+            } else {
+                collHtml = `<tr><td colspan="4" class="py-4 text-center text-slate-400 text-xs">No data available</td></tr>`;
+            }
+            UI.setHTML('quarterlyTopCollectionBody', collHtml);
+
+            // Render Top Catalogue Code
+            let sapHtml = "";
+            if (data.topCatalogue && data.topCatalogue.length > 0) {
+                data.topCatalogue.forEach((c, idx) => {
+                    sapHtml += `
+                    <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                        <td class="py-2 px-3 text-slate-500 text-xs text-center font-medium">${idx + 1}</td>
+                        <td class="py-2 px-3 font-semibold text-slate-700 text-xs">
+                            <span class="font-mono bg-blue-50 text-brand-blue px-1.5 py-0.5 rounded-md border border-blue-100 inline-block mb-0.5">${c.name}</span>
+                            <span class="block text-[10px] text-slate-500">${c.cat}</span>
+                        </td>
+                        <td class="py-2 px-3 text-center font-mono text-slate-600 font-bold text-xs">${c.qty}</td>
+                        <td class="py-2 px-3 text-right font-mono text-emerald-600 font-bold text-xs">${HELPERS.formatIDR(c.value)}</td>
+                    </tr>`;
+                });
+            } else {
+                sapHtml = `<tr><td colspan="4" class="py-4 text-center text-slate-400 text-xs">No data available</td></tr>`;
+            }
+            UI.setHTML('quarterlyTopCatalogueBody', sapHtml);
+        },
+
+        // --- CUSTOMER RENDERER ---
+        customer: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            // Save to State for search
+            STATE.customerData = data.details || [];
+
+            // Update KPI Summary Cards
+            if (data.summaryKpi) {
+                UI.setText('custKpiTotal', data.summaryKpi.totalActive);
+                UI.setText('custKpiLtv', HELPERS.formatIDR(data.summaryKpi.avgLtv));
+                if (data.summaryKpi.topSpender) {
+                    document.getElementById('custKpiTopName').textContent = data.summaryKpi.topSpender.name;
+                    document.getElementById('custKpiTopName').title = data.summaryKpi.topSpender.name;
+                    UI.setText('custKpiTopVal', HELPERS.formatIDR(data.summaryKpi.topSpender.spend));
+                }
+                UI.setText('custKpiNewRatio', data.summaryKpi.newRatio.toFixed(1) + '%');
+            }
+
+            RENDER.renderCustomerTable(STATE.customerData);
+            CHARTS.renderCustomerCharts(data.segments, data.revenueMix, data.growthTrend);
+        },
+
+        renderCustomerTable: (details) => {
+            let rows = "";
+            if (details && details.length > 0) {
+                details.forEach(c => {
+                    // Escape single quotes for inline JS call
+                    const safeName = c.name.replace(/'/g, "\\'");
+                    rows += `
+                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group">
+                    <td class="py-3 px-6 font-semibold text-slate-700 text-xs">${c.name}</td>
+                    <td class="py-3 px-6 text-center">${HELPERS.getSegmentBadge(c.segment)}</td>
+                    <td class="py-3 px-6 text-center font-mono text-xs text-slate-600">${c.freq}</td>
+                    <td class="py-3 px-6 text-center font-mono text-xs text-blue-600 font-bold">${c.qty || 0}</td>
+                    <td class="py-3 px-6 text-center font-mono text-xs text-slate-500">${c.recency} days ago</td>
+                    <td class="py-3 px-6 text-right font-mono text-xs font-bold text-slate-700">${HELPERS.formatIDR(c.spend)}</td>
+                    <td class="py-3 px-6 text-center">
+                        <button onclick="APP.viewCustomerDetails('${safeName}')" class="opacity-0 group-hover:opacity-100 transition-opacity bg-brand-blue/10 text-brand-blue hover:bg-brand-blue hover:text-white px-2 py-1 rounded text-[10px] font-bold">
+                            View Details
+                        </button>
+                    </td>
+                </tr>`;
+                });
+            } else {
+                rows = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-xs">No customer data found matching your search.</td></tr>`;
+            }
+            UI.setHTML('custTableBody', rows);
+        },
+
+        calendar: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+            UI.setText('calendarMonthTitle', `Daily Performance Heatmap - ${m.substr(0, 3)} ${y}`);
+
+            const dailyData = data.dailyTrendData;
+            if (!dailyData || dailyData.length === 0) {
+                UI.setHTML('calendarGrid', '<div class="col-span-7 py-8 text-center text-slate-400 text-xs">No data available for this month.</div>');
+                return;
+            }
+
+            // Map months string to index
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const monthIndex = monthNames.indexOf(m);
+
+            // First day of the month
+            const firstDay = new Date(Number(y), monthIndex, 1).getDay(); // 0 (Sun) to 6 (Sat)
+            const daysInMonth = dailyData.length;
+
+            let maxSales = 0;
+            let minSales = Infinity;
+            let maxIdx = -1;
+            let minIdx = -1;
+
+            dailyData.forEach((d, i) => {
+                if (d.net > maxSales) { maxSales = d.net; maxIdx = i; }
+                if (d.net < minSales && d.net > 0) { minSales = d.net; minIdx = i; } // skip 0 for worst day
+            });
+
+            // Update Insight Cards
+            if (maxIdx !== -1) {
+                const bestDate = new Date(Number(y), monthIndex, maxIdx + 1);
+                UI.setText('calBestDay', bestDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+                UI.setText('calBestDaySales', HELPERS.formatIDR(maxSales) + ' (' + dailyData[maxIdx].qty + ' pcs)');
+            } else {
+                UI.setText('calBestDay', '-'); UI.setText('calBestDaySales', '-');
+            }
+
+            if (minIdx !== -1) {
+                const worstDate = new Date(Number(y), monthIndex, minIdx + 1);
+                UI.setText('calWorstDay', worstDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+                UI.setText('calWorstDaySales', HELPERS.formatIDR(minSales) + ' (' + dailyData[minIdx].qty + ' pcs)');
+            } else {
+                UI.setText('calWorstDay', '-'); UI.setText('calWorstDaySales', '-');
+            }
+
+            // Best Day of the Week calculation
+            const dowTotals = [0, 0, 0, 0, 0, 0, 0];
+            const dowCounts = [0, 0, 0, 0, 0, 0, 0];
+            dailyData.forEach((d, i) => {
+                const date = new Date(Number(y), monthIndex, i + 1);
+                const w = date.getDay();
+                dowTotals[w] += d.net;
+                if (d.net > 0) dowCounts[w]++;
+            });
+            let bestDowAvg = 0;
+            let bestDowIdx = -1;
+            for (let i = 0; i < 7; i++) {
+                if (dowCounts[i] > 0) {
+                    let avg = dowTotals[i] / dowCounts[i];
+                    if (avg > bestDowAvg) { bestDowAvg = avg; bestDowIdx = i; }
+                }
+            }
+            const dowNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            if (bestDowIdx !== -1) {
+                UI.setText('calBestDOW', dowNames[bestDowIdx]);
+            } else {
+                UI.setText('calBestDOW', '-');
+            }
+
+            // Generate Grid HTML
+            let gridHtml = '';
+            // Padding for the start of the month
+            for (let i = 0; i < firstDay; i++) {
+                gridHtml += `<div class="aspect-square rounded-md bg-transparent"></div>`;
+            }
+
+            // Render Days
+            for (let i = 0; i < daysInMonth; i++) {
+                const dayData = dailyData[i];
+                const isHoliday = data.holidays && data.holidays[i + 1] ? data.holidays[i + 1] : "";
+                const isWeekend = (firstDay + i) % 7 === 0 || (firstDay + i) % 7 === 6;
+
+                let intensity = 0;
+                if (maxSales > 0) intensity = dayData.net / maxSales;
+
+                // Choose color bucket
+                let bgClass = 'bg-slate-50 border border-slate-100 text-slate-400';
+                let hoverClass = 'hover:border-slate-300';
+                let textClass = 'text-slate-400 text-lg';
+                let numberClass = '';
+
+                if (dayData.net > 0) {
+                    if (intensity > 0.8) { bgClass = 'bg-emerald-700 border-none'; textClass = 'text-emerald-50'; }
+                    else if (intensity > 0.6) { bgClass = 'bg-emerald-500 border-none'; textClass = 'text-emerald-50'; }
+                    else if (intensity > 0.4) { bgClass = 'bg-emerald-400 border-none'; textClass = 'text-emerald-900'; }
+                    else if (intensity > 0.2) { bgClass = 'bg-emerald-300 border-none'; textClass = 'text-emerald-900'; }
+                    else { bgClass = 'bg-emerald-200 border-none'; textClass = 'text-emerald-800'; }
+                    hoverClass = 'hover:ring-2 hover:ring-offset-2 hover:ring-opacity-50 hover:ring-emerald-500 cursor-pointer shadow-sm';
+                    numberClass = 'font-bold';
+                } else if (isWeekend || isHoliday) {
+                    bgClass = 'bg-rose-50 border border-rose-100';
+                    textClass = 'text-rose-400';
+                }
+
+                // Tooltip content
+                const dateStr = `${i + 1} ${m.substr(0, 3)}`;
+                let tooltipObj = `Sales: ${HELPERS.formatIDR(dayData.net)}<br/>Qty: ${dayData.qty}`;
+                if (isHoliday) tooltipObj += `<br/>${isHoliday}`;
+
+                gridHtml += `
+                <div class="group relative aspect-square rounded-md flex flex-col items-center justify-center transition-all duration-200 ${bgClass} ${hoverClass}">
+                    <span class="${numberClass} ${textClass}">${i + 1}</span>
+                    
+                    <!-- Tooltip -->
+                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[160px] bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-20 text-center leading-tight whitespace-normal">
+                        <div class="font-bold text-slate-300 border-b border-slate-600 pb-1 mb-1">${dateStr}</div>
+                        ${tooltipObj}
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                    </div>
+                </div>`;
+            }
+
+            UI.setHTML('calendarGrid', gridHtml);
+        },
+
+        monthly: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            STATE.globalAdvisorData = data.advisorData || [];
+
+            if (data.annualStats) {
+                UI.setText('kpiAnnualSales', HELPERS.formatIDR(data.annualStats.salesExcHO));
+                UI.setText('kpiAnnualTarget', HELPERS.formatIDR(data.annualStats.target));
+                UI.setText('kpiAnnualAchv', HELPERS.formatPct(data.annualStats.achievement));
+            }
+
+            const activeStores = data.storeData.filter(s => !s.store.toLowerCase().includes("head office"));
+            const totalNet = activeStores.reduce((sum, item) => sum + item.actual, 0);
+            const achievement = data.kpi.totalTarget > 0 ? (totalNet / data.kpi.totalTarget) * 100 : 0;
+
+            UI.setText('kpiSalesAll', HELPERS.formatIDR(data.kpi.totalNet));
+            UI.setText('kpiSalesStore', HELPERS.formatIDR(totalNet));
+            UI.setText('kpiCost', HELPERS.formatPct(data.kpi.costPercentage));
+            UI.setText('kpiDisc', HELPERS.formatPct(data.kpi.avgDiscountPercentage));
+
+            const globalColors = HELPERS.getStatusColor(achievement);
+            const elKpiAchv = document.getElementById('kpiAchv');
+            if (elKpiAchv) {
+                elKpiAchv.innerText = HELPERS.formatPct(achievement);
+                elKpiAchv.className = `text-lg lg:text-xl font-display font-bold tracking-tight ${globalColors.text}`;
+            }
+
+            let storeHtml = "";
+            activeStores.sort((a, b) => b.actual - a.actual).forEach(s => {
+                const sColors = HELPERS.getStatusColor(s.achievement);
+                const remaining = Math.max(0, s.target - s.actual);
+                storeHtml += `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group">
+            <td class="py-3 px-5 font-semibold text-slate-700 group-hover:text-brand-blue transition-colors text-xs">${s.store}</td>
+            <td class="py-3 px-5 text-right font-mono text-slate-600 font-bold whitespace-nowrap tracking-tight text-[11px]">${HELPERS.formatIDR(s.actual)}</td>
+            <td class="py-3 px-5 text-right font-mono text-rose-500 font-medium whitespace-nowrap tracking-tight text-[11px]">${HELPERS.formatIDR(s.cost)}</td>
+            <td class="py-3 px-5 text-right font-mono text-slate-400 text-[11px] whitespace-nowrap tracking-tight">${HELPERS.formatIDR(s.target)}</td>
+            <td class="py-3 px-5 text-right font-mono text-slate-500 text-[11px] whitespace-nowrap tracking-tight">${HELPERS.formatIDR(remaining)}</td>
+            <td class="py-3 px-5 text-right"><span class="font-bold text-[11px] ${sColors.text}">${HELPERS.formatPct(s.achievement)}</span></td>
+          </tr>`;
+            });
+            UI.setHTML('storeTableBody', storeHtml);
+
+            // Render Customer Advisor Performance (> 100%)
+            const topAdvisors = (data.advisorData || []).filter(a => a.achievement >= 100).sort((a, b) => b.netSales - a.netSales);
+            let advisorHtml = "";
+            if (topAdvisors.length === 0) {
+                advisorHtml = `<tr><td colspan="7" class="py-8 text-center text-slate-400 italic text-xs">No advisors reached 100% target yet.</td></tr>`;
+            } else {
+                topAdvisors.forEach((adv, idx) => {
+                    advisorHtml += `
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="py-3 px-5 text-center text-slate-400 font-medium text-[11px]">${idx + 1}</td>
+                        <td class="py-3 px-5 font-bold text-slate-700">${adv.name}</td>
+                        <td class="py-3 px-5 text-slate-500 text-[11px]">${adv.location}</td>
+                        <td class="py-3 px-5 text-center font-mono text-slate-600 font-bold text-[11px]">${adv.transCount || 0}</td>
+                        <td class="py-3 px-5 text-right font-mono text-emerald-600 font-bold text-[11px] tracking-tight">${HELPERS.formatIDR(adv.netSales)}</td>
+                        <td class="py-3 px-5 text-right font-mono text-slate-400 text-[11px]">${HELPERS.formatIDR(adv.target)}</td>
+                        <td class="py-3 px-5 text-right"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200">${HELPERS.formatPct(adv.achievement)}</span></td>
+                    </tr>`;
+                });
+            }
+            UI.setHTML('monthlyAdvisorTable', advisorHtml);
+
+            try {
+                CHARTS.renderCatPie(activeStores);
+                CHARTS.renderTrend(data.trendData);
+                const m = document.getElementById('monthSelect').value;
+                const y = document.getElementById('yearSelect').value;
+
+                // Update Dynamic Titles
+                UI.setText('titleDailyTrend', `${m.substr(0, 3)} ${y}`);
+                UI.setText('titleCatSales', `${m.substr(0, 3)} ${y}`);
+                UI.setText('titleCatQty', `${m.substr(0, 3)} ${y}`);
+
+                CHARTS.renderDaily(data.dailyTrendData, data.holidays, m, y);
+                CHARTS.renderCategoryTrends(data.categoryTrend);
+                // Multi-Year Comparison (2023-2026)
+                CHARTS.renderComparison(data.multiYearStats);
+                // Advisor Category Chart
+                CHARTS.renderAdvisorCategoryPie(data.catData);
+            } catch (e) { console.error("Chart Error:", e); }
+        },
+
+        monthlyTransaction: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            if (document.getElementById('monthlyTransactionDate')) {
+                const m = document.getElementById('monthSelect').value;
+                const y = document.getElementById('yearSelect').value;
+                UI.setText('monthlyTransactionDate', `${m} ${y}`);
+            }
+
+            UI.setText('monthlyKpiSales', HELPERS.formatIDR(data.kpi.totalNet));
+            UI.setText('monthlyKpiTarget', HELPERS.formatIDR(data.kpi.totalTarget));
+            UI.setText('monthlyKpiQty', data.kpi.totalQty || 0);
+
+            let html = "";
+            const sortedStores = data.storeData.sort((a, b) => b.actual - a.actual);
+            sortedStores.forEach(store => {
+                html += `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group"><td class="py-3 px-5 font-semibold text-slate-700 group-hover:text-brand-blue transition-colors text-xs">${store.store}</td><td class="py-3 px-5 text-right font-mono text-slate-600 font-bold whitespace-nowrap tracking-tight text-[11px]">${HELPERS.formatIDR(store.actual)}</td><td class="py-3 px-5 text-center font-bold text-slate-700 text-xs">${store.qty}</td></tr>`;
+            });
+            UI.setHTML('monthlyTransactionTableBody', html);
+
+            const activeStoresList = data.activeStores || [];
+            let headerHtml = `<tr>
+                <th rowspan="2" class="py-3 px-5 font-bold w-32 sticky left-0 bg-white z-20 border-b border-slate-200 shadow-sm border-r border-slate-100 align-bottom pb-4">Date</th>
+                <th rowspan="2" class="py-3 px-5 font-bold w-24 bg-slate-50/50 border-b border-slate-200 border-r border-slate-200 text-slate-600 align-bottom pb-4">Day</th>
+                <th rowspan="2" class="py-3 px-5 text-right font-bold bg-slate-50/50 border-b border-slate-200 border-r border-slate-200 text-slate-600 align-bottom pb-4">Total Sales</th>
+                <th rowspan="2" class="py-3 px-5 text-center font-bold w-24 bg-slate-50/50 border-b border-slate-200 border-r border-slate-200 text-slate-600 align-bottom pb-4">Total Qty</th>`;
+
+            activeStoresList.forEach(store => {
+                headerHtml += `<th class="py-3 px-5 text-center font-bold bg-white border-b border-slate-200 border-r border-slate-100 min-w-[140px]" colspan="2">${store}</th>`;
+            });
+            headerHtml += `</tr><tr class="bg-slate-50/30">`;
+
+            activeStoresList.forEach(() => {
+                headerHtml += `<th class="py-1 px-2 text-[9px] text-slate-400 uppercase text-right border-b border-slate-100 tracking-wider">Net Sales</th><th class="py-1 px-2 text-[9px] text-slate-400 uppercase text-center border-b border-slate-100 border-r border-slate-100 tracking-wider">Qty</th>`;
+            });
+            headerHtml += `</tr>`;
+            UI.setHTML('dailyBreakdownTableHead', headerHtml);
+
+            let dailyHtml = "";
+            if (data.dailyTrendData && data.dailyTrendData.length > 0) {
+                const month = document.getElementById('monthSelect').value;
+                const year = document.getElementById('yearSelect').value;
+
+                data.dailyTrendData.forEach((dayData, index) => {
+                    const dayNum = index + 1;
+                    const dateStr = `${dayNum} ${month.substr(0, 3)} ${year}`;
+
+                    // --- DAY CALCULATION & HIGHLIGHT LOGIC ---
+                    const dateObj = new Date(`${month} ${dayNum}, ${year}`);
+                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+                    const holidayName = (data.holidays && data.holidays[dayNum]) ? data.holidays[dayNum] : "";
+                    const isHoliday = holidayName !== "";
+                    const isWeekend = (dayName === 'Saturday' || dayName === 'Sunday');
+
+                    const dayClass = (isWeekend || isHoliday) ? "text-rose-600 font-bold" : "text-slate-500 font-medium";
+                    const rowClass = (isWeekend || isHoliday) ? "bg-rose-50/30" : "hover:bg-red-50";
+
+                    let displayDate = dateStr;
+                    let tdAttr = "";
+                    if (isHoliday) {
+                        displayDate += ` <span class="text-rose-500 ml-1 text-lg leading-none">*</span>`;
+                        tdAttr = `title="${holidayName}"`;
+                    }
+
+                    dailyHtml += `
+                    <tr class="${rowClass} transition-colors border-b border-slate-50 last:border-0 group">
+                        <td class="py-3 px-5 text-xs text-slate-700 font-bold sticky left-0 bg-white group-hover:bg-red-50 transition-colors z-10 border-r border-slate-100 shadow-sm whitespace-nowrap" ${tdAttr}>${displayDate}</td>
+                        <td class="py-3 px-5 text-xs ${dayClass} border-r border-slate-100 bg-slate-50/30">${dayName}</td>
+                        <td class="py-3 px-5 text-right font-mono text-slate-700 font-bold text-[11px] border-r border-slate-100 bg-slate-50/30">${HELPERS.formatIDR(dayData.net)}</td>
+                        <td class="py-3 px-5 text-center font-bold text-slate-800 text-xs border-r border-slate-100 bg-slate-50/30">${dayData.qty}</td>`;
+
+                    activeStoresList.forEach(store => {
+                        const storeData = dayData.breakdown && dayData.breakdown[store] ? dayData.breakdown[store] : { net: 0, qty: 0 };
+                        const netClass = storeData.net > 0 ? "text-slate-600 font-medium" : "text-slate-300 font-light";
+                        const qtyClass = storeData.qty > 0 ? "text-slate-700 font-bold" : "text-slate-300 font-light";
+
+                        dailyHtml += `<td class="py-3 px-2 text-right font-mono ${netClass} text-[10px]">${HELPERS.formatIDR(storeData.net)}</td><td class="py-3 px-2 text-center ${qtyClass} text-[10px] border-r border-slate-100">${storeData.qty}</td>`;
+                    });
+                    dailyHtml += `</tr>`;
+                });
+            } else {
+                dailyHtml = `<tr><td colspan="${4 + (activeStoresList.length * 2)}" class="py-4 text-center text-xs text-slate-400">No daily data available.</td></tr>`;
+            }
+            UI.setHTML('dailyBreakdownTableBody', dailyHtml);
+
+            try { CHARTS.renderMonthlyTransPie(data.catData); } catch (e) { console.warn(e); }
+        },
+
+        daily: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            const topContainer = document.getElementById('dailyTopStores');
+            const container = document.getElementById('dailyContainer');
+            topContainer.innerHTML = "";
+            container.innerHTML = "";
+
+            if (!data.stores || data.stores.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm font-medium">No sales data available for this date.</div>`;
+                return;
+            }
+
+            if (document.getElementById('dailyReportDate')) {
+                const d = new Date(data.date);
+                const dateStr = d.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                UI.setHTML('dailyReportDate', dateStr);
+            }
+
+            const targetStores = ["Plaza Indonesia", "Plaza Senayan", "Bali"];
+            targetStores.forEach(targetName => {
+                const store = data.stores.find(s => s.storeName.toLowerCase().includes(targetName.toLowerCase()));
+                if (store) {
+                    const achv = store.metrics.achievement;
+                    const colors = HELPERS.getStatusColor(achv);
+
+                    topContainer.innerHTML += `
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+              <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-3">
+                   <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                   </div>
+                   <div>
+                     <h3 class="font-display text-sm font-bold text-brand-dark">${store.storeName}</h3>
+                     <p class="text-[10px] text-slate-400 uppercase tracking-wider">MTD Progress</p>
+                   </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold border ${colors.text} ${colors.bg} ${colors.border}">${HELPERS.formatPct(achv)}</span>
+              </div>
+              <div class="space-y-2">
+                <div class="flex justify-between items-end">
+                  <span class="text-xs text-slate-500">Sales</span>
+                  <span class="font-mono text-sm font-bold text-brand-dark">${HELPERS.formatIDR(store.metrics.mtdSales)}</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div class="${colors.bar} h-2 rounded-full" style="width: ${Math.min(achv, 100)}%"></div>
+                </div>
+                <div class="flex justify-between items-start pt-1">
+                   <span class="text-[10px] text-slate-400">Target</span>
+                   <span class="font-mono text-[10px] text-slate-500">${HELPERS.formatIDR(store.metrics.target)}</span>
+                </div>
+              </div>
+            </div>`;
+                }
+            });
+
+            data.stores.forEach(storeData => {
+                let tableRowsHtml = "";
+                let tQty = 0, tNonSmi = 0, tSmi = 0;
+
+                for (const [cat, val] of Object.entries(storeData.tableData)) {
+                    tQty += val.qty; tNonSmi += val.netNonSMI; tSmi += val.netSMI;
+                    const stockVal = val.stock || 0;
+
+                    tableRowsHtml += `
+            <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors">
+              <td class="py-3 px-6 font-medium text-slate-700 text-sm">${cat}</td>
+              <td class="py-3 px-6 text-center text-slate-500 font-mono text-sm">${stockVal}</td>
+              <td class="py-3 px-6 text-center font-bold text-brand-dark text-sm">${val.qty}</td>
+              <td class="py-3 px-6 text-right font-mono text-slate-600 whitespace-nowrap text-sm">${HELPERS.formatIDR(val.netNonSMI)}</td>
+              <td class="py-3 px-6 text-right font-mono text-slate-600 whitespace-nowrap text-sm">${HELPERS.formatIDR(val.netSMI)}</td>
+            </tr>`;
+                }
+
+                const regQtyPct = storeData.metrics.mtdTotalQty > 0 ? (storeData.metrics.mtdRegQty / storeData.metrics.mtdTotalQty * 100).toFixed(1) + "%" : "0%";
+                const smiQtyPct = storeData.metrics.mtdTotalQty > 0 ? (storeData.metrics.mtdSmiQty / storeData.metrics.mtdTotalQty * 100).toFixed(1) + "%" : "0%";
+                const mColors = HELPERS.getStatusColor(storeData.metrics.achievement);
+
+                const metricsHtml = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">MTD Performance</h4>
+               <div class="space-y-3 text-sm">
+                 <div class="flex justify-between"><span class="text-slate-500 font-medium">Sales</span><span class="font-bold text-brand-dark whitespace-nowrap">${HELPERS.formatIDR(storeData.metrics.mtdSales)}</span></div>
+                 <div class="flex justify-between"><span class="text-slate-500 font-medium">Target</span><span class="font-bold text-slate-400 whitespace-nowrap">${HELPERS.formatIDR(storeData.metrics.target)}</span></div>
+                 <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mt-2">
+                   <span class="text-brand-dark font-bold">Achievement</span>
+                   <span class="font-bold text-lg ${mColors.text}">${HELPERS.formatPct(storeData.metrics.achievement)}</span>
+                 </div>
+                 <div class="flex justify-between mt-2"><span class="text-slate-500 font-medium">MDR Fee</span><span class="font-bold text-rose-500">${HELPERS.formatPct(storeData.metrics.sellingCostMtdPct)}</span></div>
+                 <div class="flex justify-between"><span class="text-slate-500 font-medium">Avg Disc</span><span class="font-bold text-slate-700">${HELPERS.formatPct(storeData.metrics.avgDiscMtdPct)}</span></div>
+                 
+                 <div class="pt-3 border-t border-slate-200 mt-3">
+                   <div class="flex justify-between text-xs mb-1">
+                     <span class="text-slate-500">Regular Qty</span>
+                     <span class="font-bold text-brand-blue">${storeData.metrics.mtdRegQty} (${regQtyPct})</span>
+                   </div>
+                   <div class="flex justify-between text-xs">
+                     <span class="text-slate-500">SMI Qty</span>
+                     <span class="font-bold text-amber-500">${storeData.metrics.mtdSmiQty} (${smiQtyPct})</span>
+                   </div>
+                 </div>
+               </div>
+            </div>
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">Today's Activity</h4>
+               <div class="space-y-4 text-sm">
+                 <div class="flex justify-between items-center">
+                    <span class="text-slate-500 font-medium">Selling Cost</span>
+                    <div class="text-right">
+                       <span class="block font-bold text-rose-500 whitespace-nowrap">${HELPERS.formatIDR(storeData.metrics.sellingCostTodayVal)}</span>
+                       <span class="text-[10px] text-slate-400">Ratio: ${HELPERS.formatPct(storeData.metrics.sellingCostTodayPct)}</span>
+                    </div>
+                 </div>
+                 <div class="pt-3 border-t border-slate-200">
+                   <div class="flex justify-between mb-1.5"><span class="text-slate-500 font-medium">Regular Sales</span><span class="text-[10px] font-bold text-brand-blue">${HELPERS.formatPct(storeData.metrics.regSalesTodayPct)}</span></div>
+                   <div class="flex items-center gap-3">
+                      <div class="w-full bg-white h-2 rounded-full overflow-hidden border border-slate-200"><div class="bg-brand-blue h-full rounded-full" style="width: ${Math.min(storeData.metrics.regSalesTodayPct, 100)}%"></div></div>
+                      <span class="font-mono font-bold text-[10px] w-20 text-right whitespace-nowrap">${HELPERS.formatIDR(storeData.metrics.regSalesTodayVal)}</span>
+                   </div>
+                 </div>
+                 <div class="pt-1">
+                   <div class="flex justify-between mb-1.5"><span class="text-slate-500 font-medium">SMI Sales</span><span class="text-[10px] font-bold text-amber-500">${HELPERS.formatPct(storeData.metrics.smiSalesTodayPct)}</span></div>
+                   <div class="flex items-center gap-3">
+                      <div class="w-full bg-white h-2 rounded-full overflow-hidden border border-slate-200"><div class="bg-amber-500 h-full rounded-full" style="width: ${Math.min(storeData.metrics.smiSalesTodayPct, 100)}%"></div></div>
+                      <span class="font-mono font-bold text-[10px] w-20 text-right whitespace-nowrap">${HELPERS.formatIDR(storeData.metrics.smiSalesTodayVal)}</span>
+                   </div>
+                 </div>
+               </div>
+            </div>
+          </div>`;
+
+                container.innerHTML += `
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-10 fade-in hover:shadow-md transition-shadow">
+             <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                  <div class="w-2 h-8 bg-brand-blue rounded-full"></div>
+                  <h3 class="font-display text-lg font-bold text-brand-dark tracking-tight">${storeData.storeName}</h3>
+                </div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Daily Report</span>
+             </div>
+             <div class="p-6">
+                <div class="overflow-x-auto rounded-xl border border-slate-200 mb-2">
+                  <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th class="py-3 px-6 w-1/3 font-bold">Category</th>
+                        <th class="py-3 px-6 text-center font-bold">Stock</th>
+                        <th class="py-3 px-6 text-center font-bold">Qty</th>
+                        <th class="py-3 px-6 text-right font-bold">Regular</th>
+                        <th class="py-3 px-6 text-right font-bold">SMI</th>
+                      </tr>
+                    </thead>
+                    <tbody>${tableRowsHtml}</tbody>
+                    <tfoot class="bg-brand-blueLight text-brand-dark font-bold border-t border-blue-100 text-xs">
+                      <tr>
+                        <td class="py-3 px-6">TOTAL</td>
+                        <td class="py-3 px-6 text-center text-blue-300">-</td>
+                        <td class="py-3 px-6 text-center">${tQty}</td>
+                        <td class="py-3 px-6 text-right whitespace-nowrap">${HELPERS.formatIDR(tNonSmi)}</td>
+                        <td class="py-3 px-6 text-right whitespace-nowrap">${HELPERS.formatIDR(tSmi)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                ${metricsHtml}
+             </div>
+          </div>`;
+            });
+        },
+
+        sapPerformance: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            // Populate KPIs
+            if (data.topSapVal && data.topSapVal.length > 0) {
+                UI.setText('sapKpiTopValName', data.topSapVal[0].sap);
+                UI.setText('sapKpiTopValNet', HELPERS.formatIDR(data.topSapVal[0].net));
+            } else {
+                UI.setText('sapKpiTopValName', '-');
+                UI.setText('sapKpiTopValNet', '-');
+            }
+            if (data.topSapQty && data.topSapQty.length > 0) {
+                UI.setText('sapKpiTopQtyName', data.topSapQty[0].sap);
+                UI.setText('sapKpiTopQtyVal', data.topSapQty[0].qty + ' pcs');
+            } else {
+                UI.setText('sapKpiTopQtyName', '-');
+                UI.setText('sapKpiTopQtyVal', '-');
+            }
+            if (data.topCat && data.topCat.length > 0) {
+                UI.setText('sapKpiTopCatName', data.topCat[0].name);
+                UI.setText('sapKpiTopCatNet', HELPERS.formatIDR(data.topCat[0].net));
+            } else {
+                UI.setText('sapKpiTopCatName', '-');
+                UI.setText('sapKpiTopCatNet', '-');
+            }
+            if (data.topColl && data.topColl.length > 0) {
+                UI.setText('sapKpiTopCollName', data.topColl[0].name);
+                UI.setText('sapKpiTopCollNet', HELPERS.formatIDR(data.topColl[0].net));
+            } else {
+                UI.setText('sapKpiTopCollName', '-');
+                UI.setText('sapKpiTopCollNet', '-');
+            }
+
+            // Podium Visual Helper
+            const getRankBadge = (idx) => {
+                if (idx === 0) return `<div class="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-[10px] border border-amber-200 shadow-sm mx-auto">1</div>`;
+                if (idx === 1) return `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[10px] border border-slate-300 shadow-sm mx-auto">2</div>`;
+                if (idx === 2) return `<div class="w-6 h-6 rounded-full bg-orange-50 text-orange-700 flex items-center justify-center font-bold text-[10px] border border-orange-200 shadow-sm mx-auto">3</div>`;
+                return `<div class="w-6 h-6 rounded-full text-slate-400 flex items-center justify-center font-bold text-[10px] mx-auto">${idx + 1}</div>`;
+            };
+
+            const renderTable = (id, items, cols) => {
+                let html = "";
+                if (items && items.length > 0) {
+                    const maxVal = Math.max(...items.map(i => i.net || i.qty || 0));
+                    items.forEach((item, idx) => { html += cols(item, idx, maxVal); });
+                } else {
+                    html = `<tr><td colspan="4" class="py-8 text-center text-slate-400 text-xs">No data available</td></tr>`;
+                }
+                UI.setHTML(id, html);
+            };
+
+            renderTable('sapTableQty', data.topSapQty, (item, idx, max) => {
+                const pct = max > 0 ? (item.qty / max) * 100 : 0;
+                return `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group"><td class="py-3 px-2 text-center align-middle">${getRankBadge(idx)}</td><td class="py-3 px-5 font-mono text-xs font-bold text-brand-blue group-hover:text-blue-700 transition-colors">${item.sap}</td><td class="py-3 px-5 text-xs text-slate-600"><span class="block font-bold">${item.category}</span><span class="inline-block mt-0.5 text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">${item.collection}</span></td><td class="py-3 px-5 align-middle w-1/3"><div class="flex items-center justify-end gap-3"><span class="font-bold text-brand-dark text-sm">${item.qty}</span><div class="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0"><div class="h-full bg-blue-500 rounded-full" style="width: ${pct}%"></div></div></div></td></tr>`;
+            });
+
+            renderTable('sapTableVal', data.topSapVal, (item, idx, max) => {
+                const pct = max > 0 ? (item.net / max) * 100 : 0;
+                return `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group"><td class="py-3 px-2 text-center align-middle">${getRankBadge(idx)}</td><td class="py-3 px-5 font-mono text-xs font-bold text-brand-blue group-hover:text-blue-700 transition-colors">${item.sap}</td><td class="py-3 px-5 text-xs text-slate-600"><span class="block font-bold">${item.category}</span><span class="inline-block mt-0.5 text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">${item.collection}</span></td><td class="py-3 px-5 align-middle w-1/3"><div class="flex flex-col items-end gap-1"><span class="font-mono font-bold text-emerald-600 text-xs">${HELPERS.formatIDR(item.net)}</span><div class="w-20 h-1 bg-slate-100 rounded-full overflow-hidden shrink-0"><div class="h-full bg-emerald-500 rounded-full" style="width: ${pct}%"></div></div></div></td></tr>`;
+            });
+
+            renderTable('sapTableCat', data.topCat, (item, idx, max) => {
+                const pct = max > 0 ? (item.net / max) * 100 : 0;
+                return `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group"><td class="py-3 px-2 text-center align-middle">${getRankBadge(idx)}</td><td class="py-3 px-5 font-bold text-xs text-slate-700 group-hover:text-purple-700 transition-colors">${item.name}</td><td class="py-3 px-5 text-center text-xs text-slate-500 font-medium align-middle">${item.qty}</td><td class="py-3 px-5 align-middle"><div class="flex flex-col items-end gap-1"><span class="font-mono font-bold text-purple-600 text-xs">${HELPERS.formatIDR(item.net)}</span><div class="w-20 h-1 bg-slate-100 rounded-full overflow-hidden shrink-0"><div class="h-full bg-purple-500 rounded-full" style="width: ${pct}%"></div></div></div></td></tr>`;
+            });
+
+            renderTable('sapTableColl', data.topColl, (item, idx, max) => {
+                const pct = max > 0 ? (item.net / max) * 100 : 0;
+                return `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group"><td class="py-3 px-2 text-center align-middle">${getRankBadge(idx)}</td><td class="py-3 px-5 font-bold text-xs text-slate-700 group-hover:text-amber-700 transition-colors">${item.name}</td><td class="py-3 px-5 text-center text-xs text-slate-500 font-medium align-middle">${item.qty}</td><td class="py-3 px-5 align-middle"><div class="flex flex-col items-end gap-1"><span class="font-mono font-bold text-amber-600 text-xs">${HELPERS.formatIDR(item.net)}</span><div class="w-20 h-1 bg-slate-100 rounded-full overflow-hidden shrink-0"><div class="h-full bg-amber-500 rounded-full" style="width: ${pct}%"></div></div></div></td></tr>`;
+            });
+
+            renderTable('sapTableCatalogue', data.topCatalogue, (item, idx, max) => {
+                const pct = max > 0 ? (item.net / max) * 100 : 0;
+                return `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group"><td class="py-3 px-2 text-center align-middle">${getRankBadge(idx)}</td><td class="py-3 px-5 font-mono text-xs font-bold text-red-600 group-hover:text-red-700 transition-colors">${item.name}</td><td class="py-3 px-5 text-center text-xs text-slate-500 font-medium align-middle">${item.qty}</td><td class="py-3 px-5 align-middle"><div class="flex flex-col items-end gap-1"><span class="font-mono font-bold text-slate-700 text-xs">${HELPERS.formatIDR(item.net)}</span><div class="w-20 h-1 bg-slate-100 rounded-full overflow-hidden shrink-0"><div class="h-full bg-slate-500 rounded-full" style="width: ${pct}%"></div></div></div></td></tr>`;
+            });
+        },
+
+        quarterlyBudget: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+
+            // Set KPI Cards
+            document.getElementById('qbTotalActual').textContent = HELPERS.formatIDR(data.kpi.totalActual);
+            document.getElementById('qbTotalBudget').textContent = HELPERS.formatIDR(data.kpi.totalBudget);
+
+            const varianceEl = document.getElementById('qbTotalVariance');
+            varianceEl.textContent = HELPERS.formatIDR(data.kpi.totalVariance);
+            varianceEl.className = `text-lg lg:text-xl font-display font-bold tracking-tight ${data.kpi.totalVariance >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
+
+            document.getElementById('qbTotalAchievement').textContent = data.kpi.totalAchievement.toFixed(1) + '%';
+
+            // Populate Store Table
+            const tbody = document.getElementById('quarterlyBudgetTableBody');
+            if (!data.storeData || data.storeData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">No Budget Data Found</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            data.storeData.forEach(store => {
+                const isUnder = !store.isAchieved;
+                const varColor = isUnder ? 'text-red-500' : 'text-emerald-500';
+                const varSign = store.variance > 0 ? '+' : '';
+
+                // Progress Bar styling
+                let progColor = 'bg-brand-blue';
+                if (store.achievement >= 100) progColor = 'bg-emerald-500';
+                if (store.achievement < 80) progColor = 'bg-amber-500';
+                if (store.achievement < 50) progColor = 'bg-red-500';
+
+                html += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="py-3 px-5 font-bold text-brand-dark">${store.store}</td>
+                        <td class="py-3 px-5 text-right font-medium">${HELPERS.formatIDR(store.actual)}</td>
+                        <td class="py-3 px-5 text-right text-slate-500">${HELPERS.formatIDR(store.budget)}</td>
+                        <td class="py-3 px-5 text-right font-bold ${varColor}">${varSign}${HELPERS.formatIDR(store.variance)}</td>
+                        <td class="py-3 px-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-xs font-bold w-12 text-right ${isUnder ? 'text-red-600' : 'text-emerald-600'}">${store.achievement.toFixed(1)}%</span>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner flex-grow">
+                                    <div class="${progColor} h-2 rounded-full transition-all duration-1000" style="width: ${Math.min(100, Math.max(0, store.achievement))}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+
+            // Populate Monthly Breakdown Table
+            const mBody = document.getElementById('quarterlyBudgetMonthlyTableBody');
+
+            // Set Dynamic Month Headers
+            if (data.monthNames && data.monthNames.length === 3) {
+                document.getElementById('qbhM1').textContent = data.monthNames[0];
+                document.getElementById('qbhM2').textContent = data.monthNames[1];
+                document.getElementById('qbhM3').textContent = data.monthNames[2];
+            }
+
+            let mHtml = '';
+            data.storeData.forEach(store => {
+                const mb = store.monthlyBreakdown;
+                if (!mb) return;
+
+                const getAchvColor = (achv) => {
+                    if (achv >= 100) return 'text-emerald-600';
+                    if (achv >= 80) return 'text-amber-500';
+                    return 'text-red-500';
+                };
+
+                const getMCol = (m) => {
+                    const color = getAchvColor(m.achievement);
+                    return `
+                        <td class="py-2 px-3 text-right font-medium border-r border-slate-100">${HELPERS.formatIDR(m.actual)}</td>
+                        <td class="py-2 px-3 text-right text-slate-500 border-r border-slate-100">${HELPERS.formatIDR(m.budget)}</td>
+                        <td class="py-2 px-3 text-right font-bold ${color} border-r border-slate-200">${m.achievement.toFixed(1)}%</td>
+                    `;
+                };
+
+                const qAchvColor = getAchvColor(store.achievement);
+
+                mHtml += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="py-2 px-5 font-bold text-brand-dark text-left border-r border-slate-200">${store.store}</td>
+                        ${getMCol(mb.m1)}
+                        ${getMCol(mb.m2)}
+                        ${getMCol(mb.m3)}
+                        <td class="py-2 px-3 font-bold text-center bg-slate-50 ${qAchvColor}">${store.achievement.toFixed(1)}%</td>
+                    </tr>
+                `;
+            });
+            mBody.innerHTML = mHtml;
+        },
+
+        crossingSales: (res) => {
+            if (res.error) { UI.showToast(res.error); UI.showLoader(false); return; }
+
+            // Summary KPIs (Total generated for the month)
+            document.getElementById('crossTotalNet').innerText = res.totalNetSalesGenerated > 0 ? HELPERS.formatIDR(res.totalNetSalesGenerated) : "-";
+            document.getElementById('crossTotalQty').innerText = res.totalNetQtyGenerated || "-";
+
+            // Render Excluded HO Crossing if present
+            const hoNetEl = document.getElementById('crossHONet');
+            if (hoNetEl) {
+                if (res.hoCrossingNet && res.hoCrossingNet > 0) {
+                    hoNetEl.innerText = `+ Excluded HO: ${HELPERS.formatIDR(res.hoCrossingNet)}`;
+                    hoNetEl.classList.remove('hidden');
+                } else {
+                    hoNetEl.classList.add('hidden');
+                }
+            }
+
+            const hoQtyEl = document.getElementById('crossHOQty');
+            if (hoQtyEl) {
+                if (res.hoCrossingQty && res.hoCrossingQty > 0) {
+                    hoQtyEl.innerText = `+ Excluded HO: ${res.hoCrossingQty} pcs`;
+                    hoQtyEl.classList.remove('hidden');
+                } else {
+                    hoQtyEl.classList.add('hidden');
+                }
+            }
+
+            // Store Adjustments
+            const updateStoreKpi = (prefix, data) => {
+                const adjEl = document.getElementById(`kpi${prefix}Adj`);
+                const physEl = document.getElementById(`kpi${prefix}Phys`);
+                const badgeEl = document.getElementById(`${prefix.toLowerCase()}VarBadge`);
+                const impactEl = document.getElementById(`kpi${prefix}Impact`);
+
+                if (!adjEl || !physEl || !data) return;
+
+                adjEl.innerText = HELPERS.formatIDR(data.adjusted);
+                physEl.innerText = HELPERS.formatIDR(data.physical);
+
+                const variance = data.physical > 0 ? ((data.adjusted - data.physical) / data.physical) * 100 : 0;
+                const delta = data.adjusted - data.physical;
+
+                // Chevron SVGs
+                const svgUp = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"></path></svg>`;
+                const svgDown = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>`;
+                const svgDash = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"></path></svg>`;
+
+                if (variance > 0) {
+                    badgeEl.innerHTML = `${svgUp} <span>${variance.toFixed(1)}%</span>`;
+                    badgeEl.className = "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm";
+                    if (impactEl) {
+                        impactEl.innerText = `+ ${HELPERS.formatIDR(Math.abs(delta))}`;
+                        impactEl.className = "text-[11px] font-bold mt-1 text-emerald-600";
+                    }
+                } else if (variance < 0) {
+                    badgeEl.innerHTML = `${svgDown} <span>${Math.abs(variance).toFixed(1)}%</span>`;
+                    badgeEl.className = "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100 shadow-sm";
+                    if (impactEl) {
+                        impactEl.innerText = `- ${HELPERS.formatIDR(Math.abs(delta))}`;
+                        impactEl.className = "text-[11px] font-bold mt-1 text-red-600";
+                    }
+                } else {
+                    badgeEl.innerHTML = `${svgDash} <span>0.0%</span>`;
+                    badgeEl.className = "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100 shadow-sm";
+                    if (impactEl) {
+                        impactEl.innerText = `No Impact`;
+                        impactEl.className = "text-[11px] font-bold mt-1 text-slate-400";
+                    }
+                }
+            };
+
+            updateStoreKpi("Pi", res.storeStats["Plaza Indonesia"]);
+            updateStoreKpi("Ps", res.storeStats["Plaza Senayan"]);
+            updateStoreKpi("Bali", res.storeStats["Bali"]);
+
+            // Populate Table
+            let tbody = "";
+            if (!res.records || res.records.length === 0) {
+                tbody = `<tr><td colspan="6" class="p-8 text-center text-slate-400">No crossing sales detected for this period.</td></tr>`;
+            } else {
+                res.records.forEach(r => {
+                    tbody += `
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="py-3 px-5 border-b border-slate-50">
+                            <span class="font-bold text-slate-700">${r.salesman}</span>
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50 text-slate-500">${r.baseLoc}</td>
+                        <td class="py-3 px-3 border-b border-slate-50 text-center text-slate-300">
+                            <svg class="w-4 h-4 mx-auto group-hover:text-brand-blue group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                            </svg>
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50">
+                            <span class="font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full text-xs border border-amber-100">${r.crossingLoc}</span>
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50 text-right">
+                            <span class="font-mono font-bold text-brand-dark">${HELPERS.formatIDR(r.net)}</span>
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50 text-center">
+                            <span class="font-mono text-slate-600">${r.qty}</span>
+                        </td>
+                    </tr>`;
+                });
+            }
+
+            UI.setHTML('crossingTableBody', tbody);
+            UI.showLoader(false);
+            document.getElementById('loaderText').innerText = "Processing Data...";
+        }
+    };
+
+    // ==========================================
+    // 7. CHARTS (Extracted)
+    // ==========================================
+    // The CHARTS object and its methods have been extracted to 'JavaScript_Charts.html'.
+
+    // ==========================================
+    // 8. INITIALIZATION
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+        UI.initDefaults();
+        APP.switchTab('monthly'); // Load default tab
+    });
+</script>

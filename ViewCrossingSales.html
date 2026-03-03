@@ -1,0 +1,365 @@
+<!-- CROSSING SALES AND MOBILITY VIEW -->
+<div id="viewCrossing" class="hidden">
+    <!-- View Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+            <h2 class="font-display text-2xl font-bold text-brand-dark tracking-tight">Crossing Sales & Mobility</h2>
+            <p class="text-xs text-slate-500 mt-1 font-medium">Monthly Analysis of Sales Advisor Inter-Boutique
+                Operations</p>
+
+            <!-- CROSSING SUB-MENU -->
+            <div class="mt-4 bg-slate-50 p-1 rounded-lg inline-flex border border-slate-200">
+                <button onclick="APP.switchCrossingSubView('crossing')" id="btnCrossSales"
+                    class="px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm">
+                    Crossing Activity
+                </button>
+                <button onclick="APP.switchCrossingSubView('footfall')" id="btnCrossFootfall"
+                    class="px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent">
+                    Store Footfall
+                </button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Sync Button -->
+            <button onclick="APP.loadCrossingSales(true)" id="btnSyncCrossing"
+                class="flex items-center gap-2 bg-white px-4 py-2 text-xs font-bold text-slate-600 rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 hover:text-brand-blue transition-all disabled:opacity-50 group">
+                <svg id="iconSyncCrossing" class="w-4 h-4 text-slate-400 group-hover:text-brand-blue transition-colors"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Sync Data
+            </button>
+            <!-- Export PDF -->
+            <button onclick="APP.downloadCrossingSales('pdf')" id="btnExpCrossingPdf"
+                class="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 border border-red-100 rounded-lg text-[11px] font-bold shadow-sm hover:bg-red-100 transition-all disabled:opacity-50">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export PDF
+            </button>
+            <!-- Export Excel -->
+            <button onclick="APP.downloadCrossingSales('excel')" id="btnExpCrossingExcel"
+                class="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 border border-emerald-100 rounded-lg text-[11px] font-bold shadow-sm hover:bg-emerald-100 transition-all disabled:opacity-50">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- VIEW 1: CROSSING SALES ACTIVITY -->
+    <div id="crossingSalesSubView">
+
+        <!-- Summary KPIs -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Net Sales
+                        Generated
+                    </p>
+                    <h3 class="font-display text-3xl font-bold text-emerald-600" id="crossTotalNet">-</h3>
+                    <p id="crossHONet" class="text-[10px] text-slate-400 mt-1 font-medium hidden"></p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Net Qty
+                        Generated
+                    </p>
+                    <h3 class="font-display text-3xl font-bold text-blue-600"><span id="crossTotalQty">-</span> <span
+                            class="text-sm text-slate-400 font-medium">pcs</span></h3>
+                    <p id="crossHOQty" class="text-[10px] text-slate-400 mt-1 font-medium hidden"></p>
+                </div>
+                <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-500">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        +
+        <!-- Store Adjustments (Plaza Indonesia, Plaza Senayan, Bali) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <!-- Plaza Indonesia -->
+            <div
+                class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-brand-blue/10 text-brand-blue flex items-center justify-center font-bold text-[10px] tracking-wider">
+                            PI</div>
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Plaza Indonesia</p>
+                    </div>
+                    <div id="piVarBadge"
+                        class="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                        <span>0%</span>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <p class="text-[11px] font-medium text-slate-400 mb-1">Adjusted Performance</p>
+                    <h4 class="text-2xl font-bold text-brand-dark font-mono tracking-tight" id="kpiPiAdj">-</h4>
+                    <p class="text-[11px] font-bold mt-1" id="kpiPiImpact">-</p>
+                </div>
+                <div class="flex justify-between items-center text-[10px] pt-3 border-t border-slate-50">
+                    <span class="text-slate-400 font-medium tracking-wide">Physical Sales</span>
+                    <span class="font-bold text-slate-600 font-mono" id="kpiPiPhys">-</span>
+                </div>
+                <div
+                    class="absolute top-0 right-0 w-24 h-24 bg-brand-blue/5 rounded-bl-full -mr-10 -mt-10 group-hover:bg-brand-blue/10 transition-colors pointer-events-none">
+                </div>
+            </div>
+
+            <!-- Plaza Senayan -->
+            <div
+                class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-[10px] tracking-wider">
+                            PS</div>
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Plaza Senayan</p>
+                    </div>
+                    <div id="psVarBadge"
+                        class="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                        <span>0%</span>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <p class="text-[11px] font-medium text-slate-400 mb-1">Adjusted Performance</p>
+                    <h4 class="text-2xl font-bold text-brand-dark font-mono tracking-tight" id="kpiPsAdj">-</h4>
+                    <p class="text-[11px] font-bold mt-1" id="kpiPsImpact">-</p>
+                </div>
+                <div class="flex justify-between items-center text-[10px] pt-3 border-t border-slate-50">
+                    <span class="text-slate-400 font-medium tracking-wide">Physical Sales</span>
+                    <span class="font-bold text-slate-600 font-mono" id="kpiPsPhys">-</span>
+                </div>
+                <div
+                    class="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-full -mr-10 -mt-10 group-hover:bg-amber-500/10 transition-colors pointer-events-none">
+                </div>
+            </div>
+
+            <!-- Bali Boutique -->
+            <div
+                class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-[10px] tracking-wider">
+                            BL</div>
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Bali Boutique</p>
+                    </div>
+                    <div id="baliVarBadge"
+                        class="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                        <span>0%</span>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <p class="text-[11px] font-medium text-slate-400 mb-1">Adjusted Performance</p>
+                    <h4 class="text-2xl font-bold text-brand-dark font-mono tracking-tight" id="kpiBaliAdj">-</h4>
+                    <p class="text-[11px] font-bold mt-1" id="kpiBaliImpact">-</p>
+                </div>
+                <div class="flex justify-between items-center text-[10px] pt-3 border-t border-slate-50">
+                    <span class="text-slate-400 font-medium tracking-wide">Physical Sales</span>
+                    <span class="font-bold text-slate-600 font-mono" id="kpiBaliPhys">-</span>
+                </div>
+                <div
+                    class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full -mr-10 -mt-10 group-hover:bg-emerald-500/10 transition-colors pointer-events-none">
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Table -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-5 border-b border-slate-100 bg-white flex justify-between items-center">
+                <h3 class="font-display text-base font-bold text-brand-dark flex items-center gap-2">
+                    <span class="w-2 h-2 bg-amber-500 rounded-full"></span> Crossing Activity Details
+                </h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left whitespace-nowrap">
+                    <thead
+                        class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
+                        <tr>
+                            <th class="py-3 px-5 font-bold">Sales Advisor</th>
+                            <th class="py-3 px-5 font-bold">Base Location</th>
+                            <th class="py-3 px-5 font-bold"></th>
+                            <th class="py-3 px-5 font-bold text-amber-600">Crossing Destination</th>
+                            <th class="py-3 px-5 text-right font-bold w-48">Net Sales Generated</th>
+                            <th class="py-3 px-5 text-center font-bold w-24">Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crossingTableBody" class="divide-y divide-slate-50">
+                        <!-- Populated via GS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: STORE FOOTFALL -->
+    <div id="crossingFootfallSubView" class="hidden">
+
+        <!-- Footfall KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div
+                    class="absolute -right-4 -top-4 w-20 h-20 bg-brand-blue/5 rounded-full group-hover:scale-150 transition-transform duration-500">
+                </div>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 relative z-10">Total Footfall
+                    PI
+                </h3>
+                <p class="font-display text-3xl font-bold text-brand-dark tracking-tight relative z-10"
+                    id="footfallTotalPI">-</p>
+                <div class="mt-4 w-full bg-slate-100 h-1.5 rounded-full overflow-hidden relative z-10">
+                    <div class="bg-brand-blue h-full rounded-full w-full"></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div
+                    class="absolute -right-4 -top-4 w-20 h-20 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                </div>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 relative z-10">Total Footfall
+                    PS
+                </h3>
+                <p class="font-display text-3xl font-bold text-emerald-600 tracking-tight relative z-10"
+                    id="footfallTotalPS">-</p>
+                <div class="mt-4 w-full bg-slate-100 h-1.5 rounded-full overflow-hidden relative z-10">
+                    <div class="bg-emerald-500 h-full rounded-full w-full"></div>
+                </div>
+            </div>
+
+            <div
+                class="bg-gradient-to-br from-slate-800 to-brand-dark p-5 rounded-2xl shadow-md relative overflow-hidden group">
+                <div
+                    class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] bg-repeat opacity-50">
+                </div>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 relative z-10">Combined
+                    Footfall
+                </h3>
+                <p class="font-display text-4xl font-black text-white tracking-tight relative z-10"
+                    id="footfallCombined">-
+                </p>
+            </div>
+        </div>
+
+        <!-- Footfall Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Daily Trend Chart -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-base font-bold text-brand-dark">Daily Footfall Trend</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Visits mapped throughout the selected month</p>
+                    </div>
+                </div>
+                <div class="h-[300px] w-full relative">
+                    <canvas id="chartFootfallTrend"></canvas>
+                </div>
+            </div>
+
+            <!-- PI Gender Demographics -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                <div class="mb-4">
+                    <h3 class="text-base font-bold text-brand-dark">PI Demographics</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Estimated Gender Distribution</p>
+                </div>
+                <!-- Custom Demographic UI -->
+                <div class="flex-grow flex flex-col justify-center items-center py-4">
+                    <div class="w-full flex justify-between items-end mb-2 px-2">
+                        <div class="text-center">
+                            <span class="text-3xl font-display font-black text-brand-blue block leading-none"
+                                id="footfallPctMen">-</span>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 block">Men</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-3xl font-display font-black text-pink-500 block leading-none"
+                                id="footfallPctWomen">-</span>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 block">Women</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full h-4 bg-slate-100 rounded-full overflow-hidden flex shadow-inner mt-4">
+                        <div id="barFootfallMen" class="bg-brand-blue h-full w-0 transition-all duration-1000"></div>
+                        <div id="barFootfallWomen" class="bg-pink-500 h-full w-0 transition-all duration-1000"></div>
+                    </div>
+
+                    <p class="text-[10px] text-slate-400 italic text-center mt-6 max-w-[80%] mx-auto">
+                        Percentage is averaged across all populated days within the selected month.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daily Detailed Table -->
+        <div class="mt-6 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-5 border-b border-slate-100 bg-white flex justify-between items-center">
+                <h3 class="font-display text-base font-bold text-brand-dark flex items-center gap-2">
+                    <span class="w-2 h-2 bg-brand-blue rounded-full"></span> Daily Footfall Breakdown
+                </h3>
+                <button onclick="APP.exportFootfallCSV()"
+                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20 border border-brand-blue/10 shadow-sm whitespace-nowrap">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    Export CSV
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left whitespace-nowrap">
+                    <thead
+                        class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
+                        <tr>
+                            <th class="py-3 px-5 font-bold">Date</th>
+                            <th class="py-3 px-5 font-bold text-center border-l border-slate-100 bg-brand-blue/5"
+                                colspan="2">Plaza Indonesia</th>
+                            <th class="py-3 px-5 font-bold text-center border-l border-slate-100 bg-emerald-500/5"
+                                colspan="2">Plaza Senayan</th>
+                            <th class="py-3 px-5 text-right font-bold w-32 border-l border-slate-100">Total
+                                Combined
+                                IN</th>
+                        </tr>
+                        <tr class="border-b border-slate-100 text-[10px]">
+                            <th class="py-2 px-5 font-medium text-slate-400">Day</th>
+                            <th
+                                class="py-2 px-5 font-bold text-right border-l border-slate-100 bg-brand-blue/5 text-brand-blue">
+                                In</th>
+                            <th class="py-2 px-5 font-bold text-right border-l border-slate-50 bg-brand-blue/5">
+                                Out
+                            </th>
+                            <th
+                                class="py-2 px-5 font-bold text-right border-l border-slate-100 bg-emerald-500/5 text-emerald-600">
+                                In</th>
+                            <th class="py-2 px-5 font-bold text-right border-l border-slate-50 bg-emerald-500/5">
+                                Out
+                            </th>
+                            <th class="py-2 px-5 font-medium border-l border-slate-100"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="footfallTableBody" class="divide-y divide-slate-50">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>

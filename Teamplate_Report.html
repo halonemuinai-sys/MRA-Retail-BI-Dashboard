@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Performance Report</title>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* RESET & BASE */
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #e2e8f0;
+            margin: 0;
+            padding: 20px;
+            color: #1e293b;
+        }
+
+        /* A4 PAPER CONTAINER */
+        .page {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 15mm;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            position: relative;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 20px;
+        }
+
+        .logo-area h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-area p {
+            margin: 5px 0 0;
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-area {
+            text-align: right;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+
+        .report-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        /* KPI GRID */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .kpi-card.highlight {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            color: #64748b;
+        }
+
+        .kpi-card.highlight .kpi-label {
+            color: #bfdbfe;
+        }
+
+        .kpi-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0;
+        }
+
+        .kpi-card.highlight .kpi-value {
+            color: white;
+        }
+
+        .kpi-sub {
+            font-size: 10px;
+            margin-top: 5px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .kpi-card.highlight .kpi-sub {
+            color: #dbeafe;
+        }
+
+        /* SECTION TITLE */
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 16px;
+            background: #2563eb;
+            border-radius: 2px;
+        }
+
+        /* TABLE */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px;
+            background: #f8fafc;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            font-weight: 500;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .font-mono {
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: -0.5px;
+        }
+
+        .font-bold {
+            font-weight: 700;
+        }
+
+        .text-brand {
+            color: #2563eb;
+        }
+
+        .text-success {
+            color: #10b981;
+        }
+
+        .text-danger {
+            color: #e11d48;
+        }
+
+        /* FOOTER */
+        .footer {
+            position: absolute;
+            bottom: 15mm;
+            left: 15mm;
+            right: 15mm;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .page {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+
+        .print-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-print {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .kpi-value-small {
+            font-size: 16px;
+            margin-top: 4px;
+        }
+
+        .table-spaced {
+            margin-bottom: 30px;
+        }
+
+        .th-rank {
+            width: 40px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- PRINT CONTROL -->
+    <div class="no-print print-controls">
+        <button onclick="window.print()" class="btn-print">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                </path>
+            </svg>
+            Print / Save PDF
+        </button>
+    </div>
+
+    <div class="page">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="logo-area">
+                <h1>Sales Performance Report</h1>
+                <p>Retail Dashboard V3 &bull; Generated Automatically</p>
+            </div>
+            <div class="meta-area">
+                <span class="badge">Confidential</span>
+                <div class="report-date">
+                    <?= datestr ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI GRID -->
+        <div class="kpi-grid">
+            <!-- MTD Sales -->
+            <div class="kpi-card highlight">
+                <div class="kpi-label">Month to Date Sales</div>
+                <h3 class="kpi-value">
+                    <?= kpi.sales ?>
+                </h3>
+                <div class="kpi-sub">
+                    <span>Target:
+                        <?= kpi.target ?>
+                    </span>
+                </div>
+            </div>
+            <!-- Achievement -->
+            <div class="kpi-card">
+                <div class="kpi-label">Achievement</div>
+                <h3 class="kpi-value text-brand">
+                    <?= kpi.achievement ?>
+                </h3>
+                <div class="kpi-sub">
+                    <span>Qty Sold: <strong>
+                            <?= kpi.qty ?>
+                        </strong></span>
+                </div>
+            </div>
+            <!-- Cost % -->
+            <div class="kpi-card">
+                <div class="kpi-label">Cost % (Gross)</div>
+                <h3 class="kpi-value text-danger">
+                    <?= kpi.cost ?>
+                </h3>
+                <div class="kpi-sub">
+                    <span>Avg Disc: <strong>
+                            <?= kpi.disc ?>
+                        </strong></span>
+                </div>
+            </div>
+            <!-- Best Store -->
+            <div class="kpi-card">
+                <div class="kpi-label">Best Performing Store</div>
+                <h3 class="kpi-value kpi-value-small">
+                    <?= kpi.bestStore ?>
+                </h3>
+                <div class="kpi-sub">
+                    <span class="text-success">
+                        <?= kpi.bestAchv ?> Achievement
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLE SECTION -->
+        <h3 class="section-title">Store Performance Breakdown</h3>
+        <table class="table-spaced">
+            <thead>
+                <tr>
+                    <th>Store Location</th>
+                    <th class="text-right">Net Sales</th>
+                    <th class="text-right">Target</th>
+                    <th class="text-right">Remaining</th>
+                    <th class="text-right">Achv %</th>
+                    <th class="text-right">Cost %</th>
+                </tr>
+            </thead>
+            <tbody>
+                <? for (var i = 0; i < table.length; i++) { ?>
+                <tr>
+                    <td><strong>
+                            <?= table[i].store ?>
+                        </strong></td>
+                    <td class="text-right font-mono">
+                        <?= table[i].sales ?>
+                    </td>
+                    <td class="text-right font-mono text-slate-400">
+                        <?= table[i].target ?>
+                    </td>
+                    <td class="text-right font-mono text-slate-400">
+                        <?= table[i].remaining ?>
+                    </td>
+                    <td class="text-right font-bold <?= table[i].achvColor ?>">
+                        <?= table[i].achv ?>
+                    </td>
+                    <td class="text-right text-danger">
+                        <?= table[i].cost ?>
+                    </td>
+                </tr>
+                <? } ?>
+            </tbody>
+        </table>
+
+        <!-- TABLE ADVISOR -->
+        <h3 class="section-title">Top Advisors (>100% Achievement)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th class="text-center th-rank">Rank</th>
+                    <th>Advisor Name</th>
+                    <th>Location</th>
+                    <th class="text-right">Net Sales</th>
+                    <th class="text-right">Achv %</th>
+                </tr>
+            </thead>
+            <tbody>
+                <? for (var i = 0; i < advisors.length; i++) { ?>
+                <tr>
+                    <td class="text-center text-slate-400">
+                        <?= i + 1 ?>
+                    </td>
+                    <td><strong>
+                            <?= advisors[i].name ?>
+                        </strong></td>
+                    <td class="text-slate-500">
+                        <?= advisors[i].location ?>
+                    </td>
+                    <td class="text-right font-mono">
+                        <?= advisors[i].sales ?>
+                    </td>
+                    <td class="text-right font-bold text-success">
+                        <?= advisors[i].achv ?>
+                    </td>
+                </tr>
+                <? } ?>
+            </tbody>
+        </table>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <div>Printed by: System Admin</div>
+            <div>Page 1 of 1</div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

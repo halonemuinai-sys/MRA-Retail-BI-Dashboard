@@ -1,0 +1,745 @@
+<script>
+    // ==========================================
+    // 7. CHARTS (Extracted from JavaScript.html)
+    // ==========================================
+    const CHARTS = {
+
+        renderCustomerCharts: (segments, revenueMix, growthTrend) => {
+            const ctx1 = document.getElementById('custSegmentChart');
+            if (ctx1) {
+                if (STATE.charts.custSegment) STATE.charts.custSegment.destroy();
+                const labels = Object.keys(segments);
+                const values = Object.values(segments);
+                const colors = labels.map(l => THEME.colors.segments[l] || '#CBD5E1');
+
+                STATE.charts.custSegment = new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4 }] },
+                    options: { ...THEME.chartDefaults, cutout: '65%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, font: { family: 'Inter', size: 10 }, boxWidth: 8 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 10 }, formatter: (val, ctx) => { let sum = 0; let dataArr = ctx.chart.data.datasets[0].data; dataArr.map(data => { sum += data; }); return val > 0 ? (val * 100 / sum).toFixed(1) + "%" : ''; } } } }, plugins: HELPERS.getChartPlugins()
+                });
+            }
+
+            const ctx2 = document.getElementById('custRevenueChart');
+            if (ctx2) {
+                if (STATE.charts.custRevenue) STATE.charts.custRevenue.destroy();
+                STATE.charts.custRevenue = new Chart(ctx2, {
+                    type: 'bar',
+                    data: { labels: ['New Customer', 'Repeat Customer'], datasets: [{ label: 'Revenue', data: [revenueMix["New"], revenueMix["Repeat"]], backgroundColor: ['#3B82F6', '#10B981'], borderRadius: 6, barPercentage: 0.5 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'top', color: '#64748B', font: { weight: 'bold', size: 10 }, formatter: (val) => HELPERS.formatIDR(val) } }, scales: { y: { display: false, grid: { display: false } }, x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } } }, layout: { padding: { top: 20 } } }, plugins: HELPERS.getChartPlugins()
+                });
+            }
+
+            // NEW: Growth Trend Chart
+            const ctx3 = document.getElementById('custGrowthChart');
+            if (ctx3 && growthTrend) {
+                if (STATE.charts.custGrowth) STATE.charts.custGrowth.destroy();
+
+                const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+                // Helper to create gradient for lines
+                const createLineGradient = (context, colorStart, colorEnd) => {
+                    const ctx = context.chart.ctx;
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                    gradient.addColorStop(0, colorStart);
+                    gradient.addColorStop(1, colorEnd);
+                    return gradient;
+                };
+
+                STATE.charts.custGrowth = new Chart(ctx3, {
+                    type: 'line',
+                    data: {
+                        labels: monthLabels,
+                        datasets: [
+                            {
+                                label: 'New Customers',
+                                data: growthTrend.new,
+                                borderColor: '#3B82F6',
+                                backgroundColor: function (context) { return createLineGradient(context, 'rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0)'); },
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2,
+                                pointRadius: 3,
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#3B82F6'
+                            },
+                            {
+                                label: 'Repeat Customers',
+                                data: growthTrend.repeat,
+                                borderColor: '#10B981',
+                                backgroundColor: function (context) { return createLineGradient(context, 'rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0)'); },
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2,
+                                pointRadius: 3,
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#10B981'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 6, font: { size: 10 } } },
+                            datalabels: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            y: { grid: { color: '#F8FAFC', drawBorder: false }, ticks: { font: { size: 10 }, color: '#94A3B8' }, beginAtZero: true },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94A3B8' } }
+                        },
+                        interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                    },
+                    plugins: HELPERS.getChartPlugins()
+                });
+            }
+        },
+
+        renderCustomerFootfall: (res) => {
+            if (res.error) {
+                UI.showToast(res.error);
+                return;
+            }
+
+            // 1. KPI Cards
+            UI.setText('footfallTotalPI', HELPERS.formatIDR(res.kpis.totalPI));
+            UI.setText('footfallTotalPS', HELPERS.formatIDR(res.kpis.totalPS));
+            UI.setText('footfallCombined', HELPERS.formatIDR(res.kpis.combined));
+
+            // 2. Trend Chart (Line)
+            const ctxTrend = document.getElementById('chartFootfallTrend');
+            if (ctxTrend) {
+                if (STATE.charts.footfallTrend) STATE.charts.footfallTrend.destroy();
+
+                const labels = Array.from({ length: 31 }, (_, i) => i + 1);
+                const piInData = res.dailyTrend.map(d => d.PI_In);
+                const piOutData = res.dailyTrend.map(d => d.PI_Out);
+                const psInData = res.dailyTrend.map(d => d.PS_In);
+
+                // Helper to create gradient for lines
+                const createLineGradient = (context, colorStart, colorEnd) => {
+                    const ctx = context.chart.ctx;
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                    gradient.addColorStop(0, colorStart);
+                    gradient.addColorStop(1, colorEnd);
+                    return gradient;
+                };
+
+                STATE.charts.footfallTrend = new Chart(ctxTrend, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'PI Traffic (In)',
+                                data: piInData,
+                                borderColor: '#3B82F6',
+                                backgroundColor: function (context) { return createLineGradient(context, 'rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0)'); },
+                                fill: true, tension: 0.4, borderWidth: 2, pointRadius: 2
+                            },
+                            {
+                                label: 'PS Traffic (In)',
+                                data: psInData,
+                                borderColor: '#10B981',
+                                backgroundColor: function (context) { return createLineGradient(context, 'rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0)'); },
+                                fill: true, tension: 0.4, borderWidth: 2, pointRadius: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 6, font: { size: 10 } } },
+                            datalabels: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            y: { grid: { color: '#F8FAFC', drawBorder: false }, ticks: { font: { size: 10 }, color: '#94A3B8' }, beginAtZero: true },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94A3B8' } }
+                        },
+                        interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                    }
+                });
+            }
+
+            // 3. PI Demographics
+            const menPct = Math.round(res.demographicsPI.menPct || 0);
+            const womenPct = Math.round(res.demographicsPI.womenPct || 0);
+
+            UI.setText('footfallPctMen', menPct + '%');
+            UI.setText('footfallPctWomen', (+menPct + +womenPct > 0) ? womenPct + '%' : '0%');
+
+            const barMen = document.getElementById('barFootfallMen');
+            const barWomen = document.getElementById('barFootfallWomen');
+
+            if (barMen) barMen.style.width = menPct + '%';
+            if (barWomen) barWomen.style.width = womenPct + '%';
+
+            // 4. Daily Detail Table
+            const tbody = document.getElementById('footfallTableBody');
+            if (tbody && res.dailyTrend) {
+                let html = '';
+                const formatNum = (num) => num > 0 ? `<span class="font-mono text-slate-700 font-medium">${num}</span>` : `<span class="text-slate-300">-</span>`;
+
+                res.dailyTrend.forEach((dayData, idx) => {
+                    const dayNum = idx + 1;
+                    const piIn = dayData.PI_In || 0;
+                    const piOut = dayData.PI_Out || 0;
+                    const psIn = dayData.PS_In || 0;
+                    const psOut = dayData.PS_Out || 0;
+                    const totalIn = piIn + psIn;
+
+                    // Only show rows that have at least some traffic to keep it clean, or all days? Let's show all days for a full month calendar feel.
+                    const isWeekend = new Date(document.getElementById('yearSelect').value, document.getElementById('monthSelect').value - 1, dayNum).getDay() % 6 === 0;
+                    const rowBgClass = isWeekend ? 'bg-slate-50/30' : '';
+
+                    html += `
+                    <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors ${rowBgClass}">
+                        <td class="py-2.5 px-5 font-mono text-xs text-slate-500">${dayNum}</td>
+                        <td class="py-2.5 px-5 text-right border-l border-slate-100">${formatNum(piIn)}</td>
+                        <td class="py-2.5 px-5 text-right border-l border-slate-50">${formatNum(piOut)}</td>
+                        <td class="py-2.5 px-5 text-right border-l border-slate-100">${formatNum(psIn)}</td>
+                        <td class="py-2.5 px-5 text-right border-l border-slate-50">${formatNum(psOut)}</td>
+                        <td class="py-2.5 px-5 text-right border-l border-slate-100 font-bold text-brand-dark bg-slate-50/50">${formatNum(totalIn)}</td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            }
+        },
+
+        renderCatPie: (storeList) => {
+            const ctxEl = document.getElementById('catChart');
+            if (!ctxEl) return;
+            const sortedStores = storeList.sort((a, b) => b.actual - a.actual);
+            const labels = sortedStores.map(s => s.store);
+            const dataPoints = sortedStores.map(s => s.actual);
+
+            if (STATE.charts.cat) STATE.charts.cat.destroy();
+            STATE.charts.cat = new Chart(ctxEl, {
+                type: 'pie', data: { labels: labels, datasets: [{ data: dataPoints, backgroundColor: THEME.colors.chart, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4 }] },
+                options: { ...THEME.chartDefaults, plugins: { ...THEME.chartDefaults.plugins, tooltip: { callbacks: { label: function (context) { const value = context.parsed; const total = context.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%'; return context.label + ': ' + HELPERS.formatIDR(value) + ' (' + pct + ')'; } } }, datalabels: { ...THEME.chartDefaults.plugins.datalabels, formatter: (value) => value > 0 ? (value >= 1000000000 ? (value / 1000000000).toFixed(1) + 'M' : (value / 1000000).toFixed(0) + 'jt') : '' } } }, plugins: HELPERS.getChartPlugins()
+            });
+        },
+
+        renderMonthlyTransPie: (catData) => {
+            const ctxEl = document.getElementById('monthlyTransactionChart');
+            if (!ctxEl) return;
+            if (STATE.charts.monthlyTrans) STATE.charts.monthlyTrans.destroy();
+            const labels = Object.keys(catData);
+            const dataPoints = Object.values(catData).map(c => c.net);
+
+            STATE.charts.monthlyTrans = new Chart(ctxEl, {
+                type: 'pie', data: { labels: labels, datasets: [{ data: dataPoints, backgroundColor: THEME.colors.chart, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4 }] },
+                options: { ...THEME.chartDefaults, plugins: { ...THEME.chartDefaults.plugins, tooltip: { callbacks: { label: function (context) { const value = context.parsed; const total = context.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%'; return context.label + ': ' + HELPERS.formatIDR(value) + ' (' + pct + ')'; } } }, datalabels: { ...THEME.chartDefaults.plugins.datalabels, formatter: (value) => value > 0 ? (value >= 1000000000 ? (value / 1000000000).toFixed(1) + 'M' : (value / 1000000).toFixed(0) + 'jt') : '' } } }, plugins: HELPERS.getChartPlugins()
+            });
+        },
+
+        renderAdvisorStore: (storeMix) => {
+            const ctxEl = document.getElementById('advisorStoreChart');
+            if (!ctxEl) return;
+            if (STATE.charts.advisorStore) STATE.charts.advisorStore.destroy();
+            STATE.charts.advisorStore = new Chart(ctxEl, {
+                type: 'pie', data: { labels: storeMix.map(s => s.store), datasets: [{ data: storeMix.map(s => s.amount), backgroundColor: THEME.colors.chart, borderWidth: 2, borderColor: '#ffffff' }] },
+                options: { ...THEME.chartDefaults, plugins: { ...THEME.chartDefaults.plugins, legend: { ...THEME.chartDefaults.plugins.legend, labels: { ...THEME.chartDefaults.plugins.legend.labels, boxWidth: 8 } }, tooltip: { callbacks: { label: function (context) { const value = context.parsed; const total = context.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%'; return context.label + ': ' + HELPERS.formatIDR(value) + ' (' + pct + ')'; } } }, datalabels: { ...THEME.chartDefaults.plugins.datalabels, font: { ...THEME.chartDefaults.plugins.datalabels.font, size: 9 }, formatter: (val) => val >= 1000000000 ? (val / 1000000000).toFixed(1) + 'M' : (val >= 1000000 ? (val / 1000000).toFixed(0) + 'jt' : (val > 0 ? val : '')) } }, layout: { padding: 10 } }, plugins: HELPERS.getChartPlugins()
+            });
+        },
+
+        renderTrend: (trendData) => {
+            const ctxEl = document.getElementById('trendChart');
+            if (!ctxEl || !trendData) return;
+            const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const netData = trendData.map(d => d.net); const qtyData = trendData.map(d => d.qty);
+            const ctx = ctxEl.getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, THEME.colors.gradientBlue[0]); gradient.addColorStop(1, THEME.colors.gradientBlue[1]);
+
+            if (STATE.charts.trend) STATE.charts.trend.destroy();
+            STATE.charts.trend = new Chart(ctxEl, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Net Sales', data: netData, backgroundColor: gradient, hoverBackgroundColor: '#1E40AF', borderRadius: 6, order: 3, yAxisID: 'y', barPercentage: 0.6, categoryPercentage: 0.7 }, { label: 'Qty Sold', data: qtyData, borderColor: '#F59E0B', backgroundColor: '#FFFFFF', type: 'line', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 2, tension: 0.3, order: 2, yAxisID: 'y1' }] },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10, family: 'Inter' } } }, tooltip: { backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#0F172A', bodyColor: '#334155', borderColor: '#E2E8F0', borderWidth: 1, padding: 10, callbacks: { label: function (context) { let label = context.dataset.label || ''; if (label) label += ': '; if (context.parsed.y !== null) { if (context.dataset.yAxisID === 'y') { label += HELPERS.formatIDR(context.parsed.y); } else { label += context.parsed.y + ' pcs'; } } return label; } } } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748B' } }, y: { type: 'linear', display: true, position: 'left', grid: { color: '#F1F5F9', borderDash: [5, 5] }, ticks: { font: { family: 'Inter', size: 10 }, color: '#94A3B8', callback: (value) => value >= 1000000000 ? (value / 1000000000).toFixed(0) + 'M' : (value / 1000000).toFixed(0) + 'jt' }, border: { display: false } }, y1: { type: 'linear', display: true, position: 'right', grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#F59E0B' }, border: { display: false } } }, layout: { padding: { top: 10, left: 0, right: 0, bottom: 0 } } }
+            });
+        },
+
+        renderDaily: (dailyData, holidays, month, year) => {
+            const ctxEl = document.getElementById('dailyChart');
+            if (!ctxEl || !dailyData || dailyData.length === 0) return;
+            const labels = Array.from({ length: dailyData.length }, (_, i) => i + 1);
+            const netData = dailyData.map(d => d.net); const qtyData = dailyData.map(d => d.qty);
+            const ctx = ctxEl.getContext('2d');
+            const gradientGreen = ctx.createLinearGradient(0, 0, 0, 400);
+            gradientGreen.addColorStop(0, THEME.colors.gradientGreen[0]); gradientGreen.addColorStop(1, THEME.colors.gradientGreen[1]);
+
+            const gradientRed = ctx.createLinearGradient(0, 0, 0, 400);
+            gradientRed.addColorStop(0, 'rgba(225, 29, 72, 0.8)'); // rose-600
+            gradientRed.addColorStop(1, 'rgba(225, 29, 72, 0.2)');
+
+            // Determine colors per day
+            const bgColors = [];
+            const hoverBgColors = [];
+            const isSpecialDay = [];
+            const holidayNames = [];
+
+            for (let i = 1; i <= dailyData.length; i++) {
+                const dateObj = new Date(`${month} ${i}, ${year}`);
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const isWeekend = (dayName === 'Saturday' || dayName === 'Sunday');
+                const holidayName = (holidays && holidays[i]) ? holidays[i] : "";
+                const isHoliday = holidayName !== "";
+
+                if (isWeekend || isHoliday) {
+                    bgColors.push(gradientRed);
+                    hoverBgColors.push('#BE123C'); // rose-700
+                    isSpecialDay.push(true);
+                    holidayNames.push(isHoliday ? holidayName : 'Weekend');
+                } else {
+                    bgColors.push(gradientGreen);
+                    hoverBgColors.push('#059669'); // emerald-600
+                    isSpecialDay.push(false);
+                    holidayNames.push('');
+                }
+            }
+
+            if (STATE.charts.daily) STATE.charts.daily.destroy();
+            STATE.charts.daily = new Chart(ctxEl, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Net Sales', data: netData, backgroundColor: bgColors, hoverBackgroundColor: hoverBgColors, borderRadius: 4, order: 3, yAxisID: 'y', barPercentage: 0.7 }, { label: 'Qty Sold', data: qtyData, borderColor: '#111827', backgroundColor: '#FFFFFF', type: 'line', borderWidth: 1.5, pointRadius: 2, pointHoverRadius: 4, pointBackgroundColor: '#fff', pointBorderColor: '#111827', pointBorderWidth: 1.5, tension: 0.3, order: 2, yAxisID: 'y1' }] },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(255, 255, 255, 0.95)', titleColor: '#0F172A', bodyColor: '#334155', borderColor: '#E2E8F0', borderWidth: 1, padding: 10, callbacks: { title: function (context) { let title = context[0].label + ` ${month.substr(0, 3)} ${year}`; const idx = context[0].dataIndex; if (isSpecialDay[idx]) { title += ` (${holidayNames[idx]})`; } return title; }, label: function (context) { let label = context.dataset.label || ''; if (label) label += ': '; if (context.parsed.y !== null) { if (context.dataset.yAxisID === 'y') { label += HELPERS.formatIDR(context.parsed.y); } else { label += context.parsed.y + ' pcs'; } } return label; } } } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#64748B', maxRotation: 0, autoSkip: true, autoSkipPadding: 10 } }, y: { type: 'linear', display: true, position: 'left', grid: { color: '#F1F5F9', borderDash: [5, 5] }, ticks: { font: { family: 'Inter', size: 9 }, color: '#94A3B8', callback: (value) => value >= 1000000 ? (value / 1000000).toFixed(0) + 'jt' : value }, border: { display: false } }, y1: { type: 'linear', display: true, position: 'right', grid: { display: false }, ticks: { display: false }, border: { display: false } } }, layout: { padding: { top: 10, left: 0, right: 0, bottom: 0 } } }
+            });
+        },
+
+        renderCategoryTrends: (data) => {
+            if (!data) return;
+            const ctx1 = document.getElementById('categoryTrendChart');
+            const ctx2 = document.getElementById('categoryTrendQtyChart');
+            if (!ctx1 || !ctx2) return;
+            const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            const datasetsSales = Object.keys(data).map(cat => ({ label: cat, data: data[cat].net, borderColor: THEME.colors.catColors[cat] || "#64748B", backgroundColor: THEME.colors.catColors[cat] || "#64748B", borderWidth: 2, pointRadius: 2, tension: 0.4, fill: false }));
+            const datasetsQty = Object.keys(data).map(cat => ({ label: cat, data: data[cat].qty, borderColor: THEME.colors.catColors[cat] || "#64748B", backgroundColor: THEME.colors.catColors[cat] || "#64748B", borderWidth: 2, pointRadius: 2, tension: 0.4, fill: false, borderDash: [5, 5] }));
+
+            if (STATE.charts.categoryTrend) STATE.charts.categoryTrend.destroy();
+            STATE.charts.categoryTrend = new Chart(ctx1, {
+                type: 'line', data: { labels: labels, datasets: datasetsSales },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: true, position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 6, font: { size: 9, family: 'Inter' } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            titleColor: '#0F172A',
+                            titleFont: { size: 13, weight: 'bold', family: 'Inter' },
+                            bodyColor: '#334155',
+                            bodyFont: { size: 12, family: 'Inter' },
+                            borderColor: '#E2E8F0',
+                            borderWidth: 1,
+                            padding: 10,
+                            boxPadding: 4,
+                            usePointStyle: true,
+                            callbacks: {
+                                label: function (context) { return context.dataset.label + ': ' + HELPERS.formatIDR(context.parsed.y); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#64748B' } },
+                        y: { grid: { color: '#F1F5F9' }, ticks: { font: { size: 9 }, color: '#94A3B8', callback: (val) => val >= 1000000 ? (val / 1000000).toFixed(0) + 'M' : val }, border: { display: false } }
+                    },
+                    layout: { padding: { top: 10, left: 0, right: 0, bottom: 0 } }
+                }
+            });
+
+            if (STATE.charts.categoryTrendQty) STATE.charts.categoryTrendQty.destroy();
+            STATE.charts.categoryTrendQty = new Chart(ctx2, {
+                type: 'line', data: { labels: labels, datasets: datasetsQty },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: true, position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 6, font: { size: 9, family: 'Inter' } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            titleColor: '#0F172A',
+                            titleFont: { size: 13, weight: 'bold', family: 'Inter' },
+                            bodyColor: '#334155',
+                            bodyFont: { size: 12, family: 'Inter' },
+                            borderColor: '#E2E8F0',
+                            borderWidth: 1,
+                            padding: 10,
+                            boxPadding: 4,
+                            usePointStyle: true,
+                            callbacks: {
+                                label: function (context) { return context.dataset.label + ': ' + context.parsed.y + ' pcs'; }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#64748B' } },
+                        y: { grid: { color: '#F1F5F9' }, ticks: { font: { size: 9 }, color: '#94A3B8' }, border: { display: false } }
+                    },
+                    layout: { padding: { top: 10, left: 0, right: 0, bottom: 0 } }
+                }
+            });
+        },
+
+        renderComparison: (multiYearStats) => {
+            const ctxEl = document.getElementById('comparisonChart');
+            if (!ctxEl) return;
+            const ctx = ctxEl.getContext('2d');
+
+            // Fallback for missing backend data (prevents blank chart)
+            if (!multiYearStats) {
+                console.warn("Warning: multiYearStats is undefined. Using empty data.");
+                multiYearStats = {};
+            }
+
+            const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            // Define Datasets for 2023-2026
+            const years = [2026, 2025, 2024, 2023];
+            const colors = {
+                2026: { border: '#2563EB', bg: '37, 99, 235' },   // Blue 600
+                2025: { border: '#DB2777', bg: '219, 39, 119' },  // Pink 600
+                2024: { border: '#D97706', bg: '217, 119, 6' },   // Amber 600
+                2023: { border: '#059669', bg: '5, 150, 105' }    // Emerald 600
+            };
+
+            // Helper: Create Vertical Gradient
+            const createGradient = (ctx, colorRgb) => {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, `rgba(${colorRgb}, 0.25)`);
+                gradient.addColorStop(1, `rgba(${colorRgb}, 0.0)`);
+                return gradient;
+            };
+
+            const datasets = years.map(year => {
+                const data = multiYearStats[year] || new Array(12).fill(0);
+                return {
+                    label: String(year),
+                    data: data,
+                    borderColor: colors[year].border,
+                    backgroundColor: createGradient(ctx, colors[year].bg),
+                    borderWidth: 2.5,
+                    pointRadius: 0, // Clean modern look
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#FFFFFF',
+                    pointBorderColor: colors[year].border,
+                    pointBorderWidth: 2,
+                    tension: 0.4, // Smooth Curves
+                    fill: true,
+                    hidden: (year === 2023 || year === 2024) // Default hidden for 2023 & 2024
+                };
+            });
+
+            if (STATE.charts.comparison) STATE.charts.comparison.destroy();
+
+            STATE.charts.comparison = new Chart(ctxEl, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            display: false // We use custom buttons
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            titleColor: '#0F172A',
+                            titleFont: { size: 13, weight: 'bold', family: 'Inter' },
+                            bodyColor: '#334155',
+                            bodyFont: { size: 12, family: 'Inter' },
+                            borderColor: '#E2E8F0',
+                            borderWidth: 1,
+                            padding: 14,
+                            boxPadding: 6,
+                            usePointStyle: true,
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    label += HELPERS.formatIDR(context.parsed.y);
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 11, weight: '500' }, color: '#64748B' }
+                        },
+                        y: {
+                            grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                            ticks: {
+                                font: { family: 'Inter', size: 10, weight: '500' },
+                                color: '#94A3B8',
+                                padding: 10,
+                                callback: (value) => value >= 1000000000 ? (value / 1000000000).toFixed(0) + ' M' : (value / 1000000).toFixed(0) + ' jt'
+                            },
+                            border: { display: false }
+                        }
+                    },
+                    layout: { padding: { top: 10, left: 10, right: 10, bottom: 0 } },
+                    animation: {
+                        x: {
+                            type: 'number',
+                            easing: 'linear',
+                            duration: 200, // Speed of line drawing between points
+                            from: NaN, // Start handling from beginning
+                            delay: function (ctx) {
+                                if (ctx.type !== 'data' || ctx.xStarted) {
+                                    return 0;
+                                }
+                                ctx.xStarted = true;
+                                return ctx.index * 150; // Sequential delay per month
+                            }
+                        },
+                        y: {
+                            type: 'number',
+                            easing: 'easeOutQuart',
+                            duration: 1000,
+                            delay: function (ctx) {
+                                if (ctx.type !== 'data' || ctx.yStarted) {
+                                    return 0;
+                                }
+                                ctx.yStarted = true;
+                                return ctx.index * 150; // Sync with X
+                            }
+                        }
+                    }
+                }
+            });
+        },
+
+        toggleYear: (year) => {
+            const chart = STATE.charts.comparison;
+            if (!chart) return;
+
+            const datasetIndex = chart.data.datasets.findIndex(ds => ds.label.includes(String(year)));
+            if (datasetIndex !== -1) {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                const ds = chart.data.datasets[datasetIndex];
+
+                // Toggle logic: if null, flip default; otherwise reset to null (default)
+                meta.hidden = meta.hidden === null ? !ds.hidden : null;
+
+                // Execute Effective Hidden State Check
+                const isEffectiveHidden = meta.hidden === null ? ds.hidden : meta.hidden;
+
+                // Toggle Button Style
+                const btn = document.getElementById('btnYear' + year);
+                if (btn) {
+                    if (isEffectiveHidden) {
+                        btn.classList.add('opacity-50', 'line-through');
+                    } else {
+                        btn.classList.remove('opacity-50', 'line-through');
+                    }
+                }
+
+                chart.update();
+            }
+        },
+
+        renderAdvisorCategoryPie: (catData) => {
+            if (!catData) return;
+            const ctxEl = document.getElementById('advisorCategoryChart');
+            if (!ctxEl) return;
+
+            // Sort by Qty High -> Low
+            const sortedCats = Object.entries(catData)
+                .map(([cat, val]) => ({ cat, net: val.net, qty: val.qty }))
+                .sort((a, b) => b.qty - a.qty); // Sort by Qty
+
+            const labels = sortedCats.map(c => c.cat);
+            const dataQty = sortedCats.map(c => c.qty); // Use Qty
+            const bgColors = labels.map(label => THEME.colors.catColors[label] || "#94A3B8");
+
+            if (STATE.charts.advisorCategory) STATE.charts.advisorCategory.destroy();
+
+            STATE.charts.advisorCategory = new Chart(ctxEl, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quantity Sold', // Updated Label
+                        data: dataQty,
+                        backgroundColor: THEME.colors.chart,
+                        borderRadius: 4,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    ...THEME.chartDefaults,
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 10 }, color: '#64748B' }
+                        },
+                        y: {
+                            grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                            ticks: {
+                                font: { family: 'Inter', size: 10 },
+                                color: '#94A3B8',
+                                callback: (value) => value // Just value for Qty
+                            },
+                            border: { display: false }
+                        }
+                    },
+                    plugins: {
+                        ...THEME.chartDefaults.plugins,
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const value = context.parsed.y;
+                                    const net = sortedCats[context.dataIndex].net; // Get Sales for info
+                                    return ` Qty: ${value} pcs (Sales: ${HELPERS.formatIDR(net)})`;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            ...THEME.chartDefaults.plugins.datalabels,
+                            formatter: (value) => value // Show exact Qty
+                        }
+                    }
+                },
+                plugins: HELPERS.getChartPlugins()
+            });
+        },
+
+        renderQuarterlyPacing: (pacingData) => {
+            if (!pacingData) return;
+            const ctxEl = document.getElementById('quarterlyPacingChart');
+            if (!ctxEl) return;
+
+            const labels = pacingData.map(d => d.name);
+            const salesData = pacingData.map(d => d.sales);
+            const targetData = pacingData.map(d => d.target);
+
+            if (STATE.charts.quarterlyPacing) STATE.charts.quarterlyPacing.destroy();
+
+            STATE.charts.quarterlyPacing = new Chart(ctxEl, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Net Sales',
+                            data: salesData,
+                            borderColor: '#2563EB',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#2563EB',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Target',
+                            data: targetData,
+                            borderColor: '#EF4444',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 6, font: { size: 10, family: 'Inter' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) { return context.dataset.label + ': ' + HELPERS.formatIDR(context.parsed.y); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: {
+                            grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                            ticks: { callback: (val) => val >= 1000000000 ? (val / 1000000000).toFixed(1) + 'B' : (val / 1000000).toFixed(0) + 'M' }
+                        }
+                    }
+                }
+            });
+        },
+
+        renderQuarterlyCategoryPie: (catData) => {
+            if (!catData || catData.length === 0) return;
+            const ctxEl = document.getElementById('quarterlyCategoryChart');
+            if (!ctxEl) return;
+
+            const totalSales = catData.reduce((sum, c) => sum + c.value, 0);
+
+            // Map labels to include the percentage directly in the label
+            const labels = catData.map(c => {
+                const percentage = totalSales > 0 ? ((c.value / totalSales) * 100).toFixed(1) + '%' : '0%';
+                return `${c.name} (${percentage})`;
+            });
+            const data = catData.map(c => c.value);
+            const originalNames = catData.map(c => c.name);
+            const bgColors = originalNames.map(name => THEME.colors.catColors[name] || "#94A3B8");
+
+            if (STATE.charts.quarterlyCategoryPie) STATE.charts.quarterlyCategoryPie.destroy();
+
+            STATE.charts.quarterlyCategoryPie = new Chart(ctxEl, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sales',
+                        data: data,
+                        backgroundColor: bgColors,
+                        borderRadius: 4,
+                        barPercentage: 0.7
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Makes it a horizontal bar chart
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }, // Hide legend since categories are on Y axis
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const value = context.parsed.x; // Use X for horizontal
+                                    const percentage = totalSales > 0 ? ((value / totalSales) * 100).toFixed(1) + '%' : '0%';
+                                    return ` Net Sales: ${HELPERS.formatIDR(value)} (${percentage})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                            ticks: {
+                                font: { family: 'Inter', size: 10 },
+                                color: '#94A3B8',
+                                callback: (val) => val >= 1000000000 ? (val / 1000000000).toFixed(1) + 'B' : (val / 1000000).toFixed(0) + 'M'
+                            },
+                            border: { display: false }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 11, weight: 'bold' }, color: '#334155' }
+                        }
+                    }
+                }
+            });
+        }
+    };
+</script>

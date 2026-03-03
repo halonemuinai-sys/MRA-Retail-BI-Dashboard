@@ -1,0 +1,37 @@
+# Laporan Pembaruan Fitur: Customer Data Intelligence & Segmentation
+**Tanggal:** 25 Februari 2026
+
+## Ringkasan Eksekutif
+Pembaruan terbaru pada dashboard berfokus pada pengayaan modul **Customer Segmentation**. Pembaruan ini mentransformasi halaman pelanggan dari sekadar tabel data statis menjadi pusat analitik intelijen pelanggan (*Customer Intelligence*) yang interaktif. Tujuannya adalah untuk memberikan visibilitas langsung terhadap performa akuisisi pelanggan baru, tingkat retensi pelanggan lama, serta mempermudah analisis mendalam (*deep-dive*) terhadap perilaku belanja setiap individu tanpa mengorbankan kecepatan memuat aplikasi (*loading time*).
+
+## Fitur Utama yang Dikembangkan
+
+### 1. Executive KPI Summary Cards
+Empat metrik utama (*Key Performance Indicators*) kini ditampilkan secara terpusat di bagian atas halaman untuk memberikan gambaran instan mengenai performa pelanggan:
+*   **Total Active Customers:** Mengkalkulasi jumlah unik pelanggan yang melakukan setidaknya satu transaksi dalam kurun waktu 24 bulan terakhir.
+*   **Avg. Lifetime Value:** Nilai rata-rata pembelanjaan akumulatif (*Lifetime*) per pelanggan aktif. Berguna untuk mengukur seberapa berharga konversi dari tiap pelanggan.
+*   **Top Spender:** Melacak pelanggan individu (non-grup) dengan total akumulasi pembelanjaan tertinggi sepanjang masa. 
+*   **New Customer Ratio:** Menampilkan persentase jumlah pelanggan baru berbanding total pelanggan bertransaksi pada tahun berjalan.
+
+*Catatan: Seluruh KPI Card telah dilengkapi dengan fitur **Tooltip Interaktif** (ikon tanda tanya) yang memunculkan glosarium penjelasan ketika kursor diarahkan ke judul kartu.*
+
+### 2. Acquisition & Retention Trend Chart
+Menambahkan grafik garis (Line Chart) baru untuk memvisualisasikan tren bulanan pertumbuhan pelanggan. Grafik ini memisahkan kurva:
+*   **New Customers (Biru):** Pelanggan yang pertama kali berbelanja.
+*   **Repeat Customers (Hijau):** Pelanggan lama yang kembali berbelanja.
+Pemecahan metrik ini membantu manajemen untuk menganalisis efektivitas promosi toko terhadap lalu lintas pengunjung baru maupun retensi VIP.
+
+### 3. Customer Deep-Dive Modal (Interactive Pop-up)
+Tabel pelanggan kini dilengkapi kemampuan bedah data individu. Pengguna cukup mengarahkan *mouse* ke nama pelanggan dan mengeklik **"View Details"**. Sistem akan memunculkan jendela *pop-up* yang menyajikan:
+*   **Overview Kuantitas Barang & Nilai Pembelanjaan (Lifetime).**
+*   **Riwayat Kunjungan:** Mencatat tanggal kunjungan paling awal dan transaksi paling akhir.
+*   **Top 5 Collections:** Tabel khusus yang menguraikan 5 lini koleksi barang (jam tangan/perhiasan) terfavorit milik pelanggan tersebut beserta kontribusi transaksinya.
+*   **Log Transaksi Lengkap:** Tabel *scrollable* yang menelusuri riwayat belanja secara kronologis (tanggal, kuantitas, deskripsi barang, lokasi butik, nilai *Net Sales*).
+
+### 4. Optimalisasi Kecepatan Akses (Lazy Loading / On-Demand Fetch)
+Menyembunyikan informasi kompleks menggunakan arsitektur pemanggilan modular:
+*   Gambaran umum (*Metrik & Grafik*) dirender seketika tanpa perlu menelusuri data dalam yang berat.
+*   Data spesifik berukuran besar (*Log transaksi dari ratusan ribu baris database historis*) **hanya** akan diolah dan diproses sesaat setelah pengguna meminta informasi tersebut via klik tombol ("View Details"). Ini memastikan performa akses aplikasi tidak melambat (*lagging*) meski kapabilitas analitiknya ditingkatkan.
+
+## Kesimpulan
+Pembaruan fitur operasional CRM pelanggan ini siap membantu para pengguna untuk mengakses profil pelanggan secara spesifik dan tajam dalam hitungan detik. Pengalaman navigasi UI dibuat menyatu langsung (*single-page layout*) tanpa harus membuat pengguna bolak-balik mengubah halaman aplikasi.

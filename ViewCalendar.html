@@ -1,0 +1,66 @@
+<!-- 3. CALENDAR HEATMAP VIEW COMPONENT -->
+<div id="viewCalendar">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h2 class="font-display text-xl font-bold text-brand-dark">Sales Heatmap Calendar</h2>
+            <p class="text-xs text-slate-500">Visualizing Daily Sales Intensity & Engagement Patterns</p>
+        </div>
+    </div>
+
+    <!-- Calendar Insights -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Highest Grossing Day</p>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight" id="calBestDay">-</h3>
+            <div class="text-[10px] text-emerald-600 font-bold mt-1 max-w-full truncate" id="calBestDaySales">-</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Lowest Grossing Day</p>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight" id="calWorstDay">-</h3>
+            <div class="text-[10px] text-rose-500 font-bold mt-1 max-w-full truncate" id="calWorstDaySales">-</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Best Day of Week</p>
+            <h3 class="text-lg lg:text-xl font-display font-bold text-brand-dark tracking-tight" id="calBestDOW">-</h3>
+            <div class="text-[10px] text-slate-500 font-bold mt-1 max-w-full truncate">Avg. Highest Performing Weekday
+            </div>
+        </div>
+    </div>
+
+    <!-- The Calendar Grid Area -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 overflow-x-auto">
+        <h3 class="font-display text-base font-bold text-brand-dark mb-4" id="calendarMonthTitle">Daily Performance
+            Heatmap</h3>
+        <div class="min-w-[700px]">
+            <!-- Headers: Sun - Sat -->
+            <div class="grid grid-cols-7 gap-2 text-center mb-2">
+                <div class="text-[10px] font-bold text-rose-500 uppercase">Sun</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Mon</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Tue</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Wed</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Thu</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Fri</div>
+                <div class="text-[10px] font-bold text-blue-500 uppercase">Sat</div>
+            </div>
+            <!-- The Grid Container -->
+            <div id="calendarGrid" class="grid grid-cols-7 gap-2">
+                <!-- Data will be injected via JS here -->
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="mt-8 flex items-center justify-end gap-2 text-xs text-slate-500">
+            <span>Low Sales</span>
+            <div class="flex gap-1" id="calendarLegend">
+                <div class="w-4 h-4 rounded-sm bg-slate-50 border border-slate-100"></div>
+                <!-- Gradients will go here via JS based on selected color scale -->
+                <div class="w-4 h-4 rounded-sm bg-emerald-100"></div>
+                <div class="w-4 h-4 rounded-sm bg-emerald-300"></div>
+                <div class="w-4 h-4 rounded-sm bg-emerald-500"></div>
+                <div class="w-4 h-4 rounded-sm bg-emerald-700"></div>
+            </div>
+            <span>High Sales</span>
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,177 @@
+<style>
+    /* =========================================
+     GLOBAL RESET & BASE STYLES
+     ========================================= */
+    body {
+        background-color: #F8FAFC;
+        color: #334155;
+    }
+
+    /* Custom Scrollbar (WebKit) */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94A3B8;
+    }
+
+    /* =========================================
+     ANIMATIONS
+     ========================================= */
+    .fade-in {
+        animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* =========================================
+     UI COMPONENTS
+     ========================================= */
+
+    /* Loader Overlay */
+    .glass-loader {
+        background: rgba(255, 255, 255, 0.8);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+    }
+
+    /* Active Tab State */
+    .tab-active {
+        background-color: #EFF6FF;
+        color: #2563EB;
+        border: 1px solid #BFDBFE;
+        box-shadow: 0 1px 2px 0 rgba(37, 99, 235, 0.05);
+    }
+
+    /* Modal Backdrop Effect */
+    #advisorModal {
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+    }
+
+    /* Toast Notification */
+    #toast {
+        visibility: hidden;
+        min-width: 250px;
+        background-color: #1E293B;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 12px;
+        position: fixed;
+        z-index: 60;
+        left: 50%;
+        bottom: 30px;
+        transform: translateX(-50%);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        font-size: 13px;
+        font-weight: 500;
+        opacity: 0;
+        transition: opacity 0.3s, bottom 0.3s;
+    }
+
+    #toast.show {
+        visibility: visible;
+        opacity: 1;
+        bottom: 40px;
+    }
+
+    /* Custom Table Utilities */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #E2E8F0;
+        border-radius: 4px;
+    }
+
+    /* =========================================
+     PRINT STYLES (Daily Report)
+     ========================================= */
+    @media print {
+
+        /* Sembunyikan semua elemen default */
+        body * {
+            visibility: hidden;
+        }
+
+        /* Sembunyikan elemen navigasi spesifik */
+        nav,
+        header,
+        footer,
+        #loader,
+        #toast,
+        #advisorModal {
+            display: none !important;
+        }
+
+        /* Mode Cetak Khusus Daily Report */
+        body.print-mode-daily #viewDaily,
+        body.print-mode-daily #viewDaily * {
+            visibility: visible;
+        }
+
+        body.print-mode-daily #viewDaily {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Hilangkan tombol print saat dicetak */
+        body.print-mode-daily #dailyPrintBtn {
+            display: none !important;
+        }
+
+        /* Reset gaya agar bersih di kertas */
+        .overflow-auto {
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        .shadow-sm,
+        .border,
+        .shadow-md,
+        .shadow-2xl {
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+        }
+
+        body {
+            color: black !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* Pastikan background warna tercetak (untuk grafik/badge) */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
+</style>

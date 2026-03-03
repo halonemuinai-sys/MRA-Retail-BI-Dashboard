@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Dashboard | MRA Retail</title>
+
+    <!-- ========================================== -->
+    <!-- 1. LIBRARIES & CONFIG                    -->
+    <!-- ========================================== -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#2563EB',
+                            blueDark: '#1E40AF',
+                            blueLight: '#EFF6FF',
+                            dark: '#0F172A',
+                            slate: '#64748B',
+                            bg: '#F8FAFC'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- External Stylesheet (CSS) -->
+    <?!= include('Stylesheet'); ?>
+
+</head>
+
+<body class="antialiased font-sans flex flex-col min-h-screen bg-slate-50/50">
+
+    <!-- ========================================== -->
+    <!-- 2. NAVIGATION BAR                        -->
+    <!-- ========================================== -->
+    <nav class="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-50 shadow-sm backdrop-blur-md bg-white/95">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <!-- Logo Icon -->
+                <div
+                    class="bg-gradient-to-br from-brand-blue to-brand-blueDark p-2 rounded-lg text-white shadow-md shadow-blue-200 transform transition hover:scale-105 duration-300">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                </div>
+                <!-- Title -->
+                <div>
+                    <h1 class="font-display text-base font-bold text-brand-dark tracking-tight leading-tight">
+                        MRA Retail<span class="text-slate-300 mx-2 font-light">|</span><span
+                            class="text-brand-blue">Bvlgari Sales Intelligence</span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Sync Button -->
+            <button onclick="APP.syncData()" id="syncBtn"
+                class="group flex items-center gap-2 px-3 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue hover:bg-brand-blueLight transition-all duration-200 text-xs font-bold bg-white shadow-sm hover:shadow-md"
+                aria-label="Sync Data">
+                <svg class="w-3.5 h-3.5 group-hover:animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                    </path>
+                </svg>
+                Sync Data
+            </button>
+        </div>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- 3. HEADER (TABS & FILTERS)               -->
+    <!-- ========================================== -->
+    <header class="bg-white border-b border-slate-100 pb-4 pt-4 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] z-40">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-end gap-4">
+
+                <!-- Tabs Menu -->
+                <div
+                    class="bg-slate-50 p-1 rounded-lg inline-flex border border-slate-200 overflow-x-auto max-w-full custom-scrollbar">
+                    <button onclick="APP.switchTab('monthly')" id="tabMonthly"
+                        class="px-5 py-2 rounded-md text-xs font-bold transition-all duration-200 tab-active border border-transparent tracking-wide whitespace-nowrap">Monthly
+                        Overview</button>
+                    <button onclick="APP.switchTab('monthlyTransaction')" id="tabMonthlyTransaction"
+                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Monthly
+                        Transaction</button>
+                    <!-- NEW: Quarterly -->
+                    <button onclick="APP.switchTab('quarterly')" id="tabQuarterly"
+                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Quarterly
+                        Performance</button>
+                    <!-- MOVED: Daily Report to here -->
+                    <button onclick="APP.switchTab('daily')" id="tabDaily"
+                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Daily
+                        Report</button>
+                    <button onclick="APP.switchTab('advisor')" id="tabAdvisor"
+                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Advisor
+                        Performance</button>
+                    <button onclick="APP.switchTab('sap')" id="tabSap"
+                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Product
+                        Rank</button>
+                    <button onclick="APP.switchTab('customer')" id="tabCustomer"
+                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Customer
+                        Segmentation</button>
+                    <!-- NEW: Crossing Sales -->
+                    <button onclick="APP.switchTab('crossing')" id="tabCrossing"
+                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Crossing
+                        Sales</button>
+                </div>
+
+                <!-- Filters Area -->
+                <div id="filterGroup"
+                    class="flex flex-wrap gap-2 items-center bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+
+                    <!-- Month & Year Selector -->
+                    <div id="filterMonthly" class="flex gap-2 animate-fadeIn">
+                        <div class="relative group">
+                            <select id="monthSelect" onchange="APP.loadDashboard()" title="Select Month"
+                                class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-1.5 pl-3 pr-8 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue text-xs font-bold cursor-pointer hover:bg-white transition-colors">
+                                <option>January</option>
+                                <option>February</option>
+                                <option>March</option>
+                                <option>April</option>
+                                <option>May</option>
+                                <option>June</option>
+                                <option>July</option>
+                                <option>August</option>
+                                <option>September</option>
+                                <option>October</option>
+                                <option>November</option>
+                                <option>December</option>
+                            </select>
+                            <div
+                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <select id="yearSelect" onchange="APP.loadDashboard()" title="Select Year"
+                                class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-1.5 pl-3 pr-8 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue text-xs font-bold cursor-pointer hover:bg-white transition-colors">
+                                <option>2023</option>
+                                <option>2024</option>
+                                <option>2025</option>
+                                <option selected>2026</option>
+                            </select>
+                            <div
+                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Picker (Hidden by default) -->
+                    <div id="filterDaily" class="hidden flex gap-2 animate-fadeIn">
+                        <div
+                            class="flex items-center gap-2 bg-slate-50 border border-slate-200 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-white transition-colors group focus-within:ring-2 focus-within:ring-brand-blue/20 focus-within:border-brand-blue">
+                            <span
+                                class="text-brand-blue text-[10px] uppercase font-bold mr-1 tracking-wider">DATE:</span>
+                            <input type="date" id="dateInput" onchange="APP.loadDashboard()" title="Select Date"
+                                placeholder="YYYY-MM-DD"
+                                class="focus:outline-none bg-transparent text-slate-700 font-bold cursor-pointer"
+                                value="">
+                        </div>
+                    </div>
+
+                    <button onclick="APP.loadDashboard(true)"
+                        class="bg-brand-blue text-white px-4 py-1.5 rounded-md hover:bg-brand-blueDark transition-all shadow-sm shadow-blue-200 text-xs font-bold tracking-wide flex items-center gap-1 active:transform active:scale-95 ml-1"
+                        aria-label="Apply Filters">
+                        <span>Filter</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 4. MAIN CONTENT (Dynamic Views)          -->
+    <!-- ========================================== -->
+    <main class="container mx-auto px-6 py-6 fade-in flex-grow">
+        <?!= include('ViewMonthly'); ?>
+        <?!= include('ViewQuarterly'); ?>
+        <?!= include('ViewMonthlyTransaction'); ?>
+        <?!= include('ViewAdvisor'); ?>
+        <?!= include('ViewSap'); ?>
+        <?!= include('ViewCustomer'); ?>
+        <?!= include('ViewDaily'); ?>
+        <?!= include('ViewCrossingSales'); ?>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 5. FOOTER                                -->
+    <!-- ========================================== -->
+    <footer class="bg-white border-t border-slate-200 mt-auto py-6">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-xs text-slate-400 font-medium">© 2026 Retail Dashboard System. | Created By Aris Setiyono</p>
+        </div>
+    </footer>
+
+    <!-- ========================================== -->
+    <!-- 6. MODALS & UI ELEMENTS                  -->
+    <!-- ========================================== -->
+
+    <!-- Loader -->
+    <div id="loader"
+        class="fixed inset-0 glass-loader flex flex-col items-center justify-center z-50 hidden transition-all duration-300 backdrop-blur-sm bg-white/30">
+        <div class="relative">
+            <div class="w-12 h-12 rounded-full border-4 border-slate-100 border-t-brand-blue animate-spin"></div>
+        </div>
+        <p class="mt-3 text-brand-dark font-bold tracking-widest text-[10px] uppercase" id="loaderText">Processing
+            Data...</p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <!-- Advisor Modal -->
+    <div id="advisorModal" role="dialog" aria-modal="true"
+        class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/40 p-4 transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300 opacity-0"
+            id="advisorModalContent">
+
+            <!-- Modal Header -->
+            <div
+                class="bg-gradient-to-r from-brand-blue to-brand-blueDark px-6 py-5 flex justify-between items-start text-white shadow-md">
+                <div>
+                    <h3 class="font-display text-xl font-bold tracking-tight" id="modalAdvName">Advisor Name</h3>
+                    <p class="text-blue-100 text-xs mt-1 font-medium flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <span id="modalAdvLoc">Location</span>
+                    </p>
+                </div>
+                <button onclick="APP.closeAdvisorModal()"
+                    class="text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-1"
+                    aria-label="Close Modal">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Total Sales</p>
+                        <p class="font-mono font-bold text-brand-dark text-lg" id="modalAdvSales">-</p>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Store Contribution
+                        </p>
+                        <p class="font-mono font-bold text-brand-blue text-lg" id="modalAdvContrib">-</p>
+                    </div>
+                </div>
+
+                <!-- Store Context -->
+                <div class="mb-6">
+                    <h4 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-brand-blue rounded-full"></span> Store Target Context
+                    </h4>
+                    <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                        <div class="flex justify-between items-center text-xs mb-2">
+                            <span class="text-slate-500">Store Achievement</span>
+                            <span class="font-bold text-slate-700" id="modalStoreStatus">Status</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 mb-2 overflow-hidden">
+                            <div class="w-0 bg-brand-dark h-2 rounded-full transition-all duration-500"
+                                id="modalStoreBar"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                            <span>Actual: <b id="modalStoreActual" class="text-slate-600">-</b></span>
+                            <span>Target: <b id="modalStoreTarget" class="text-slate-600">-</b></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart: Sales by Store -->
+                <div class="mb-6">
+                    <h4 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-brand-blue rounded-full"></span> Sales by Store Location
+                    </h4>
+                    <div class="h-48 flex justify-center bg-slate-50/50 rounded-lg border border-slate-100 p-2">
+                        <canvas id="advisorStoreChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Table: Category Breakdown -->
+                <div class="mb-2">
+                    <h4 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-brand-blue rounded-full"></span> Category Breakdown
+                    </h4>
+                    <div class="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                                <tr>
+                                    <th class="p-2.5">Category</th>
+                                    <th class="p-2.5 text-center">Qty</th>
+                                    <th class="p-2.5 text-right">Sales</th>
+                                    <th class="p-2.5 text-right">Contrib</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalCatTableBody" class="divide-y divide-slate-50 bg-white">
+                                <!-- Data populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 7. JAVASCRIPT LOGIC                      -->
+    <!-- ========================================== -->
+    <?!= include('ExportHandler'); ?>
+    <?!= include('JavaScript_Charts'); ?>
+    <?!= include('JavaScript'); ?>
+    <?!= include('JavaScript_Projection'); ?>
+    <?!= include('7-JS_DailyReport'); ?>
+
+</body>
+
+</html>

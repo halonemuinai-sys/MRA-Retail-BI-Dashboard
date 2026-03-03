@@ -1,0 +1,433 @@
+<!-- 6. CUSTOMER SEGMENTATION VIEW COMPONENT -->
+<div id="viewCustomer" class="hidden">
+
+    <!-- HEADER SECTION -->
+    <div class="mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center relative z-10">
+            <div>
+                <h2 class="font-display text-2xl font-bold text-brand-dark tracking-tight">Customer Intelligence &
+                    Segmentation
+                </h2>
+                <p class="text-xs text-slate-500 mt-1 font-medium flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Comprehensive analysis of customer purchasing behavior and retention.
+                </p>
+
+            </div>
+            <button
+                class="mt-4 md:mt-0 bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Export Analysis
+            </button>
+        </div>
+
+
+        <!-- NEW: KPI CARDS SECTION -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <!-- Card 1: Total Active -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Total Active Customers
+                        </h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Total pelanggan yang melakukan transaksi setidaknya 1x dalam 24 bulan terakhir.
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="font-display text-2xl font-bold text-brand-dark tracking-tight" id="custKpiTotal">-
+                    </p>
+                    <p class="text-[10px] text-slate-500 mt-1">Trx in last 24 Months</p>
+                </div>
+            </div>
+
+            <!-- Card 2: Avg Lifetime Value -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Avg. Lifetime Value
+                        </h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Rata-rata nilai total pembelanjaan setiap pelanggan aktif seumur hidupnya
+                                (Lifetime).
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="font-display text-xl lg:text-2xl font-bold text-emerald-600 tracking-tight"
+                        id="custKpiLtv">-</p>
+                    <p class="text-[10px] text-slate-500 mt-1">Per Active Customer</p>
+                </div>
+            </div>
+
+            <!-- Card 3: Top Spender -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-purple-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Top Spender
+                        </h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Pelanggan aktif (individu/bukan grup) dengan total akumulasi pembelanjaan terbanyak
+                                sepanjang masa.
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="font-mono text-[11px] lg:text-xs font-bold text-brand-dark mb-1 truncate"
+                        id="custKpiTopName">-</p>
+                    <p class="font-display text-base font-bold text-purple-600 tracking-tight" id="custKpiTopVal">-
+                    </p>
+                </div>
+            </div>
+
+            <!-- Card 4: New Customer Ratio -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group">
+                <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-amber-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                </div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-1 mb-1 relative">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            New Customer Ratio
+                        </h3>
+                        <div class="relative group/tooltip">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 cursor-help"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div
+                                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                                Proporsi (%) pelanggan baru yang pertama kali berbelanja di Bvlgari dari total
+                                seluruh
+                                pelanggan berbelanja di tahun berjalan.
+                                <div
+                                    class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <p class="font-display text-2xl font-bold text-amber-500 tracking-tight" id="custKpiNewRatio">-
+                        </p>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1">Acquired this year</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEGEND BADGES -->
+        <div class="mt-6 flex flex-wrap gap-2">
+            <button id="seg-Prospect" onclick="APP.toggleSegmentFilter('Prospect')"
+                class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200 cursor-pointer hover:shadow-md hover:scale-105 transition-all">Prospect
+                (Spend 0)</button>
+            <button id="seg-Potential" onclick="APP.toggleSegmentFilter('Potential')"
+                class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold border border-blue-100 cursor-pointer hover:shadow-md hover:scale-105 transition-all">Potential
+                (1 - 49jt)</button>
+            <button id="seg-High Potential" onclick="APP.toggleSegmentFilter('High Potential')"
+                class="px-3 py-1 rounded-full bg-teal-50 text-teal-600 text-[10px] font-bold border border-teal-100 cursor-pointer hover:shadow-md hover:scale-105 transition-all">High
+                Potential (50 - 199jt)</button>
+            <button id="seg-Elite" onclick="APP.toggleSegmentFilter('Elite')"
+                class="px-3 py-1 rounded-full bg-purple-50 text-purple-600 text-[10px] font-bold border border-purple-100 cursor-pointer hover:shadow-md hover:scale-105 transition-all">Elite
+                (200jt - 1.35M)</button>
+            <button id="seg-Top" onclick="APP.toggleSegmentFilter('Top')"
+                class="px-3 py-1 rounded-full bg-slate-800 text-amber-400 text-[10px] font-bold border border-slate-700 shadow-sm cursor-pointer hover:shadow-md hover:scale-105 transition-all">Top
+                (> 1.351M)</button>
+            <button id="seg-Inactive" onclick="APP.toggleSegmentFilter('Inactive')"
+                class="px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-bold border border-rose-100 cursor-pointer hover:shadow-md hover:scale-105 transition-all">Inactive
+                (> 24 Mo)</button>
+        </div>
+    </div>
+
+    <!-- CHARTS SECTION -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+        <!-- 1. Customer Segments (Donut) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+            <div class="flex items-center gap-1 mb-1 relative">
+                <h3 class="font-display text-base font-bold text-brand-dark">Segments Distribution</h3>
+                <div class="relative group/tooltip">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-slate-400 cursor-help" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div
+                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                        Komposisi persebaran pelanggan aktif berdasarkan tier pembelanjaan (Lifetime value vs
+                        Recency).
+                        <div
+                            class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400 font-medium mb-4">Total active customer grouping</p>
+            <div class="relative flex-grow flex items-center justify-center min-h-[220px]">
+                <canvas id="custSegmentChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 2. Revenue Mix (Bar) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+            <div class="flex items-center gap-1 mb-1 relative">
+                <h3 class="font-display text-base font-bold text-brand-dark">Revenue Source</h3>
+                <div class="relative group/tooltip">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-slate-400 cursor-help" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div
+                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                        Porsi omset yang dihasilkan dari transaksi pelanggan baru (New) berbanding omset dari
+                        transaksi
+                        pelanggan lama (Repeat).
+                        <div
+                            class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400 font-medium mb-4">New vs Repeat Customers</p>
+            <div class="relative flex-grow flex items-center justify-center min-h-[220px]">
+                <canvas id="custRevenueChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 3. Acquisition Trend (Line) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+            <div class="flex items-center gap-1 mb-1 relative">
+                <h3 class="font-display text-base font-bold text-brand-dark">Acquisition & Retention Trend</h3>
+                <div class="relative group/tooltip">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-slate-400 cursor-help" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div
+                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover/tooltip:visible group-hover/tooltip:opacity-100 transition-all z-20 text-center leading-tight">
+                        Tren bulanan kedatangan pelanggan baru (New) dan pelanggan belanja kembali (Repeat) pada
+                        tahun
+                        berjalan.
+                        <div
+                            class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400 font-medium mb-4">Current Year Customer Growth</p>
+            <div class="relative flex-grow flex items-center justify-center min-h-[220px] w-full">
+                <canvas id="custGrowthChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TABLE SECTION -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+        <div class="p-6 border-b border-slate-100 bg-white flex justify-between items-center">
+            <h3 class="font-display text-lg font-bold text-brand-dark">Detailed Segment Analysis</h3>
+            <!-- UPDATE HERE: Added ID and onkeyup event -->
+            <input type="text" id="custSearchInput" onkeyup="APP.searchCustomer()" placeholder="Search customer..."
+                class="text-xs border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-brand-blue w-48 transition-all focus:ring-2 focus:ring-brand-blue/20">
+        </div>
+        <div class="overflow-x-auto max-h-[600px] custom-scrollbar">
+            <table class="w-full text-sm text-left">
+                <thead
+                    class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-20 shadow-sm">
+                    <tr>
+                        <th class="py-4 px-6 font-bold">Customer Name</th>
+                        <th class="py-4 px-6 font-bold text-center">Segment</th>
+                        <th class="py-4 px-6 font-bold text-center">Freq Invoice</th>
+                        <th class="py-4 px-6 font-bold text-center">Freq Qty</th>
+                        <th class="py-4 px-6 font-bold text-center">Recency (Days)</th>
+                        <th class="py-4 px-6 font-bold text-right">Lifetime Value</th>
+                        <th class="py-4 px-6 font-bold text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="custTableBody" class="divide-y divide-slate-50">
+                    <!-- Rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- CUSTOMER DETAIL MODAL -->
+    <div id="customerDetailModal" role="dialog" aria-modal="true"
+        class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-slate-900/40 p-4 transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform scale-95 transition-transform duration-300 opacity-0 flex flex-col max-h-[90vh]"
+            id="customerDetailModalContent">
+
+            <!-- Modal Header -->
+            <div
+                class="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5 flex justify-between items-start text-white shadow-md flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <div
+                        class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-display text-xl lg:text-2xl font-bold tracking-tight" id="modalCustName">
+                            Customer
+                            Name</h3>
+                        <p class="text-slate-300 text-xs mt-1 font-medium" id="modalCustSegment">Segment</p>
+                    </div>
+                </div>
+                <button onclick="APP.closeCustomerModal()"
+                    class="text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-1 border border-transparent hover:border-white/20"
+                    aria-label="Close Modal">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-grow bg-slate-50 flex flex-col gap-6">
+
+                <!-- KPI Section -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Total Lifetime
+                            Spend
+                        </p>
+                        <p class="font-mono font-bold text-brand-dark text-lg text-emerald-600"
+                            id="modalCustTotalSpend">-
+                        </p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Total Pieces
+                            Bought
+                        </p>
+                        <p class="font-mono font-bold text-brand-dark text-lg" id="modalCustTotalQty">-</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">First Visit
+                        </p>
+                        <p class="font-mono font-bold text-brand-dark text-base" id="modalCustFirstVisit">-</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Last Visit</p>
+                        <p class="font-mono font-bold text-brand-dark text-base" id="modalCustLastVisit">-</p>
+                    </div>
+                </div>
+
+                <!-- Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- Top Collections Table (1/3 Width) -->
+                    <div
+                        class="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
+                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-100">
+                            <h4 class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Top 5 Collections
+                            </h4>
+                        </div>
+                        <div class="overflow-y-auto custom-scrollbar flex-grow p-4">
+                            <ul id="modalCustTopCollList" class="space-y-3">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Transaction History Table (2/3 Width) -->
+                    <div
+                        class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
+                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+                            <h4 class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-brand-blue rounded-full"></span> Transaction History
+                            </h4>
+                            <span class="text-[10px] font-bold text-slate-400" id="modalCustTrxCount">0
+                                Records</span>
+                        </div>
+                        <div class="overflow-y-auto custom-scrollbar flex-grow relative">
+                            <table class="w-full text-xs text-left">
+                                <thead
+                                    class="bg-white text-slate-400 font-bold border-b border-slate-100 sticky top-0 z-10 shadow-sm">
+                                    <tr>
+                                        <th class="py-2.5 px-4">Date</th>
+                                        <th class="py-2.5 px-4 text-center">Qty</th>
+                                        <th class="py-2.5 px-4 w-3/5">Item Details</th>
+                                        <th class="py-2.5 px-4 text-right">Net Sales</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modalCustHistoryBody" class="divide-y divide-slate-50">
+                                    <!-- Populated dynamically -->
+                                    <tr>
+                                        <td colspan="4" class="p-8 text-center text-slate-400">
+                                            <div
+                                                class="animate-spin w-6 h-6 border-2 border-brand-blue border-t-transparent flex rounded-full mx-auto mb-2">
+                                            </div>Loading details...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>

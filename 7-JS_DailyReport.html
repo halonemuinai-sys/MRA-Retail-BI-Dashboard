@@ -1,0 +1,110 @@
+<script>
+    /**
+     * File: 7-JS_DailyReport.html
+     * Description: Logic for generating Daily Sales Report (Server-Side CSV & PDF).
+     */
+
+    const REPORT_DAILY = {
+
+        sendEmail: () => {
+            const dateVal = document.getElementById('dateInput').value;
+            if (!dateVal) {
+                if (typeof UI !== 'undefined') UI.showToast("Please select a date first.");
+                return;
+            }
+            if (typeof UI !== 'undefined') {
+                UI.showToast(`Sending Daily Email for ${dateVal}...`);
+                UI.showLoader(true);
+            }
+
+            google.script.run
+                .withSuccessHandler((res) => {
+                    if (typeof UI !== 'undefined') UI.showLoader(false);
+                    if (res && res.success) {
+                        if (typeof UI !== 'undefined') UI.showToast("Email Sent Successfully!");
+                    } else {
+                        if (typeof UI !== 'undefined') UI.showToast(res.message || "Failed to send email.");
+                    }
+                })
+                .withFailureHandler((err) => {
+                    console.error("Email API Error:", err);
+                    if (typeof UI !== 'undefined') {
+                        UI.showLoader(false);
+                        UI.showToast("Backend error sending email.");
+                    }
+                })
+                .sendDailyEmailReport(dateVal);
+        },
+
+        download: () => {
+            REPORT_DAILY.runDownload('csv');
+        },
+
+        downloadPDF: () => {
+            REPORT_DAILY.runDownload('pdf');
+        },
+
+        downloadBOD: () => {
+            REPORT_DAILY.runDownload('bod');
+        },
+
+        runDownload: (type) => {
+            const dateVal = document.getElementById('dateInput').value;
+            if (!dateVal) {
+                alert("Please select a date first.");
+                return;
+            }
+
+            console.log(`[DAILY REPORT] Requesting ${type.toUpperCase()} for ${dateVal}...`);
+
+            // Success Handler
+            const successHandler = (res) => {
+                if (res.error) {
+                    if (typeof UI !== 'undefined') UI.showToast(res.error);
+                    return;
+                }
+                console.log(`[DAILY REPORT] ${type.toUpperCase()} received. Downloading...`);
+
+                // Determine MIME type
+                const mime = (type === 'pdf' || type === 'bod') ? 'application/pdf' : 'text/csv;charset=utf-8;';
+                REPORT_DAILY.saveFile(res.base64, res.filename, mime);
+            };
+
+            // Failure Handler
+            const failureHandler = (err) => {
+                console.error("[DAILY REPORT] Backend Error:", err);
+                if (typeof UI !== 'undefined') UI.showToast("Error fetching report.");
+            };
+
+            // Call Backend
+            if (type === 'pdf') {
+                google.script.run.withSuccessHandler(successHandler).withFailureHandler(failureHandler).downloadDailyReportPDF(dateVal);
+            } else if (type === 'bod') {
+                google.script.run.withSuccessHandler(successHandler).withFailureHandler(failureHandler).downloadBODReportPDF(dateVal);
+            } else {
+                google.script.run.withSuccessHandler(successHandler).withFailureHandler(failureHandler).downloadDailyReportCSV(dateVal);
+            }
+        },
+
+        saveFile: (base64, filename, mimeType) => {
+            // Decode Base64
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+
+            // Trigger Download
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+</script>

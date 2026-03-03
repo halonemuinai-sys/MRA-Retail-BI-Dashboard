@@ -1,0 +1,37 @@
+# Customer Insights & Segmentation Enhancements
+
+This plan outlines the development of more advanced customer data insights within the Bvlgari Dashboard, moving beyond simple segmentation into actionable behavior analysis.
+
+## Proposed Changes
+
+### 1. Backend API Enhancements
+*   **[MODIFY] [4-API_Dashboard.gs](file:///d:/Bvlgari%20Dashboard/4-API_Dashboard.gs)**:
+    *   Update [getCustomerSegmentationData](file:///d:/Bvlgari%20Dashboard/4-API_Dashboard.gs#237-311) to calculate additional metrics:
+        *   **Customer Growth:** Monthly count of New vs Repeat customers over the last 12 months.
+        *   **Segment Revenue:** Total revenue share per segment.
+        *   **Top Products per Customer:** Aggregated list of top collections bought by each customer (to be shown in a detail modal).
+
+### 2. Frontend UI Updates (Customer View)
+*   **[MODIFY] [ViewCustomer.html](file:///d:/Bvlgari%20Dashboard/ViewCustomer.html)**:
+    *   **NEW: Analysis Summary Cards:** Add 4 new KPI cards at the top:
+        1.  **Total Active Customers** (Last 24 Mo).
+        2.  **Top Spender Name & Value**.
+        3.  **New Customer Ratio** (Current Year).
+        4.  **Avg. Customer Lifetime Value**.
+    *   **NEW: Growth Trend Chart:** Add a line chart showing "Customer Acquisition & Retention" over time.
+    *   **NEW: Customer Detail Modal:** Add a hidden modal that pops up when a customer name is clicked in the table, showing their transaction history and favorite collections.
+
+### 3. Frontend Logic Updates
+*   **[MODIFY] [JavaScript.html](file:///d:/Bvlgari%20Dashboard/JavaScript.html)**:
+    *   Update `RENDER.customer` to handle the new metrics and populate the KPI cards.
+    *   Initialize the new "Customer Growth" chart using Chart.js.
+    *   Add `APP.viewCustomerDetails(name)` to fetch and display specific customer history.
+
+## Verification Plan
+
+### Manual Verification
+1.  Navigate to the **Customer Segmentation** tab.
+2.  Verify the 4 new KPI cards display accurate summary numbers.
+3.  Check if the "Customer Growth" line chart renders correctly.
+4.  Click on a customer name in the table and verify the **Customer Detail Modal** appears with their specific purchase history.
+5.  Search for a customer and filter by segment to ensure existing features still work.
