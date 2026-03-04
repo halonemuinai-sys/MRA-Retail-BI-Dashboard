@@ -36,7 +36,7 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   const cacheKey = `DASH_${monthName}_${year}`;
   
   // Temporarily force refresh to bust the bad cache state
-  // forceRefresh = true;
+  forceRefresh = true;
 
   if (forceRefresh) {
     cache.remove(cacheKey);
@@ -76,6 +76,7 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   // Column Mapping Lokal (Sesuai buildCleanMaster)
   const COL = {
     DATE: 1,
+    CUSTOMER: 2,
     LOCATION: 4,
     MAIN_CAT: 6,
     GROSS: 8,
@@ -124,7 +125,7 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   });
 
   // Current Year Details (for other charts)
-  const trendStats = new Array(12).fill(null).map(() => ({ net: 0, qty: 0 }));
+  const trendStats = new Array(12).fill(null).map(() => ({ net: 0, qty: 0, transSet: new Set(), custSet: new Set() }));
   let annualSalesExcHO = 0;
   
 
@@ -135,14 +136,19 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   yearlyData.forEach(row => {
     const d = parseDateFix(row[COL.DATE]);
     const m = d.getMonth();
+    const day = d.getDate();
     const net = (Number(row[COL.NET_SALES]) || 0);
     const qty = (Number(row[COL.QTY]) || 0);
     const cat = String(row[COL.MAIN_CAT] || "Other").trim();
     const loc = String(row[COL.LOCATION]).trim();
+    const transNo = String(row[COL.TRANS_NO] || "");
+    const custName = String(row[COL.CUSTOMER] || "").trim();
 
     if (trendStats[m]) {
       trendStats[m].net += net;
       trendStats[m].qty += qty;
+      if (transNo) trendStats[m].transSet.add(transNo);
+      if (custName && custName.toLowerCase() !== "customer") trendStats[m].custSet.add(custName);
     }
 
     // ROBUST CHECK: Use includes to catch "Head Office", "Head Office " etc.
@@ -163,13 +169,22 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   
 
 
-  // 3. Daily Stats (Untuk Grafik Dashboard)
+  // 3. Daily Stats (Untuk Grafik Dashboard) & MTD Baseline
   const activeStores = new Set();
   const dailyStats = new Array(31).fill(null).map(() => ({ net: 0, qty: 0, breakdown: {} }));
+  
+  let currentMtdSales = 0;
+  let maxDayInCurrentMonth = 0;
 
   monthlyData.forEach(row => {
     const d = parseDateFix(row[COL.DATE]);
     const day = d.getDate() - 1;
+    
+    // Find absolute max date available for current month to bound MTD
+    if (day + 1 > maxDayInCurrentMonth) {
+        maxDayInCurrentMonth = day + 1; 
+    }
+
     if (day >= 0 && day < 31) {
       const net = Number(row[COL.NET_SALES]) || 0;
       const qty = Number(row[COL.QTY]) || 0;
@@ -179,6 +194,11 @@ function getDashboardData(monthName, year, forceRefresh = false) {
 
       dailyStats[day].net += net;
       dailyStats[day].qty += qty;
+      
+      // Accumulate MTD for Store Sales
+      if (!loc.toLowerCase().includes("head office")) {
+         currentMtdSales += net;
+      }
 
       if (!dailyStats[day].breakdown[loc]) dailyStats[day].breakdown[loc] = { net: 0, qty: 0 };
       dailyStats[day].breakdown[loc].net += net;
@@ -196,7 +216,12 @@ function getDashboardData(monthName, year, forceRefresh = false) {
     overview.rawTargetMap
   );
 
-  overview.trendData = trendStats;
+  overview.trendData = trendStats.map(t => ({
+    net: t.net,
+    qty: t.qty,
+    trans: t.transSet.size,
+    customers: t.custSet.size
+  }));
   overview.multiYearStats = multiYearStats; // New Multi-Year Data
   overview.categoryTrend = categoryTrend;
   overview.advisorData = advisorStats;
@@ -206,8 +231,41 @@ function getDashboardData(monthName, year, forceRefresh = false) {
     salesExcHO: annualSalesExcHO,
     target: annualTarget,
     achievement: annualTarget > 0 ? (annualSalesExcHO / annualTarget) * 100 : 0,
-
   };
+
+  // 4. PREVIOUS YEAR MTD CALCULATION
+  let previousMtdSales = 0;
+  if (maxDayInCurrentMonth > 0) {
+      const prevYear = year - 1;
+      let prevSheetName = CONFIG.SHEETS.CLEAN; 
+      if (ss.getSheetByName(`Clean_Data_${prevYear}`)) {
+          prevSheetName = `Clean_Data_${prevYear}`;
+      }
+      
+      const prevSheet = ss.getSheetByName(prevSheetName);
+      if (prevSheet) {
+          const prevData = prevSheet.getDataRange().getValues();
+          prevData.shift(); // Remove Header
+          
+          prevData.forEach(row => {
+              const d = parseDateFix(row[COL.DATE]);
+              if (d.getFullYear() == prevYear && d.getMonth() === monthIndex && d.getDate() <= maxDayInCurrentMonth) {
+                  const loc = String(row[COL.LOCATION]).trim();
+                  // Must exclude HO like we do in currentMtdSales
+                  if (!loc.toLowerCase().includes("head office")) {
+                      previousMtdSales += (Number(row[COL.NET_SALES]) || 0);
+                  }
+              }
+          });
+      }
+  }
+
+  // Inject into KPI object returned by overview
+  if (overview.kpi) {
+      overview.kpi.mtdSalesCurrent = currentMtdSales;
+      overview.kpi.mtdSalesPrevYear = previousMtdSales;
+      overview.kpi.mtdGrowthPct = previousMtdSales > 0 ? ((currentMtdSales - previousMtdSales) / previousMtdSales) * 100 : 0;
+  }
 
   // --- Add Holidays for the Request Month ---
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();

@@ -1063,6 +1063,29 @@
             UI.setText('kpiCost', HELPERS.formatPct(data.kpi.costPercentage));
             UI.setText('kpiDisc', HELPERS.formatPct(data.kpi.avgDiscountPercentage));
 
+            // MTD YoY Growth Indicator
+            const elMtdGrowth = document.getElementById('kpiMtdGrowth');
+            if (elMtdGrowth && data.kpi && data.kpi.mtdGrowthPct !== undefined) {
+                const growth = data.kpi.mtdGrowthPct;
+                let growthHtml = "";
+                let colorClass = "text-slate-400";
+
+                if (growth > 0) {
+                    colorClass = "text-emerald-500 bg-emerald-50";
+                    growthHtml = `<svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7" /></svg> ${HELPERS.formatPct(growth)} vs Last Year`;
+                } else if (growth < 0) {
+                    colorClass = "text-rose-500 bg-rose-50";
+                    growthHtml = `<svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg> ${HELPERS.formatPct(Math.abs(growth))} vs Last Year`;
+                } else {
+                    colorClass = "text-slate-400 bg-slate-50";
+                    growthHtml = `- 0.0% vs Last Year`;
+                }
+
+                elMtdGrowth.innerHTML = `<span class="px-1.5 py-0.5 rounded font-bold flex items-center gap-1 ${colorClass}">${growthHtml}</span>`;
+                elMtdGrowth.classList.remove('opacity-0');
+                elMtdGrowth.classList.add('opacity-100');
+            }
+
             const globalColors = HELPERS.getStatusColor(achievement);
             const elKpiAchv = document.getElementById('kpiAchv');
             if (elKpiAchv) {

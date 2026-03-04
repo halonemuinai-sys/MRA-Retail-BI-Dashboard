@@ -248,7 +248,10 @@
             const ctxEl = document.getElementById('trendChart');
             if (!ctxEl || !trendData) return;
             const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const netData = trendData.map(d => d.net); const qtyData = trendData.map(d => d.qty);
+            const netData = trendData.map(d => d.net);
+            const qtyData = trendData.map(d => d.qty);
+            const transData = trendData.map(d => d.trans || 0);
+            const custData = trendData.map(d => d.customers || 0);
             const ctx = ctxEl.getContext('2d');
             const gradient = ctx.createLinearGradient(0, 0, 0, 400);
             gradient.addColorStop(0, THEME.colors.gradientBlue[0]); gradient.addColorStop(1, THEME.colors.gradientBlue[1]);
@@ -256,8 +259,14 @@
             if (STATE.charts.trend) STATE.charts.trend.destroy();
             STATE.charts.trend = new Chart(ctxEl, {
                 type: 'bar',
-                data: { labels: labels, datasets: [{ label: 'Net Sales', data: netData, backgroundColor: gradient, hoverBackgroundColor: '#1E40AF', borderRadius: 6, order: 3, yAxisID: 'y', barPercentage: 0.6, categoryPercentage: 0.7 }, { label: 'Qty Sold', data: qtyData, borderColor: '#F59E0B', backgroundColor: '#FFFFFF', type: 'line', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 2, tension: 0.3, order: 2, yAxisID: 'y1' }] },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10, family: 'Inter' } } }, tooltip: { backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#0F172A', bodyColor: '#334155', borderColor: '#E2E8F0', borderWidth: 1, padding: 10, callbacks: { label: function (context) { let label = context.dataset.label || ''; if (label) label += ': '; if (context.parsed.y !== null) { if (context.dataset.yAxisID === 'y') { label += HELPERS.formatIDR(context.parsed.y); } else { label += context.parsed.y + ' pcs'; } } return label; } } } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748B' } }, y: { type: 'linear', display: true, position: 'left', grid: { color: '#F1F5F9', borderDash: [5, 5] }, ticks: { font: { family: 'Inter', size: 10 }, color: '#94A3B8', callback: (value) => value >= 1000000000 ? (value / 1000000000).toFixed(0) + 'M' : (value / 1000000).toFixed(0) + 'jt' }, border: { display: false } }, y1: { type: 'linear', display: true, position: 'right', grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#F59E0B' }, border: { display: false } } }, layout: { padding: { top: 10, left: 0, right: 0, bottom: 0 } } }
+                data: {
+                    labels: labels, datasets: [
+                        { label: 'Net Sales', data: netData, backgroundColor: gradient, hoverBackgroundColor: '#1E40AF', borderRadius: 6, order: 3, yAxisID: 'y', barPercentage: 0.6, categoryPercentage: 0.7 },
+                        { label: 'Qty Sold', data: qtyData, borderColor: '#F59E0B', backgroundColor: '#FFFFFF', type: 'line', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 2, tension: 0.3, order: 2, yAxisID: 'y1' },
+                        { label: 'Customers', data: custData, borderColor: '#8B5CF6', backgroundColor: '#FFFFFF', type: 'line', borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 2, tension: 0.3, order: 1, yAxisID: 'y1', borderDash: [5, 5] }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10, family: 'Inter' } } }, tooltip: { backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#0F172A', bodyColor: '#334155', borderColor: '#E2E8F0', borderWidth: 1, padding: 10, callbacks: { label: function (context) { let label = context.dataset.label || ''; if (label) label += ': '; if (context.parsed.y !== null) { if (context.dataset.yAxisID === 'y') { label += HELPERS.formatIDR(context.parsed.y); } else { if (context.dataset.label === 'Customers') label += context.parsed.y + ' pax'; else label += context.parsed.y + ' pcs'; } } return label; } } } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#64748B' } }, y: { type: 'linear', display: true, position: 'left', grid: { color: '#F1F5F9', borderDash: [5, 5] }, ticks: { font: { family: 'Inter', size: 10 }, color: '#94A3B8', callback: (value) => value >= 1000000000 ? (value / 1000000000).toFixed(0) + 'M' : (value / 1000000).toFixed(0) + 'jt' }, border: { display: false } }, y1: { type: 'linear', display: true, position: 'right', grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#F59E0B' }, border: { display: false } } }, layout: { padding: { top: 10, left: 0, right: 0, bottom: 0 } } }
             });
         },
 
