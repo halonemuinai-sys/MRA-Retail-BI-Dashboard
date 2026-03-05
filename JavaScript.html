@@ -150,16 +150,34 @@
         switchTab: (mode) => {
             STATE.currentMode = mode;
 
-            // Update Tab Classes
+            // Update Sidebar Menu Classes
             const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransaction', 'tabQuarterly', 'tabSap', 'tabCustomer', 'tabAdvisor', 'tabCrossing'];
             const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing'];
+            const pageTitles = {
+                'monthly': 'Monthly Overview',
+                'quarterly': 'Quarterly Performance',
+                'daily': 'Daily Report',
+                'monthlyTransaction': 'Monthly Transaction',
+                'crossing': 'Crossing Sales (Footfall)',
+                'sap': 'Product Rank (SAP)',
+                'advisor': 'Advisor Performance',
+                'customer': 'Customer Segmentation'
+            };
+
+            const baseClass = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group";
+            const inactiveClass = baseClass + " text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent";
+            const activeClass = baseClass + " sidebar-item-active hover:bg-slate-50 text-slate-600";
 
             tabs.forEach(t => {
                 const el = document.getElementById(t);
-                if (el) el.className = "px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap";
+                if (el) el.className = inactiveClass;
             });
             const activeTabEl = document.getElementById('tab' + mode.charAt(0).toUpperCase() + mode.slice(1));
-            if (activeTabEl) activeTabEl.className = "px-5 py-2 rounded-md text-xs font-bold transition-all duration-200 tab-active border border-transparent tracking-wide whitespace-nowrap";
+            if (activeTabEl) activeTabEl.className = activeClass;
+
+            // Update Page Title Header
+            const titleEl = document.getElementById('pageTitle');
+            if (titleEl && pageTitles[mode]) titleEl.innerText = pageTitles[mode];
 
             // Toggle View Visibility
             views.forEach(v => { const el = document.getElementById(v); if (el) el.classList.add('hidden'); });
@@ -1708,7 +1726,7 @@
     // ==========================================
     // 8. INITIALIZATION
     // ==========================================
-    document.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('load', () => {
         UI.initDefaults();
         APP.switchTab('monthly'); // Load default tab
     });

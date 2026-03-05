@@ -44,90 +44,162 @@
 
 </head>
 
-<body class="antialiased font-sans flex flex-col min-h-screen bg-slate-50/50">
+<body class="antialiased font-sans bg-slate-50/50 flex h-screen overflow-hidden">
 
     <!-- ========================================== -->
-    <!-- 2. NAVIGATION BAR                        -->
+    <!-- 2. LEFT SIDEBAR NAVIGATION               -->
     <!-- ========================================== -->
-    <nav class="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-50 shadow-sm backdrop-blur-md bg-white/95">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <!-- Logo Icon -->
-                <div
-                    class="bg-gradient-to-br from-brand-blue to-brand-blueDark p-2 rounded-lg text-white shadow-md shadow-blue-200 transform transition hover:scale-105 duration-300">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
-                        </path>
-                    </svg>
-                </div>
-                <!-- Title -->
-                <div>
-                    <h1 class="font-display text-base font-bold text-brand-dark tracking-tight leading-tight">
-                        MRA Retail<span class="text-slate-300 mx-2 font-light">|</span><span
-                            class="text-brand-blue">Bvlgari Sales Intelligence</span>
-                    </h1>
+    <aside
+        class="w-64 bg-white border-r border-slate-200 flex flex-col h-full z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex-shrink-0">
+
+        <!-- Brand Logo &amp; Title -->
+        <div class="h-16 flex items-center px-6 border-b border-slate-100 mb-4">
+            <div
+                class="bg-gradient-to-br from-brand-blue to-brand-blueDark p-2 rounded-lg text-white shadow-md shadow-blue-200 transform transition hover:scale-105 duration-300 mr-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                    </path>
+                </svg>
+            </div>
+            <h1 class="font-display text-sm font-bold text-brand-dark tracking-tight leading-tight">
+                MRA Retail<br><span class="text-brand-blue text-xs font-medium">Bvlgari Intelligence</span>
+            </h1>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="flex-1 overflow-y-auto custom-scrollbar px-3 space-y-6">
+
+            <!-- Category: Executive Summary -->
+            <div>
+                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Executive Summary</p>
+                <div class="space-y-1">
+                    <button onclick="APP.switchTab('monthly')" id="tabMonthly"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 sidebar-item-active hover:bg-slate-50 text-slate-600 group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                            </path>
+                        </svg>
+                        <span>Monthly Overview</span>
+                    </button>
+                    <button onclick="APP.switchTab('quarterly')" id="tabQuarterly"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                        </svg>
+                        <span>Quarterly Performance</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Sync Button -->
-            <button onclick="APP.syncData()" id="syncBtn"
-                class="group flex items-center gap-2 px-3 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue hover:bg-brand-blueLight transition-all duration-200 text-xs font-bold bg-white shadow-sm hover:shadow-md"
-                aria-label="Sync Data">
-                <svg class="w-3.5 h-3.5 group-hover:animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                    </path>
-                </svg>
-                Sync Data
-            </button>
-        </div>
-    </nav>
-
-    <!-- ========================================== -->
-    <!-- 3. HEADER (TABS & FILTERS)               -->
-    <!-- ========================================== -->
-    <header class="bg-white border-b border-slate-100 pb-4 pt-4 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] z-40">
-        <div class="container mx-auto px-6">
-            <div class="flex flex-col md:flex-row justify-between items-end gap-4">
-
-                <!-- Tabs Menu -->
-                <div
-                    class="bg-slate-50 p-1 rounded-lg inline-flex border border-slate-200 overflow-x-auto max-w-full custom-scrollbar">
-                    <button onclick="APP.switchTab('monthly')" id="tabMonthly"
-                        class="px-5 py-2 rounded-md text-xs font-bold transition-all duration-200 tab-active border border-transparent tracking-wide whitespace-nowrap">Monthly
-                        Overview</button>
-                    <button onclick="APP.switchTab('monthlyTransaction')" id="tabMonthlyTransaction"
-                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Monthly
-                        Transaction</button>
-                    <!-- NEW: Quarterly -->
-                    <button onclick="APP.switchTab('quarterly')" id="tabQuarterly"
-                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Quarterly
-                        Performance</button>
-                    <!-- MOVED: Daily Report to here -->
+            <!-- Category: Store &amp; Operations -->
+            <div>
+                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Store &amp;
+                    Operations
+                </p>
+                <div class="space-y-1">
                     <button onclick="APP.switchTab('daily')" id="tabDaily"
-                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Daily
-                        Report</button>
-                    <button onclick="APP.switchTab('advisor')" id="tabAdvisor"
-                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Advisor
-                        Performance</button>
-                    <button onclick="APP.switchTab('sap')" id="tabSap"
-                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Product
-                        Rank</button>
-                    <button onclick="APP.switchTab('customer')" id="tabCustomer"
-                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Customer
-                        Segmentation</button>
-                    <!-- NEW: Crossing Sales -->
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        <span>Daily Report</span>
+                    </button>
+                    <button onclick="APP.switchTab('monthlyTransaction')" id="tabMonthlyTransaction"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                            </path>
+                        </svg>
+                        <span>Monthly Trans.</span>
+                    </button>
                     <button onclick="APP.switchTab('crossing')" id="tabCrossing"
-                        class="px-5 py-2 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200 border border-transparent hover:bg-white tracking-wide whitespace-nowrap">Crossing
-                        Sales</button>
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                        <span>Crossing Sales (Footfall)</span>
+                    </button>
                 </div>
+            </div>
 
+            <!-- Category: Analytics &amp; Insights -->
+            <div>
+                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Analytics &amp;
+                    Insights
+                </p>
+                <div class="space-y-1">
+                    <button onclick="APP.switchTab('sap')" id="tabSap"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        <span>Product Rank (SAP)</span>
+                    </button>
+                    <button onclick="APP.switchTab('advisor')" id="tabAdvisor"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        <span>Advisor Performance</span>
+                    </button>
+                    <button onclick="APP.switchTab('customer')" id="tabCustomer"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <span>Customer Segment</span>
+                    </button>
+                </div>
+            </div>
+
+        </nav>
+
+        <!-- Footer within sidebar -->
+        <div class="p-4 border-t border-slate-100 bg-slate-50/50 mt-auto">
+            <p class="text-[10px] text-slate-400 text-center font-medium">&copy; 2026 MRA Retail.<br>Created By Aris
+                Setiyono.</p>
+        </div>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- 3. MAIN CONTENT AREA                       -->
+    <!-- ========================================== -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/30">
+
+        <!-- Top Action Bar (Filters &amp; Sync) -->
+        <header
+            class="bg-white border-b border-slate-200 h-16 px-6 flex justify-between items-center z-40 flex-shrink-0 shadow-sm">
+            <div class="flex-1">
+                <h2 id="pageTitle" class="text-xl font-bold text-brand-dark tracking-tight font-display">Monthly
+                    Overview</h2>
+            </div>
+
+            <div class="flex items-center gap-4">
                 <!-- Filters Area -->
-                <div id="filterGroup"
-                    class="flex flex-wrap gap-2 items-center bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-
-                    <!-- Month & Year Selector -->
+                <div id="filterGroup" class="flex flex-wrap gap-2 items-center">
+                    <!-- Month &amp; Year Selector -->
                     <div id="filterMonthly" class="flex gap-2 animate-fadeIn">
                         <div class="relative group">
                             <select id="monthSelect" onchange="APP.loadDashboard()" title="Select Month"
@@ -178,7 +250,6 @@
                             <span
                                 class="text-brand-blue text-[10px] uppercase font-bold mr-1 tracking-wider">DATE:</span>
                             <input type="date" id="dateInput" onchange="APP.loadDashboard()" title="Select Date"
-                                placeholder="YYYY-MM-DD"
                                 class="focus:outline-none bg-transparent text-slate-700 font-bold cursor-pointer"
                                 value="">
                         </div>
@@ -190,35 +261,41 @@
                         <span>Filter</span>
                     </button>
                 </div>
+
+                <div class="h-6 w-px bg-slate-200 mx-1"></div>
+
+                <!-- Sync Button -->
+                <button onclick="APP.syncData()" id="syncBtn"
+                    class="group flex items-center gap-2 px-3 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue hover:bg-brand-blueLight transition-all duration-200 text-xs font-bold bg-white shadow-sm hover:shadow-md"
+                    aria-label="Sync Data">
+                    <svg class="w-3.5 h-3.5 group-hover:animate-spin" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
+                    </svg>
+                    Sync
+                </button>
             </div>
-        </div>
-    </header>
+        </header>
+
+        <!-- Dynamic View Content (Scrollable) -->
+        <main class="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar relative">
+            <?!= include('ViewMonthly'); ?>
+            <?!= include('ViewQuarterly'); ?>
+            <?!= include('ViewMonthlyTransaction'); ?>
+            <?!= include('ViewAdvisor'); ?>
+            <?!= include('ViewSap'); ?>
+            <?!= include('ViewCustomer'); ?>
+            <?!= include('ViewDaily'); ?>
+            <?!= include('ViewCrossingSales'); ?>
+
+            <div class="h-8"></div> <!-- Bottom empty margin for clean scrolling -->
+        </main>
+    </div>
 
     <!-- ========================================== -->
-    <!-- 4. MAIN CONTENT (Dynamic Views)          -->
-    <!-- ========================================== -->
-    <main class="container mx-auto px-6 py-6 fade-in flex-grow">
-        <?!= include('ViewMonthly'); ?>
-        <?!= include('ViewQuarterly'); ?>
-        <?!= include('ViewMonthlyTransaction'); ?>
-        <?!= include('ViewAdvisor'); ?>
-        <?!= include('ViewSap'); ?>
-        <?!= include('ViewCustomer'); ?>
-        <?!= include('ViewDaily'); ?>
-        <?!= include('ViewCrossingSales'); ?>
-    </main>
-
-    <!-- ========================================== -->
-    <!-- 5. FOOTER                                -->
-    <!-- ========================================== -->
-    <footer class="bg-white border-t border-slate-200 mt-auto py-6">
-        <div class="container mx-auto px-6 text-center">
-            <p class="text-xs text-slate-400 font-medium">© 2026 Retail Dashboard System. | Created By Aris Setiyono</p>
-        </div>
-    </footer>
-
-    <!-- ========================================== -->
-    <!-- 6. MODALS & UI ELEMENTS                  -->
+    <!-- 4. MODALS & UI ELEMENTS                  -->
     <!-- ========================================== -->
 
     <!-- Loader -->
