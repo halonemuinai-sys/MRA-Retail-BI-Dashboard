@@ -7,18 +7,6 @@
             <p class="text-xs text-slate-500">Track and Analyze Quarterly Business Cycles</p>
         </div>
 
-        <!-- SUB-VIEW TOGGLE -->
-        <div class="flex bg-slate-100/80 p-1 rounded-lg border border-slate-200 w-fit">
-            <button onclick="APP.switchQuarterlySubView('standard')" id="btnQuarterlyStandard"
-                class="px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5">
-                Standard View
-            </button>
-            <button onclick="APP.switchQuarterlySubView('budget')" id="btnQuarterlyBudget"
-                class="px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200">
-                Budget 2026 Compare
-            </button>
-        </div>
-
         <button onclick="EXPORT.pdf('viewQuarterly', 'Quarterly_Performance_Report')"
             class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 transition-colors text-xs font-bold bg-white shadow-sm ml-auto">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

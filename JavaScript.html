@@ -39,6 +39,8 @@
     const STATE = {
         currentMode: 'monthly',
         globalAdvisorData: [], // Stores advisor data for Modal access
+        calendarNotes: {}, // Cache for calendar notes
+        calendarActiveDate: null, // Track currently editing note date
         customerData: [],      // Stores customer data for Client-side Search
         activeSegmentFilter: null, // Stores active customer segment filter
         sapSubView: 'topPerformers', // Tracks SAP Top vs Projection sub-view
@@ -147,19 +149,111 @@
     // ==========================================
     const APP = {
 
+        // --- NOTE MODAL LOGIC ---
+        openNoteModal: (day, existingNote) => {
+            STATE.calendarActiveDate = day;
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+
+            UI.setText('noteModalDate', day + ' ' + m + ' ' + y);
+
+            const textarea = document.getElementById('noteModalText');
+            textarea.value = existingNote || '';
+            document.getElementById('noteCharCount').innerText = textarea.value.length;
+
+            textarea.addEventListener('input', function () {
+                document.getElementById('noteCharCount').innerText = this.value.length;
+            });
+
+            if (existingNote) {
+                document.getElementById('noteDeleteBtn').classList.remove('hidden');
+            } else {
+                document.getElementById('noteDeleteBtn').classList.add('hidden');
+            }
+
+            const modal = document.getElementById('noteModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => textarea.focus(), 100);
+        },
+
+        closeNoteModal: () => {
+            const modal = document.getElementById('noteModal');
+            modal.classList.add('hidden');
+            STATE.calendarActiveDate = null;
+        },
+
+        saveNote: () => {
+            const textarea = document.getElementById('noteModalText');
+            const noteText = textarea.value.trim();
+            const day = STATE.calendarActiveDate;
+            if (!day) return;
+
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const monthIdx = String(monthNames.indexOf(m) + 1).padStart(2, '0');
+            const dayStr = String(day).padStart(2, '0');
+            const dateStr = y + '-' + monthIdx + '-' + dayStr;
+
+            const btn = document.getElementById('noteSaveBtn');
+            const oldText = btn.innerText;
+            btn.innerText = 'Saving...';
+            btn.disabled = true;
+
+            google.script.run.withSuccessHandler(res => {
+                btn.innerText = oldText;
+                btn.disabled = false;
+                APP.closeNoteModal();
+
+                if (res.success) {
+                    UI.showToast(res.message);
+                    // Update cache and re-render calendar
+                    if (noteText === '') delete STATE.calendarNotes[day];
+                    else STATE.calendarNotes[day] = noteText;
+
+                    // Trigger a dashboard load to refresh the calendar view specifically
+                    APP.loadDashboard();
+                } else {
+                    UI.showToast(res.message);
+                }
+            }).saveCalendarNote(dateStr, noteText);
+        },
+
+        deleteNote: () => {
+            document.getElementById('noteModalText').value = '';
+            APP.saveNote();
+        },
+
         switchTab: (mode) => {
-            STATE.currentMode = mode;
+            // --- Sub-View Resolution ---
+            const subViewMap = {
+                'monthlyTransTable': { parent: 'monthlyTransaction', subAction: () => APP.switchMonthlySubView('table') },
+                'heatmapCalendar': { parent: 'monthlyTransaction', subAction: () => APP.switchMonthlySubView('heatmap') },
+                'quarterlyStandard': { parent: 'quarterly', subAction: () => APP.switchQuarterlySubView('standard') },
+                'quarterlyBudget': { parent: 'quarterly', subAction: () => APP.switchQuarterlySubView('budget') },
+                'crossingSales': { parent: 'crossing', subAction: () => APP.switchCrossingSubView('crossing') },
+                'footfall': { parent: 'crossing', subAction: () => APP.switchCrossingSubView('footfall') },
+                'sapTop': { parent: 'sap', subAction: () => { STATE.sapSubView = 'topPerformers'; document.getElementById('sapTopPerformersView').classList.remove('hidden'); document.getElementById('sapProjectionView').classList.add('hidden'); } },
+                'sapProjection': { parent: 'sap', subAction: () => { STATE.sapSubView = 'projection'; document.getElementById('sapProjectionView').classList.remove('hidden'); document.getElementById('sapTopPerformersView').classList.add('hidden'); } }
+            };
+            const resolved = subViewMap[mode];
+            const actualView = resolved ? resolved.parent : mode;
+            STATE.currentMode = actualView;
 
             // Update Sidebar Menu Classes
-            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransaction', 'tabQuarterly', 'tabSap', 'tabCustomer', 'tabAdvisor', 'tabCrossing'];
+            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall'];
             const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing'];
             const pageTitles = {
                 'monthly': 'Monthly Overview',
-                'quarterly': 'Quarterly Performance',
+                'quarterlyStandard': 'Quarterly Standard',
+                'quarterlyBudget': 'Quarterly Budget',
                 'daily': 'Daily Report',
-                'monthlyTransaction': 'Monthly Transaction',
-                'crossing': 'Crossing Sales (Footfall)',
-                'sap': 'Product Rank (SAP)',
+                'monthlyTransTable': 'Monthly Transaction',
+                'heatmapCalendar': 'Heatmap Calendar',
+                'crossingSales': 'Crossing Sales',
+                'footfall': 'Footfall',
+                'sapTop': 'Product Rank (Top)',
+                'sapProjection': 'Product Projection',
                 'advisor': 'Advisor Performance',
                 'customer': 'Customer Segmentation'
             };
@@ -181,7 +275,7 @@
 
             // Toggle View Visibility
             views.forEach(v => { const el = document.getElementById(v); if (el) el.classList.add('hidden'); });
-            const activeViewEl = document.getElementById('view' + mode.charAt(0).toUpperCase() + mode.slice(1));
+            const activeViewEl = document.getElementById('view' + actualView.charAt(0).toUpperCase() + actualView.slice(1));
             if (activeViewEl) activeViewEl.classList.remove('hidden');
 
             // Handle Filter Visibility
@@ -191,15 +285,18 @@
             if (monthlyFilter) monthlyFilter.classList.add('hidden');
             if (dailyFilter) dailyFilter.classList.add('hidden');
 
-            if (mode === 'daily') {
+            if (actualView === 'daily') {
                 if (dailyFilter) dailyFilter.classList.remove('hidden');
-                if (monthlyFilter) monthlyFilter.classList.remove('hidden'); // Heatmap needs monthly filter
-            } else if (mode === 'customer' || mode === 'quarterly') {
-                // Customer and Quarterly views don't need the default monthly filter
+                if (monthlyFilter) monthlyFilter.classList.remove('hidden');
+            } else if (actualView === 'customer' || actualView === 'quarterly') {
                 if (monthlyFilter) monthlyFilter.classList.add('hidden');
             } else {
-                // Monthly, Transaction, SAP, Advisor, and Crossing views use Monthly filter
                 if (monthlyFilter) monthlyFilter.classList.remove('hidden');
+            }
+
+            // Trigger sub-view action BEFORE loading data
+            if (resolved && resolved.subAction) {
+                resolved.subAction();
             }
 
             APP.loadDashboard();
@@ -208,18 +305,11 @@
         switchMonthlySubView: (subView) => {
             STATE.monthlySubView = subView;
 
-            // Toggle Buttons
-            const btnTable = document.getElementById('monthlySubTable');
-            const btnHeatmap = document.getElementById('monthlySubHeatmap');
-
+            // Toggle sub-view visibility (buttons removed, sidebar handles navigation)
             if (subView === 'table') {
-                btnTable.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
-                btnHeatmap.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
                 document.getElementById('monthlyTableView').classList.remove('hidden');
                 document.getElementById('monthlyHeatmapView').classList.add('hidden');
             } else {
-                btnHeatmap.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
-                btnTable.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
                 document.getElementById('monthlyHeatmapView').classList.remove('hidden');
                 document.getElementById('monthlyTableView').classList.add('hidden');
             }
@@ -230,18 +320,11 @@
         switchQuarterlySubView: (subView) => {
             STATE.quarterlySubView = subView;
 
-            // Toggle Buttons
-            const btnStandard = document.getElementById('btnQuarterlyStandard');
-            const btnBudget = document.getElementById('btnQuarterlyBudget');
-
+            // Toggle sub-view visibility (buttons removed, but keep logic for sidebar routing)
             if (subView === 'standard') {
-                btnStandard.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5";
-                btnBudget.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200";
                 document.getElementById('quarterlyStandardView').classList.remove('hidden');
                 document.getElementById('quarterlyBudgetView').classList.add('hidden');
             } else {
-                btnBudget.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-white text-brand-dark shadow-sm ring-1 ring-slate-900/5";
-                btnStandard.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-brand-dark transition-all duration-200";
                 document.getElementById('quarterlyBudgetView').classList.remove('hidden');
                 document.getElementById('quarterlyStandardView').classList.add('hidden');
             }
@@ -252,18 +335,11 @@
         switchCrossingSubView: (subView) => {
             STATE.crossingSubView = subView;
 
-            // Toggle Buttons
-            const btnCrossing = document.getElementById('btnCrossSales');
-            const btnFootfall = document.getElementById('btnCrossFootfall');
-
+            // Toggle sub-view visibility (buttons removed, but keep logic for sidebar routing)
             if (subView === 'crossing') {
-                btnCrossing.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
-                btnFootfall.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
                 document.getElementById('crossingSalesSubView').classList.remove('hidden');
                 document.getElementById('crossingFootfallSubView').classList.add('hidden');
             } else {
-                btnFootfall.className = "px-4 py-1.5 rounded-md text-[11px] font-bold transition-all bg-brand-dark text-white shadow-sm";
-                btnCrossing.className = "px-4 py-1.5 rounded-md text-[11px] font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent";
                 document.getElementById('crossingFootfallSubView').classList.remove('hidden');
                 document.getElementById('crossingSalesSubView').classList.add('hidden');
             }
@@ -1004,60 +1080,83 @@
                 UI.setText('calBestDOW', '-');
             }
 
-            // Generate Grid HTML
-            let gridHtml = '';
-            // Padding for the start of the month
-            for (let i = 0; i < firstDay; i++) {
-                gridHtml += `<div class="aspect-square rounded-md bg-transparent"></div>`;
-            }
+            // Fetch Calendar Notes first before rendering grid
+            UI.setHTML('calendarGrid', '<div class="col-span-7 py-8 text-center"><div class="animate-pulse flex flex-col items-center"><div class="w-6 h-6 border-2 border-brand-blue border-t-transparent rounded-full animate-spin mb-2"></div><div class="text-xs text-slate-400">Loading Calendar Data...</div></div></div>');
 
-            // Render Days
-            for (let i = 0; i < daysInMonth; i++) {
-                const dayData = dailyData[i];
-                const isHoliday = data.holidays && data.holidays[i + 1] ? data.holidays[i + 1] : "";
-                const isWeekend = (firstDay + i) % 7 === 0 || (firstDay + i) % 7 === 6;
+            google.script.run.withSuccessHandler(notesMap => {
+                STATE.calendarNotes = notesMap || {};
 
-                let intensity = 0;
-                if (maxSales > 0) intensity = dayData.net / maxSales;
-
-                // Choose color bucket
-                let bgClass = 'bg-slate-50 border border-slate-100 text-slate-400';
-                let hoverClass = 'hover:border-slate-300';
-                let textClass = 'text-slate-400 text-lg';
-                let numberClass = '';
-
-                if (dayData.net > 0) {
-                    if (intensity > 0.8) { bgClass = 'bg-emerald-700 border-none'; textClass = 'text-emerald-50'; }
-                    else if (intensity > 0.6) { bgClass = 'bg-emerald-500 border-none'; textClass = 'text-emerald-50'; }
-                    else if (intensity > 0.4) { bgClass = 'bg-emerald-400 border-none'; textClass = 'text-emerald-900'; }
-                    else if (intensity > 0.2) { bgClass = 'bg-emerald-300 border-none'; textClass = 'text-emerald-900'; }
-                    else { bgClass = 'bg-emerald-200 border-none'; textClass = 'text-emerald-800'; }
-                    hoverClass = 'hover:ring-2 hover:ring-offset-2 hover:ring-opacity-50 hover:ring-emerald-500 cursor-pointer shadow-sm';
-                    numberClass = 'font-bold';
-                } else if (isWeekend || isHoliday) {
-                    bgClass = 'bg-rose-50 border border-rose-100';
-                    textClass = 'text-rose-400';
+                // Generate Grid HTML
+                let gridHtml = '';
+                // Padding for the start of the month
+                for (let i = 0; i < firstDay; i++) {
+                    gridHtml += `<div class="aspect-square rounded-md bg-transparent"></div>`;
                 }
 
-                // Tooltip content
-                const dateStr = `${i + 1} ${m.substr(0, 3)}`;
-                let tooltipObj = `Sales: ${HELPERS.formatIDR(dayData.net)}<br/>Qty: ${dayData.qty}`;
-                if (isHoliday) tooltipObj += `<br/>${isHoliday}`;
+                // Render Days
+                for (let i = 0; i < daysInMonth; i++) {
+                    const day = i + 1;
+                    const dayData = dailyData[i];
+                    const isHoliday = data.holidays && data.holidays[day] ? data.holidays[day] : "";
+                    const isWeekend = (firstDay + i) % 7 === 0 || (firstDay + i) % 7 === 6;
+                    const noteText = STATE.calendarNotes[day];
 
-                gridHtml += `
-                <div class="group relative aspect-square rounded-md flex flex-col items-center justify-center transition-all duration-200 ${bgClass} ${hoverClass}">
-                    <span class="${numberClass} ${textClass}">${i + 1}</span>
-                    
-                    <!-- Tooltip -->
-                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[160px] bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-20 text-center leading-tight whitespace-normal">
-                        <div class="font-bold text-slate-300 border-b border-slate-600 pb-1 mb-1">${dateStr}</div>
-                        ${tooltipObj}
-                        <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
-                    </div>
-                </div>`;
-            }
+                    let intensity = 0;
+                    if (maxSales > 0) intensity = dayData.net / maxSales;
 
-            UI.setHTML('calendarGrid', gridHtml);
+                    // Choose color bucket
+                    let bgClass = 'bg-slate-50 border border-slate-100 text-slate-400';
+                    let hoverClass = 'hover:border-slate-300';
+                    let textClass = 'text-slate-400 text-lg';
+                    let numberClass = '';
+
+                    if (dayData.net > 0) {
+                        if (intensity > 0.8) { bgClass = 'bg-emerald-700 border-none'; textClass = 'text-emerald-50'; }
+                        else if (intensity > 0.6) { bgClass = 'bg-emerald-500 border-none'; textClass = 'text-emerald-50'; }
+                        else if (intensity > 0.4) { bgClass = 'bg-emerald-400 border-none'; textClass = 'text-emerald-900'; }
+                        else if (intensity > 0.2) { bgClass = 'bg-emerald-300 border-none'; textClass = 'text-emerald-900'; }
+                        else { bgClass = 'bg-emerald-200 border-none'; textClass = 'text-emerald-800'; }
+                        hoverClass = 'hover:ring-2 hover:ring-offset-2 hover:ring-opacity-50 hover:ring-emerald-500 shadow-sm';
+                        numberClass = 'font-bold';
+                    } else if (isWeekend || isHoliday) {
+                        bgClass = 'bg-rose-50 border border-rose-100';
+                        textClass = 'text-rose-400';
+                    }
+
+                    // Tooltip content
+                    const dateStr = `${day} ${m.substr(0, 3)}`;
+                    let tooltipObj = `Sales: ${HELPERS.formatIDR(dayData.net)}<br/>Qty: ${dayData.qty}`;
+                    if (isHoliday) tooltipObj += `<br/>${isHoliday}`;
+
+                    let noteIndicator = '';
+                    let actionSafeNote = '';
+                    if (noteText) {
+                        // Truncate tooltip note if too long
+                        let displayNote = noteText.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        if (displayNote.length > 100) displayNote = displayNote.substring(0, 100) + '...';
+
+                        tooltipObj += `<div class="mt-1.5 pt-1.5 border-t border-slate-600 text-left italic text-[9px] text-blue-300">" ${displayNote} "</div>`;
+                        noteIndicator = `<div class="note-dot"></div>`;
+                        actionSafeNote = noteText.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                    }
+
+                    gridHtml += `
+                    <div onclick="APP.openNoteModal(${day}, '${actionSafeNote}')" class="cursor-pointer group relative aspect-square rounded-md flex flex-col items-center justify-center transition-all duration-200 ${bgClass} ${hoverClass}">
+                        ${noteIndicator}
+                        <span class="${numberClass} ${textClass}">${day}</span>
+                        
+                        <!-- Tooltip -->
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[170px] bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-20 text-center leading-tight whitespace-normal">
+                            <div class="font-bold text-slate-300 border-b border-slate-600 pb-1 mb-1">${dateStr}</div>
+                            ${tooltipObj}
+                            <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                        </div>
+                    </div>`;
+                }
+
+                UI.setHTML('calendarGrid', gridHtml);
+            }).getCalendarNotes(m, y);
+
         },
 
         monthly: (data) => {

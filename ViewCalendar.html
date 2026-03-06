@@ -63,4 +63,43 @@
         </div>
     </div>
 
+    <!-- NOTE MODAL -->
+    <div id="noteModal" class="note-modal-overlay hidden" onclick="if(event.target===this) APP.closeNoteModal()">
+        <div class="note-modal-card">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-display text-base font-bold text-brand-dark">Add Note</h3>
+                    <p class="text-xs text-slate-500 mt-0.5" id="noteModalDate">-</p>
+                </div>
+                <button onclick="APP.closeNoteModal()" title="Close Note"
+                    class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <textarea id="noteModalText" rows="4" maxlength="500"
+                class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700 focus:ring-2 focus:ring-brand-blue focus:border-brand-blue resize-none transition-all placeholder:text-slate-400"
+                placeholder="Tulis catatan untuk tanggal ini... (maks 500 karakter)"></textarea>
+            <p class="text-[10px] text-slate-400 mt-1 text-right"><span id="noteCharCount">0</span>/500</p>
+            <div class="flex items-center justify-between mt-4">
+                <button onclick="APP.deleteNote()" id="noteDeleteBtn"
+                    class="hidden text-xs font-bold text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all">
+                    Delete Note
+                </button>
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="APP.closeNoteModal()"
+                        class="px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 transition-all">
+                        Cancel
+                    </button>
+                    <button onclick="APP.saveNote()" id="noteSaveBtn"
+                        class="px-5 py-2 rounded-lg text-xs font-bold bg-brand-blue text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95">
+                        Save Note
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
