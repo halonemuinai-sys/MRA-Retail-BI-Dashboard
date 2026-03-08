@@ -374,8 +374,10 @@
             } else if (currentMode === 'advisor') {
                 const m = document.getElementById('monthSelect').value;
                 const y = document.getElementById('yearSelect').value;
-                // Panggil RENDER.advisor
-                google.script.run.withSuccessHandler(RENDER.advisor).getDashboardData(m, y, isRefresh);
+                // Load Monthly Advisor Data
+                google.script.run.withSuccessHandler(RENDER.advisor).getAdvisorReportData(m, y);
+                // Load Annual (YTD) Advisor Data
+                APP.loadAnnualAdvisor();
 
             } else if (currentMode === 'daily') {
                 const d = document.getElementById('dateInput').value;
@@ -439,6 +441,27 @@
             google.script.run.withSuccessHandler(RENDER.crossingSales).withFailureHandler((err) => {
                 UI.showToast("Error: " + err.message); UI.showLoader(false);
             }).getCrossingSalesData(m, y, isRefresh);
+        },
+
+        loadAnnualAdvisor: () => {
+            const y = document.getElementById('yearSelect').value;
+            google.script.run.withSuccessHandler(RENDER.annualAdvisor).withFailureHandler(err => {
+                UI.showToast("Error loading Annual Advisor Data: " + err.message);
+                document.getElementById('annualAdvisorTableContainer').innerHTML = `<div class="p-8 text-center text-red-500">Failed to load data.</div>`;
+            }).getAnnualAdvisorData(y);
+        },
+
+        sendAdvisorEmail: () => {
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+            UI.showLoader(true);
+            google.script.run.withSuccessHandler(res => {
+                UI.showLoader(false);
+                UI.showToast(res.message);
+            }).withFailureHandler(err => {
+                UI.showLoader(false);
+                UI.showToast("Error sending email: " + err.message);
+            }).triggerAdvisorEmailManual(m, y);
         },
 
         exportFootfallCSV: () => {
@@ -576,53 +599,61 @@
         },
 
         viewAdvisorDetails: (index) => {
-            const advisor = STATE.globalAdvisorData[index];
-            if (!advisor) return;
+            try {
+                const advisor = STATE.globalAdvisorData[index];
+                if (!advisor) {
+                    UI.showToast(`Error: Advisor data not found for index ${index}`);
+                    return;
+                }
 
-            UI.setText('modalAdvName', advisor.name);
-            UI.setText('modalAdvLoc', advisor.location);
-            UI.setText('modalAdvSales', HELPERS.formatIDR(advisor.netSales));
+                UI.setText('modalAdvName', advisor.name);
+                UI.setText('modalAdvLoc', advisor.location);
+                UI.setText('modalAdvSales', HELPERS.formatIDR(advisor.netSales));
 
-            // Reset chart instance to prevent ghosting
-            if (STATE.charts.advisorStore) {
-                STATE.charts.advisorStore.destroy();
-                STATE.charts.advisorStore = null;
+                // Reset chart instance to prevent ghosting
+                if (STATE.charts.advisorStore) {
+                    STATE.charts.advisorStore.destroy();
+                    STATE.charts.advisorStore = null;
+                }
+
+                const storeData = advisor.storeData || { totalSales: 0, target: 0, achievement: 0, status: "-", advisorContrib: 0 };
+                UI.setText('modalAdvContrib', HELPERS.formatPct(storeData.advisorContrib));
+                UI.setText('modalStoreActual', HELPERS.formatIDR(storeData.totalSales));
+                UI.setText('modalStoreTarget', HELPERS.formatIDR(storeData.target));
+
+                const colors = HELPERS.getStatusColor(storeData.achievement);
+                const elStatus = document.getElementById('modalStoreStatus');
+                if (elStatus) {
+                    elStatus.innerText = storeData.status + ` (${HELPERS.formatPct(storeData.achievement)})`;
+                    elStatus.className = `font-bold ${colors.text}`;
+                }
+
+                const elBar = document.getElementById('modalStoreBar');
+                if (elBar) {
+                    elBar.style.width = Math.min(storeData.achievement, 100) + "%";
+                    elBar.className = `h-2 rounded-full transition-all duration-500 ${colors.bar}`;
+                }
+
+                let catHtml = "";
+                if (advisor.categoryMix && advisor.categoryMix.length > 0) {
+                    advisor.categoryMix.forEach(cat => { catHtml += `<tr class="border-b border-slate-50 last:border-0"><td class="p-2.5 text-slate-700 font-medium">${cat.category}</td><td class="p-2.5 text-center font-mono text-slate-600">${cat.qty}</td><td class="p-2.5 text-right font-mono text-slate-500">${HELPERS.formatIDR(cat.amount)}</td><td class="p-2.5 text-right text-brand-blue font-bold">${cat.pct.toFixed(1)}%</td></tr>`; });
+                } else {
+                    catHtml = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No category data available</td></tr>`;
+                }
+                UI.setHTML('modalCatTableBody', catHtml);
+
+                if (advisor.storeMix && advisor.storeMix.length > 0) {
+                    CHARTS.renderAdvisorStore(advisor.storeMix);
+                }
+
+                const modal = document.getElementById('advisorModal');
+                const content = document.getElementById('advisorModalContent');
+                if (modal) modal.classList.remove('hidden');
+                if (content) { setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); }
+            } catch (err) {
+                UI.showToast(`Modal Render Error: ${err.message}`);
+                console.error(err);
             }
-
-            const storeData = advisor.storeData || { totalSales: 0, target: 0, achievement: 0, status: "-", advisorContrib: 0 };
-            UI.setText('modalAdvContrib', HELPERS.formatPct(storeData.advisorContrib));
-            UI.setText('modalStoreActual', HELPERS.formatIDR(storeData.totalSales));
-            UI.setText('modalStoreTarget', HELPERS.formatIDR(storeData.target));
-
-            const colors = HELPERS.getStatusColor(storeData.achievement);
-            const elStatus = document.getElementById('modalStoreStatus');
-            if (elStatus) {
-                elStatus.innerText = storeData.status + ` (${HELPERS.formatPct(storeData.achievement)})`;
-                elStatus.className = `font-bold ${colors.text}`;
-            }
-
-            const elBar = document.getElementById('modalStoreBar');
-            if (elBar) {
-                elBar.style.width = Math.min(storeData.achievement, 100) + "%";
-                elBar.className = `h-2 rounded-full transition-all duration-500 ${colors.bar}`;
-            }
-
-            let catHtml = "";
-            if (advisor.categoryMix && advisor.categoryMix.length > 0) {
-                advisor.categoryMix.forEach(cat => { catHtml += `<tr class="border-b border-slate-50 last:border-0"><td class="p-2.5 text-slate-700 font-medium">${cat.category}</td><td class="p-2.5 text-center font-mono text-slate-600">${cat.qty}</td><td class="p-2.5 text-right font-mono text-slate-500">${HELPERS.formatIDR(cat.amount)}</td><td class="p-2.5 text-right text-brand-blue font-bold">${cat.pct.toFixed(1)}%</td></tr>`; });
-            } else {
-                catHtml = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No category data available</td></tr>`;
-            }
-            UI.setHTML('modalCatTableBody', catHtml);
-
-            if (advisor.storeMix && advisor.storeMix.length > 0) {
-                CHARTS.renderAdvisorStore(advisor.storeMix);
-            }
-
-            const modal = document.getElementById('advisorModal');
-            const content = document.getElementById('advisorModalContent');
-            if (modal) modal.classList.remove('hidden');
-            if (content) { setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); }
         },
 
         closeAdvisorModal: () => {
@@ -736,7 +767,7 @@
             }
 
             // Update Global State
-            STATE.globalAdvisorData = data.advisorData || [];
+            STATE.globalAdvisorData = data.advisors || [];
 
             // 1. Grouping Data
             const groupedAdvisors = {};
@@ -769,7 +800,7 @@
                     // Build Rows
                     let rows = "";
                     advisors.forEach((adv, rankIdx) => {
-                        const globalIndex = STATE.globalAdvisorData.indexOf(adv);
+                        const globalIndex = STATE.globalAdvisorData.findIndex(a => a.name === adv.name && a.location === adv.location);
                         const advColors = HELPERS.getStatusColor(adv.achievement);
                         rows += `
                     <tr class="hover:bg-blue-50 transition-colors cursor-pointer group" onclick="APP.viewAdvisorDetails(${globalIndex})">
@@ -1814,6 +1845,162 @@
             UI.setHTML('crossingTableBody', tbody);
             UI.showLoader(false);
             document.getElementById('loaderText').innerText = "Processing Data...";
+        },
+
+        advisor: (res) => {
+            UI.showLoader(false);
+            if (res.error) { UI.showToast(res.error); return; }
+
+            const container = document.getElementById('advisorTablesContainer');
+            container.innerHTML = "";
+            const data = res.advisors || [];
+
+            if (data.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200">No data available for this month.</div>`;
+                return;
+            }
+
+            // Group by location
+            const groups = {};
+            data.forEach(adv => {
+                const loc = adv.location || "Unknown";
+                if (!groups[loc]) groups[loc] = [];
+                groups[loc].push(adv);
+            });
+
+            const sortedLocs = Object.keys(groups).sort();
+
+            sortedLocs.forEach(loc => {
+                const advisors = groups[loc];
+                let rowsHtml = '';
+
+                advisors.forEach((adv, idx) => {
+                    const achvColor = adv.achievement >= 100 ? 'text-emerald-600' : (adv.achievement >= 80 ? 'text-amber-500' : 'text-red-500');
+                    const progColor = adv.achievement >= 100 ? 'bg-emerald-500' : (adv.achievement >= 80 ? 'bg-amber-500' : 'bg-red-500');
+                    const globalIndex = STATE.globalAdvisorData.findIndex(a => a.name === adv.name && a.location === adv.location);
+
+                    rowsHtml += `
+                    <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group cursor-pointer" onclick="APP.viewAdvisorDetails(${globalIndex})">
+                        <td class="py-3 px-5 border-b border-slate-50">
+                            <span class="font-bold text-slate-700">${idx + 1}. ${adv.name}</span>
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50 text-right">
+                            <span class="font-mono font-bold text-brand-dark">${HELPERS.formatIDR(adv.netSales)}</span>
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50 text-right text-slate-500">
+                            ${HELPERS.formatIDR(adv.target)}
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold ${achvColor}">${adv.achievement.toFixed(1)}%</span>
+                                    <span class="text-[10px] text-slate-400 font-medium">Contrib: ${adv.contribution.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden shadow-inner">
+                                    <div class="${progColor} h-1.5 rounded-full transition-all" style="width: ${Math.min(100, adv.achievement)}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-5 border-b border-slate-50 text-center">
+                            <span class="font-mono text-slate-600">${adv.transCount}</span>
+                        </td>
+                    </tr>`;
+                });
+
+                container.innerHTML += `
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+                    <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-display text-sm font-bold text-brand-dark flex items-center gap-2">
+                            <span class="w-2 h-2 bg-brand-blue rounded-full"></span> ${loc}
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left whitespace-nowrap">
+                            <thead class="bg-white text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
+                                <tr>
+                                    <th class="py-3 px-5 font-bold">Advisor Name</th>
+                                    <th class="py-3 px-5 text-right font-bold w-40">Net Sales</th>
+                                    <th class="py-3 px-5 text-right font-bold w-40">Target</th>
+                                    <th class="py-3 px-5 font-bold w-48 text-center">Achievement</th>
+                                    <th class="py-3 px-5 text-center font-bold w-24">Trans Count</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            });
+        },
+
+        annualAdvisor: (data) => {
+            const container = document.getElementById('annualAdvisorTableContainer');
+            if (!data || data.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-slate-400">No Annual Data available.</div>`;
+                return;
+            }
+
+            let rowsHtml = '';
+            data.forEach((adv, idx) => {
+                const achvColor = adv.achievement >= 100 ? 'text-emerald-600' : (adv.achievement >= 80 ? 'text-amber-500' : 'text-red-500');
+                const progColor = adv.achievement >= 100 ? 'bg-emerald-500' : (adv.achievement >= 80 ? 'bg-amber-500' : 'bg-red-500');
+                const globalIndex = STATE.globalAdvisorData.findIndex(a => a.name === adv.name && a.location === adv.location);
+
+                rowsHtml += `
+                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group cursor-pointer" onclick="APP.viewAdvisorDetails(${globalIndex})">
+                    <td class="py-3 px-5 border-b border-slate-50">
+                        <div class="flex items-center gap-2">
+                             <span class="text-xs font-bold text-slate-400 w-4">${idx + 1}.</span>
+                             <span class="font-bold text-slate-700">${adv.name}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-5 border-b border-slate-50 text-slate-500 text-xs">${adv.location}</td>
+                    <td class="py-3 px-5 border-b border-slate-50 text-right">
+                        <span class="font-mono font-bold text-brand-dark">${HELPERS.formatIDR(adv.netSales)}</span>
+                    </td>
+                    <td class="py-3 px-5 border-b border-slate-50 text-right text-slate-500">
+                        ${HELPERS.formatIDR(adv.target)}
+                    </td>
+                    <td class="py-3 px-5 border-b border-slate-50">
+                        <div class="flex flex-col gap-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold ${achvColor}">${adv.achievement.toFixed(1)}%</span>
+                                <span class="text-[10px] text-slate-400 font-medium">Contrib: ${adv.contribution.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden shadow-inner">
+                                <div class="${progColor} h-1.5 rounded-full transition-all" style="width: ${Math.min(100, adv.achievement)}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-3 px-5 border-b border-slate-50 text-center">
+                        <span class="text-xs font-bold text-brand-blue bg-blue-50 px-2 py-0.5 rounded border border-blue-100">${adv.productiveMonths} Months</span>
+                    </td>
+                    <td class="py-3 px-5 border-b border-slate-50 text-center">
+                        <span class="font-mono text-slate-600">${adv.transCount}</span>
+                    </td>
+                </tr>`;
+            });
+
+            container.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left whitespace-nowrap">
+                    <thead class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
+                        <tr>
+                            <th class="py-3 px-5 font-bold">Advisor Name</th>
+                            <th class="py-3 px-5 font-bold">Location</th>
+                            <th class="py-3 px-5 text-right font-bold w-40">YTD Sales</th>
+                            <th class="py-3 px-5 text-right font-bold w-40">YTD Target</th>
+                            <th class="py-3 px-5 font-bold w-48 text-center">Achievement</th>
+                            <th class="py-3 px-5 font-bold w-24 text-center">Productivity</th>
+                            <th class="py-3 px-5 text-center font-bold w-24">Trans Count</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>`;
         }
     };
 
