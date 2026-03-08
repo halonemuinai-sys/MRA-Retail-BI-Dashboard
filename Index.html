@@ -301,6 +301,11 @@
 
                 <div class="h-6 w-px bg-slate-200 mx-1"></div>
 
+                <div class="flex flex-col items-end mr-2 hidden sm:flex">
+                    <span class="text-[9px] font-bold text-slate-400 tracking-wider uppercase">Last Sync</span>
+                    <span id="lastSyncLabel" class="text-xs font-mono text-slate-600 font-medium">Loading...</span>
+                </div>
+
                 <!-- Sync Button -->
                 <button onclick="APP.syncData()" id="syncBtn"
                     class="group flex items-center gap-2 px-3 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue hover:bg-brand-blueLight transition-all duration-200 text-xs font-bold bg-white shadow-sm hover:shadow-md"

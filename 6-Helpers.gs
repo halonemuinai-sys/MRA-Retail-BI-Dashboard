@@ -397,14 +397,55 @@ function buildCleanMaster(ss, masters) {
   const lastRow = rawSheet.getLastRow();
   if (lastRow < 2) return;
 
-  const rawData = rawSheet.getRange(2, 1, lastRow - 1, rawSheet.getLastColumn()).getValues();
   let targetSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
   if (!targetSheet) {
     targetSheet = ss.insertSheet(CONFIG.SHEETS.CLEAN);
     targetSheet.appendRow(["Trans No", "Date", "Customer", "Salesman", "Location", "SAP Code", "Main Category", "Collection", "Gross Sales", "Disc %", "Val Disc", "Net Price", "Comm", "Cost", "Net Sales", "Type", "Qty", "Catalogue Code", "Home Location"]);
-  } else if (targetSheet.getLastRow() > 1) {
-    targetSheet.getRange(2, 1, targetSheet.getLastRow() - 1, targetSheet.getLastColumn()).clearContent();
   }
+
+  let startRowRaw = 2; // Default full sync
+  let isIncremental = false;
+
+  const cleanLastRow = targetSheet.getLastRow();
+  if (cleanLastRow > 1) {
+    // Incremental Logic: Find the very last Trans No synced
+    const lastCleanTransNo = targetSheet.getRange(cleanLastRow, 1).getValue();
+    
+    // Scan raw_system from bottom to top to locate this Trans No
+    // Optimization: only fetching the Trans No column
+    const rawTransNos = rawSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    
+    let foundIdx = -1;
+    for (let i = rawTransNos.length - 1; i >= 0; i--) {
+       if (String(rawTransNos[i][0]).trim() === String(lastCleanTransNo).trim()) {
+          foundIdx = i;
+          break;
+       }
+    }
+    
+    if (foundIdx !== -1) {
+       // Offset: +2 for getRange array 0-index offset, +1 to start on the NEXT row
+       startRowRaw = foundIdx + 3; 
+       isIncremental = true;
+    } else {
+       // Transaction not found in raw_system. Maybe 'raw_system' was replaced/overwritten.
+       // Fallback to Full Sync: clear everything
+       targetSheet.getRange(2, 1, cleanLastRow - 1, targetSheet.getLastColumn()).clearContent();
+    }
+  }
+
+  // Update script properties timestamp immediately before calculating num rows
+  // So even if there are 0 new rows we register a sync attempt
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd MMM yyyy, HH:mm");
+  PropertiesService.getScriptProperties().setProperty('LAST_SYNC', nowStr);
+
+  if (startRowRaw > lastRow) {
+      // No new rows to append
+      return; 
+  }
+
+  const numRowsToProcess = lastRow - startRowRaw + 1;
+  const rawData = rawSheet.getRange(startRowRaw, 1, numRowsToProcess, rawSheet.getLastColumn()).getValues();
 
   const cleanData = rawData.map(row => {
     const price = Number(row[CONFIG.RAW_COLS.TOTAL_PRICE]) || 0;
@@ -447,7 +488,10 @@ function buildCleanMaster(ss, masters) {
     ];
   });
 
-  if (cleanData.length > 0) targetSheet.getRange(2, 1, cleanData.length, cleanData[0].length).setValues(cleanData);
+  if (cleanData.length > 0) {
+      const pasteRow = isIncremental ? targetSheet.getLastRow() + 1 : 2;
+      targetSheet.getRange(pasteRow, 1, cleanData.length, cleanData[0].length).setValues(cleanData);
+  }
 }
 
 /**

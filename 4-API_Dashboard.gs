@@ -282,6 +282,10 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   delete overview.rawStoreStats;
   delete overview.rawTargetMap;
 
+  // Add Last Sync Info
+  const lastSyncStr = PropertiesService.getScriptProperties().getProperty('LAST_SYNC') || 'Unknown';
+  overview.lastSync = lastSyncStr;
+
   // Store in cache for 5 minutes (300 seconds)
   try {
     const jsonString = JSON.stringify(overview);

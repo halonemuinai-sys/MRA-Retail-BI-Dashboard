@@ -1194,6 +1194,10 @@
             UI.showLoader(false);
             if (data.error) { UI.showToast(data.error); return; }
 
+            if (data.lastSync && document.getElementById('lastSyncLabel')) {
+                document.getElementById('lastSyncLabel').innerText = data.lastSync;
+            }
+
             STATE.globalAdvisorData = data.advisorData || [];
 
             if (data.annualStats) {
@@ -1300,6 +1304,10 @@
         monthlyTransaction: (data) => {
             UI.showLoader(false);
             if (data.error) { UI.showToast(data.error); return; }
+
+            if (data.lastSync && document.getElementById('lastSyncLabel')) {
+                document.getElementById('lastSyncLabel').innerText = data.lastSync;
+            }
 
             if (document.getElementById('monthlyTransactionDate')) {
                 const m = document.getElementById('monthSelect').value;
