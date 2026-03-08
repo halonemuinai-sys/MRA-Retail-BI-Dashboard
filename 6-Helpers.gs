@@ -136,10 +136,23 @@ function calculateAdvisorPerformance(rows, COL, ss, monthName, year, globalTarge
     const key = advisorName.toLowerCase();
     const cat = String(row[COL.MAIN_CAT] || "Other").trim();
     const transLoc = String(row[COL.LOCATION]).trim();
+    const homeLoc = String(row[COL.HOME_LOCATION] || "").trim(); // Get Home Location
     const net = (Number(row[COL.NET_SALES]) || 0);
     const qty = (Number(row[COL.QTY]) || 0);
     const transDate = parseDateFix(row[COL.DATE]);
     const transMonth = transDate.getMonth(); // 0-11
+
+    // Detect Crossing Sale
+    const isHO = (l) => l.toLowerCase() === "head office" || l.toLowerCase() === "ho";
+    const validStores = ["plaza indonesia", "plaza senayan", "bali", "bali boutique"];
+    let crossingNet = 0;
+    let crossingQty = 0;
+    if (transLoc && homeLoc && transLoc.toLowerCase() !== homeLoc.toLowerCase() && !isHO(transLoc) && !isHO(homeLoc)) {
+         if (validStores.includes(transLoc.toLowerCase()) && validStores.includes(homeLoc.toLowerCase())) {
+             crossingNet = net;
+             crossingQty = qty;
+         }
+    }
 
     if (!advisorStatsMap.has(key)) {
       advisorStatsMap.set(key, { 
@@ -150,11 +163,15 @@ function calculateAdvisorPerformance(rows, COL, ss, monthName, year, globalTarge
           categories: {}, 
           storeBreakdown: {}, 
           transactions: new Set(),
-          productiveMonths: new Set() 
+          productiveMonths: new Set(),
+          crossingNet: 0,
+          crossingQty: 0
       });
     }
     const entry = advisorStatsMap.get(key);
     entry.net += net;
+    entry.crossingNet += crossingNet;
+    entry.crossingQty += crossingQty;
     entry.transactions.add(row[COL.TRANS_NO]); // Track Unique Trans No
     
     if (!isNaN(transMonth)) {
@@ -210,7 +227,9 @@ function calculateAdvisorPerformance(rows, COL, ss, monthName, year, globalTarge
                 categories: {}, 
                 storeBreakdown: {},
                 transactions: new Set(),
-                productiveMonths: new Set()
+                productiveMonths: new Set(),
+                crossingNet: 0,
+                crossingQty: 0
             });
           }
         }
@@ -236,6 +255,7 @@ function calculateAdvisorPerformance(rows, COL, ss, monthName, year, globalTarge
       name: stats.name, location: stats.loc, netSales: stats.net, target: stats.target,
       achievement: achv, contribution: contrib, transCount: stats.transactions ? stats.transactions.size : 0,
       productiveMonths: stats.productiveMonths ? stats.productiveMonths.size : 0,
+      crossingNet: stats.crossingNet || 0, crossingQty: stats.crossingQty || 0,
       storeData: { totalSales: storeTotal, target: storeTarget, achievement: storeAchv, status: storeStatus, advisorContrib: storeContribPct },
       categoryMix: catMix, storeMix: storeMix, insight: "Data processed."
     });
@@ -400,7 +420,7 @@ function buildCleanMaster(ss, masters) {
   let targetSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
   if (!targetSheet) {
     targetSheet = ss.insertSheet(CONFIG.SHEETS.CLEAN);
-    targetSheet.appendRow(["Trans No", "Date", "Customer", "Salesman", "Location", "SAP Code", "Main Category", "Collection", "Gross Sales", "Disc %", "Val Disc", "Net Price", "Comm", "Cost", "Net Sales", "Type", "Qty", "Catalogue Code", "Home Location"]);
+    targetSheet.appendRow(["Trans No", "Date", "Customer", "Salesman", "Location", "SAP Code", "Main Category", "Collection", "Gross Sales", "Disc %", "Val Disc", "Net Price", "Comm", "Cost", "Net Sales", "Type", "Qty", "Catalogue Code", "Home Location", "Phone"]);
   }
 
   let startRowRaw = 2; // Default full sync
@@ -478,13 +498,22 @@ function buildCleanMaster(ss, masters) {
        homeLoc = advInfo.months[tMonthName] || advInfo.default || "Unknown";
     }
 
+    let phoneStr = String(row[CONFIG.RAW_COLS.PHONE] || "").trim();
+    let cleanPhone = phoneStr.replace(/\D/g, ''); // Remove non-numeric chars
+    if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62' + cleanPhone.substring(1);
+    } else if (cleanPhone.length > 8 && !cleanPhone.startsWith('62')) {
+        cleanPhone = '62' + cleanPhone; // Fallback if no 0 or 62 provided (e.g. 812...)
+    }
+    const phone = cleanPhone;
+
     return [
       row[0], row[1], row[2], row[3], row[4], row[5],
       mainCat, coll, price, disc, valDisc, Number(row[CONFIG.RAW_COLS.NET_PRICE]),
       comm, (valDisc + comm), netSales,
       row[CONFIG.RAW_COLS.TYPE_ITEM] || "Regular", row[CONFIG.RAW_COLS.QTY],
       String(row[CONFIG.RAW_COLS.CATALOGUE_CODE] || "").trim(),
-      homeLoc
+      homeLoc, phone
     ];
   });
 
@@ -522,3 +551,391 @@ function parseDateFix(dateVal) {
   // Fallback
   return new Date(dateVal);
 }
+
+/**
+ * Calculates the Levenshtein distance between two strings
+ * Used for Fuzzy Name Matching (Fallback)
+ */
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix = [];
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          Math.min(
+            matrix[i][j - 1] + 1, // insertion
+            matrix[i - 1][j] + 1  // deletion
+          )
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+/**
+ * Calculates similarity percentage between two strings
+ */
+function similarityPercentage(a, b) {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 100;
+  const dist = levenshteinDistance(a, b);
+  return ((maxLen - dist) / maxLen) * 100;
+}
+
+/**
+ * Connects to external Profiling Sheet and builds Memory Hashes
+ * 1. phoneMap: exact matching for 8-digit suffix
+ * 2. nameMap: exact name matching
+ * 3. nameList: array for fuzzy matching fallback
+ */
+function loadCustomerProfiles() {
+  const phoneMap = new Map();
+  const nameMap = new Map();
+  const nameList = [];
+
+  try {
+    const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+    const profileSheet = extSS.getSheetByName(CONFIG.EXTERNAL.PROFILING_SHEET_NAME);
+    
+    if (!profileSheet) {
+       console.warn("Sheet " + CONFIG.EXTERNAL.PROFILING_SHEET_NAME + " not found.");
+       return { phoneMap, nameMap, nameList, error: "Sheet not found" };
+    }
+
+    const lastRow = profileSheet.getLastRow();
+    if (lastRow < 2) return { phoneMap, nameMap, nameList };
+
+    // Load entire ~8k data set into memory
+    const data = profileSheet.getRange(2, 1, lastRow - 1, profileSheet.getLastColumn()).getValues();
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      
+      const rawName = String(row[CONFIG.EXTERNAL.COLS.NAME] || "").trim();
+      const rawPhone = String(row[CONFIG.EXTERNAL.COLS.PHONE] || "").trim();
+      
+      if (!rawName) continue; // Skip empty rows
+
+      // Build specific profile object mapping
+      const profileInfo = {
+        name: rawName,
+        store: String(row[CONFIG.EXTERNAL.COLS.STORE] || "").trim(),
+        status: String(row[CONFIG.EXTERNAL.COLS.STATUS] || "").trim(),
+        age: String(row[CONFIG.EXTERNAL.COLS.AGE] || "").trim(),
+        job: String(row[CONFIG.EXTERNAL.COLS.JOB] || "").trim(),
+        style: String(row[CONFIG.EXTERNAL.COLS.STYLE] || "").trim()
+      };
+
+      // 1. Phone Mapping (8-digit Suffix)
+      if (rawPhone) {
+        let cleanPhone = rawPhone.replace(/\D/g, ''); // Extract digits only
+        if (cleanPhone.length >= 8) {
+           const suffix = cleanPhone.slice(-8); // extract last 8 digits
+           phoneMap.set(suffix, profileInfo);
+        }
+      }
+
+      // 2. Exact Name Mapping (case-insensitive)
+      const nameKey = rawName.toLowerCase();
+      if (!nameMap.has(nameKey)) {
+          nameMap.set(nameKey, profileInfo);
+      }
+
+      // 3. Name List for Fuzzy Matching
+      nameList.push({ key: nameKey, profile: profileInfo });
+    }
+
+    return { phoneMap, nameMap, nameList, success: true };
+
+  } catch (error) {
+    console.error("Error loading profiles: " + error.message);
+    return { phoneMap, nameMap, nameList, error: error.message };
+  }
+}
+
+/**
+ * DEBUG FEATURE: 
+ * Runs the matching algorithm against the entire clean_master sheet
+ * and dumps the result into a new sheet "Joined_Customer_Debug"
+ * so the user can visually verify the algorithm's effectiveness.
+ */
+function exportJoinedCustomerData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  if (!cleanSheet) throw new Error("Sheet clean_master tidak ditemukan.");
+
+  let debugSheet = ss.getSheetByName("Joined_Customer_Debug");
+  if (!debugSheet) {
+    debugSheet = ss.insertSheet("Joined_Customer_Debug");
+  }
+  debugSheet.clear();
+
+  const headers = [
+    "Trans No", "Date", "System Name (SAP)", "System Phone", 
+    "Matched Name (Profile)", "Match Confidence / Reason", 
+    "Profiling Store", "Profiling Job", "Profiling Age", "Net Sales"
+  ];
+  debugSheet.appendRow(headers);
+
+  // Load Profiling Memory Hash
+  const profilesMap = loadCustomerProfiles();
+  if (!profilesMap.success) throw new Error("Gagal meload Profil Pelanggan: " + profilesMap.error);
+
+  const cleanData = cleanSheet.getDataRange().getValues();
+  cleanData.shift(); // Remove headers
+
+  const exportData = [];
+  const processedTrans = new Set(); // Prevent duplicates by transaction
+
+  cleanData.forEach(row => {
+      const transNo = String(row[CONFIG.CLEAN_COLS.TRANS_NO] || "");
+      if (processedTrans.has(transNo)) return;
+      processedTrans.add(transNo);
+
+      const custName = String(row[CONFIG.CLEAN_COLS.CUSTOMER] || "").trim();
+      if (!custName || custName.toLowerCase() === "customer") return; // Skip walk-ins
+
+      const phoneStr = String(row[CONFIG.CLEAN_COLS.PHONE] || "").trim();
+      const net = Number(row[CONFIG.CLEAN_COLS.NET_SALES]) || 0;
+      
+      let dateStr = "";
+      if (row[CONFIG.CLEAN_COLS.DATE]) {
+          try {
+            dateStr = Utilities.formatDate(new Date(row[CONFIG.CLEAN_COLS.DATE]), Session.getScriptTimeZone(), "yyyy-MM-dd");
+          } catch(e) { dateStr = row[CONFIG.CLEAN_COLS.DATE]; }
+      }
+
+      let matchedProfile = null;
+      let matchType = '1. None (Gagal)';
+
+      // LOGIC 1: Phone Match
+      if (phoneStr && phoneStr.length >= 8) {
+          const suffix = phoneStr.slice(-8);
+          if (profilesMap.phoneMap.has(suffix)) {
+              matchedProfile = profilesMap.phoneMap.get(suffix);
+              matchType = '✅ Phone Match (Akurat)';
+          }
+      }
+
+      // LOGIC 2: Exact Name Match
+      if (!matchedProfile) {
+          const lowerName = custName.toLowerCase();
+          if (profilesMap.nameMap.has(lowerName)) {
+              matchedProfile = profilesMap.nameMap.get(lowerName);
+              matchType = '✅ Exact Name Match';
+          }
+      }
+
+      // LOGIC 3: Fuzzy Name Match
+      if (!matchedProfile && profilesMap.nameList && profilesMap.nameList.length > 0) {
+          const lowerName = custName.toLowerCase();
+          let bestMatch = null;
+          let highestScore = 0;
+
+          for (let i = 0; i < profilesMap.nameList.length; i++) {
+             const candidate = profilesMap.nameList[i];
+             const score = similarityPercentage(lowerName, candidate.key);
+             if (score > highestScore) {
+                highestScore = score;
+                bestMatch = candidate.profile;
+             }
+          }
+
+          if (highestScore >= 85) {
+             matchedProfile = bestMatch;
+             matchType = `⚠️ Fuzzy Name (${Math.round(highestScore)}%)`;
+          } else if (highestScore > 0) {
+             matchType = `❌ Top Fuzzy Match Only ${Math.round(highestScore)}% (Gagal)`;
+          }
+      }
+
+      exportData.push([
+          transNo, dateStr, custName, `'${phoneStr}`,
+          matchedProfile ? matchedProfile.name : "-",
+          matchType,
+          matchedProfile ? matchedProfile.store : "-",
+          matchedProfile ? matchedProfile.job : "-",
+          matchedProfile ? matchedProfile.age : "-",
+          net
+      ]);
+  });
+
+  if (exportData.length > 0) {
+     debugSheet.getRange(2, 1, exportData.length, headers.length).setValues(exportData);
+     // Auto-resize columns for readability
+     debugSheet.autoResizeColumns(1, headers.length);
+  }
+
+  // Load Traffic Data for Prospects Aggregation
+  let trafficStats = {};
+  try {
+     const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+     const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+     if (trafficSheet) {
+        const lastRow = trafficSheet.getLastRow();
+        if (lastRow > 1) {
+           const tData = trafficSheet.getRange(2, 1, lastRow - 1, trafficSheet.getLastColumn()).getValues();
+           tData.forEach(row => {
+              let level = String(row[CONFIG.EXTERNAL.TRAFFIC_COLS.PROSPECT] || "").trim();
+              if (level) {
+                 trafficStats[level] = (trafficStats[level] || 0) + 1;
+              }
+           });
+        }
+     }
+  } catch(e) {
+     console.error("Failed to load traffic pipeline: " + e.message);
+  }
+
+  const trafficHeaders = ["Prospect Level", "Total Count"];
+  debugSheet.getRange(1, headers.length + 2, 1, 2).setValues([trafficHeaders]);
+  debugSheet.getRange(1, headers.length + 2, 1, 2).setFontWeight("bold").setBackground("#f3f4f6");
+
+  const trafficRows = Object.keys(trafficStats).map(key => [key, trafficStats[key]]);
+  if (trafficRows.length > 0) {
+      trafficRows.sort((a, b) => b[1] - a[1]); // Sort by count descending
+      debugSheet.getRange(2, headers.length + 2, trafficRows.length, 2).setValues(trafficRows);
+  }
+
+  return `Sukses mengekspor ${exportData.length} transaksi pelanggan & Pipeline Profiling Traffic. Silakan cek sheet Joined_Customer_Debug.`;
+}
+
+/**
+ * Builds a summary of Traffic data from 2023 to 2026 across all locations
+ * and exports it to a new sheet called "Traffic_Summary"
+ */
+function exportTrafficSummary() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let summarySheet = ss.getSheetByName("Traffic_Summary");
+  if (!summarySheet) {
+    summarySheet = ss.insertSheet("Traffic_Summary");
+  }
+  summarySheet.clear();
+
+  const headers = [
+    "Tahun", "Bulan", "Lokasi Store", 
+    "Penjualan Berhasil", "Penjualan Gagal", "Menunggu Respon Pelanggan", 
+    "Potensial Pelanggan Baru", "Dalam Tahap Negosiasi", 
+    "Total Traffic"
+  ];
+  summarySheet.appendRow(headers);
+  summarySheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#d9ead3");
+
+  const targetYears = [2023, 2024, 2025, 2026];
+  const prospectCategories = [
+    "Penjualan Berhasil", 
+    "Penjualan Gagal", 
+    "Menunggu Respon Pelanggan", 
+    "Potensial Pelanggan Baru", 
+    "Dalam Tahap Negosiasi"
+  ];
+
+  // Nested structure: year -> month -> location -> counts
+  const aggregatedData = {};
+
+  try {
+     const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+     const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+     if (!trafficSheet) throw new Error(`Sheet ${CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME} tidak ditemukan.`);
+
+     const lastRow = trafficSheet.getLastRow();
+     if (lastRow > 1) {
+        const tData = trafficSheet.getRange(2, 1, lastRow - 1, trafficSheet.getLastColumn()).getValues();
+        
+        tData.forEach(row => {
+           let dateVal = row[CONFIG.EXTERNAL.TRAFFIC_COLS.DATE];
+           if (!dateVal) return;
+
+           let d;
+           try {
+             d = new Date(dateVal);
+             if (isNaN(d.getTime())) return;
+           } catch (e) { return; }
+
+           const year = d.getFullYear();
+           if (!targetYears.includes(year)) return; // Only process 2023-2026
+
+           const month = d.getMonth() + 1; // 1-12
+           let loc = String(row[CONFIG.EXTERNAL.TRAFFIC_COLS.LOCATION] || "Unknown").trim();
+           if (!loc) loc = "Unknown";
+           
+           let prospect = String(row[CONFIG.EXTERNAL.TRAFFIC_COLS.PROSPECT] || "").trim();
+
+           // Initialize structure
+           if (!aggregatedData[year]) aggregatedData[year] = {};
+           if (!aggregatedData[year][month]) aggregatedData[year][month] = {};
+           if (!aggregatedData[year][month][loc]) {
+               aggregatedData[year][month][loc] = { total: 0 };
+               prospectCategories.forEach(cat => aggregatedData[year][month][loc][cat] = 0);
+           }
+
+           // Increment Counters
+           aggregatedData[year][month][loc].total += 1;
+           
+           // If the prospect level matches one of our target categories, increment it
+           let matchedCategory = prospectCategories.find(c => c.toLowerCase() === prospect.toLowerCase());
+           if (matchedCategory) {
+               aggregatedData[year][month][loc][matchedCategory] += 1;
+           }
+        });
+     }
+  } catch(e) {
+     return "Error: " + e.message;
+  }
+
+  // Flatten the aggregated structure into a 2D Array
+  const outputRows = [];
+  
+  targetYears.forEach(year => {
+      if (aggregatedData[year]) {
+          // Iterate months 1-12
+          for (let month = 1; month <= 12; month++) {
+              if (aggregatedData[year][month]) {
+                  const locs = Object.keys(aggregatedData[year][month]).sort();
+                  locs.forEach(loc => {
+                     const data = aggregatedData[year][month][loc];
+                     outputRows.push([
+                         year,
+                         month,
+                         loc,
+                         data["Penjualan Berhasil"],
+                         data["Penjualan Gagal"],
+                         data["Menunggu Respon Pelanggan"],
+                         data["Potensial Pelanggan Baru"],
+                         data["Dalam Tahap Negosiasi"],
+                         data.total
+                     ]);
+                  });
+              }
+          }
+      }
+  });
+
+  if (outputRows.length > 0) {
+      summarySheet.getRange(2, 1, outputRows.length, headers.length).setValues(outputRows);
+      
+      // Formatting options
+      summarySheet.getRange(2, 1, outputRows.length, 2).setHorizontalAlignment("center");
+      summarySheet.getRange(2, 4, outputRows.length, headers.length - 3).setHorizontalAlignment("center");
+      summarySheet.autoResizeColumns(1, headers.length);
+  }
+
+  return `Sukses! Berhasil merekap ${outputRows.length} baris data Traffic (2023-2026) ke dalam sheet Traffic_Summary.`;
+}

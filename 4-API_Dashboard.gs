@@ -86,6 +86,7 @@ function getDashboardData(monthName, year, forceRefresh = false) {
     TYPE: 15,
     QTY: 16,
     SALESMAN: 3,
+    PHONE: 19,
     TRANS_NO: 0
   };
 
@@ -209,6 +210,82 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   const overview = aggregateOverview(monthlyData, COL, ss, monthName, year);
   const annualTarget = getAnnualTarget(ss, year);
 
+  // 4. LOAD EXTERNAL CUSTOMER PROFILES AND ENRICH MONTHLY DATA
+  const profilesMap = loadCustomerProfiles();
+  const enrichedCustomers = [];
+
+  if (profilesMap.success) {
+      // Create a set to track processed transactions so we don't duplicate customer rows
+      const processedTrans = new Set();
+      
+      monthlyData.forEach(row => {
+          const transNo = String(row[COL.TRANS_NO] || "");
+          if (processedTrans.has(transNo)) return;
+          processedTrans.add(transNo);
+
+          const custName = String(row[COL.CUSTOMER] || "").trim();
+          if (!custName || custName.toLowerCase() === "customer") return;
+
+          const phoneStr = String(row[COL.PHONE] || "").trim();
+          const net = Number(row[COL.NET_SALES]) || 0;
+          const loc = String(row[COL.LOCATION]).trim();
+          const adv = String(row[COL.SALESMAN]).trim();
+          
+          let matchedProfile = null;
+          let matchType = 'None';
+
+          // A: Priority 1 - Phone Match (Last 8 digits)
+          if (phoneStr && phoneStr.length >= 8) {
+              const suffix = phoneStr.slice(-8);
+              if (profilesMap.phoneMap.has(suffix)) {
+                  matchedProfile = profilesMap.phoneMap.get(suffix);
+                  matchType = 'Phone';
+              }
+          }
+
+          // B: Priority 2 - Exact Name Match
+          if (!matchedProfile) {
+              const lowerName = custName.toLowerCase();
+              if (profilesMap.nameMap.has(lowerName)) {
+                  matchedProfile = profilesMap.nameMap.get(lowerName);
+                  matchType = 'Exact Name';
+              }
+          }
+
+          // C: Priority 3 - Fuzzy Name Match (Threshold > 85%)
+          if (!matchedProfile && profilesMap.nameList && profilesMap.nameList.length > 0) {
+              const lowerName = custName.toLowerCase();
+              let bestMatch = null;
+              let highestScore = 0;
+
+              for (let i = 0; i < profilesMap.nameList.length; i++) {
+                 const candidate = profilesMap.nameList[i];
+                 const score = similarityPercentage(lowerName, candidate.key);
+                 if (score > highestScore) {
+                    highestScore = score;
+                    bestMatch = candidate.profile;
+                 }
+              }
+
+              if (highestScore >= 85) {
+                 matchedProfile = bestMatch;
+                 matchType = `Fuzzy (${Math.round(highestScore)}%)`;
+              }
+          }
+
+          // Append to our list of enriched active customers this month
+          enrichedCustomers.push({
+              sysName: custName,
+              sysPhone: phoneStr,
+              netSales: net,
+              location: loc,
+              advisor: adv,
+              profile: matchedProfile,
+              matchReason: matchType
+          });
+      });
+  }
+
   const advisorStats = calculateAdvisorPerformance(
     monthlyData, COL, ss, monthName, year,
     overview.kpi.totalTarget,
@@ -227,6 +304,7 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   overview.advisorData = advisorStats;
   overview.dailyTrendData = dailyStats;
   overview.activeStores = Array.from(activeStores).sort();
+  overview.customerInsights = enrichedCustomers; // Array of dynamically merged customers
   overview.annualStats = {
     salesExcHO: annualSalesExcHO,
     target: annualTarget,
