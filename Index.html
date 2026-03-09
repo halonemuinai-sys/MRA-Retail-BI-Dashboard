@@ -162,6 +162,15 @@
                         </svg>
                         <span>Footfall</span>
                     </button>
+                    <button onclick="APP.switchTab('store')" id="tabStore"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        <span>Store Performance</span>
+                    </button>
                 </div>
             </div>
 
@@ -207,6 +216,15 @@
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                         <span>Customer Segment</span>
+                    </button>
+                    <button onclick="APP.switchTab('CRM')" id="tabCRM"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span>App Sheet (CRM)</span>
                     </button>
                 </div>
             </div>
@@ -331,6 +349,8 @@
             <?!= include('ViewCustomer'); ?>
             <?!= include('ViewDaily'); ?>
             <?!= include('ViewCrossingSales'); ?>
+            <?!= include('ViewCRM'); ?>
+            <?!= include('ViewStore'); ?>
 
             <div class="h-8"></div> <!-- Bottom empty margin for clean scrolling -->
         </main>
@@ -462,6 +482,8 @@
     <!-- 7. JAVASCRIPT LOGIC                      -->
     <!-- ========================================== -->
     <?!= include('ExportHandler'); ?>
+    <?!= include('JsCRM'); ?>
+    <?!= include('JsStore'); ?>
     <?!= include('JavaScript_Charts'); ?>
     <?!= include('JavaScript'); ?>
     <?!= include('JavaScript_Projection'); ?>

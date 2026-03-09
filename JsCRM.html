@@ -1,0 +1,219 @@
+<script>
+    /**
+     * CRM MODULE - MODULAR CONTROLLER
+     * Khusus menangani data dari Sheet Traffic & CRM
+     */
+    const CRM = {
+        // Fungsi untuk merender Funnel di menu baru
+        renderFunnel: (data) => {
+            const container = document.getElementById('crmFunnelContainer');
+            if (!container || !data.trafficFunnel) return;
+
+            const tf = data.trafficFunnel;
+            const elCrmTotal = document.getElementById('crmFunnelTotal');
+            if (elCrmTotal) elCrmTotal.innerText = `${tf.total} Prospects Processed`;
+
+            const cards = [
+                { label: "Potensial Baru", val: tf.potensial, colorClass: "text-blue-600 bg-blue-50 border-blue-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>` },
+                { label: "Menunggu Respon", val: tf.menunggu, colorClass: "text-yellow-600 bg-yellow-50 border-yellow-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>` },
+                { label: "Dalam Negosiasi", val: tf.nego, colorClass: "text-purple-600 bg-purple-50 border-purple-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>` },
+                { label: "Penjualan Berhasil", val: tf.berhasil, colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>` },
+                { label: "Penjualan Gagal", val: tf.gagal, colorClass: "text-rose-500 bg-rose-50 border-rose-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>` }
+            ];
+
+            let html = "";
+            cards.forEach(c => {
+                const shortLabel = c.label.split(' ')[0]; // Ambil kata pertama untuk label kecil
+                html += `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[140px]">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${c.colorClass}">
+                            ${c.icon}
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-right leading-tight max-w-[60%]">${c.label}</span>
+                    </div>
+                    <div>
+                        <div class="text-[10px] font-bold text-slate-400 mb-0.5">${shortLabel}</div>
+                        <div class="text-3xl font-display font-bold text-slate-800 tracking-tight leading-none">${c.val}</div>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+        },
+
+        // Render Status Kedatangan KPI Cards
+        renderStatusKedatangan: (data) => {
+            const container = document.getElementById('crmStatusContainer');
+            if (!container || !data.statusKedatangan) return;
+
+            const sk = data.statusKedatangan;
+            const cards = [
+                { label: "Walk In", val: sk.walkIn, colorClass: "text-cyan-600 bg-cyan-50 border-cyan-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>` },
+                { label: "Follow Up", val: sk.followUp, colorClass: "text-amber-600 bg-amber-50 border-amber-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>` },
+                { label: "Delivery & Showing", val: sk.delivery, colorClass: "text-indigo-600 bg-indigo-50 border-indigo-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>` }
+            ];
+
+            let html = '';
+            cards.forEach(c => {
+                html += `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[120px]">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${c.colorClass}">
+                            ${c.icon}
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-right leading-tight">${c.label}</span>
+                    </div>
+                    <div class="text-3xl font-display font-bold text-slate-800 tracking-tight leading-none">${c.val}</div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        },
+
+        // Trigger loading data khusus jika dipanggil (opsional, untuk extensionality)
+        init: () => {
+             console.log("CRM Module initialized.");
+        },
+
+        // Load prospect detail data from Traffic sheet
+        loadProspectTable: () => {
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+            const loc = document.getElementById('crmFilterLocation').value;
+            const prospect = document.getElementById('crmFilterProspect').value;
+            const status = document.getElementById('crmFilterStatus').value;
+
+            const countEl = document.getElementById('crmTableCount');
+            if (countEl) countEl.innerText = 'Loading data...';
+
+            const tbody = document.getElementById('crmProspectTableBody');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="py-16 text-center text-slate-400 text-xs"><div class="flex flex-col items-center gap-2"><div class="w-8 h-8 rounded-full border-2 border-slate-200 border-t-brand-blue animate-spin"></div><span>Fetching prospect data...</span></div></td></tr>`;
+
+            google.script.run
+                .withSuccessHandler(CRM.renderProspectTable)
+                .withFailureHandler((err) => {
+                    if (countEl) countEl.innerText = 'Error loading data';
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="py-16 text-center text-rose-500 text-xs">Error: ${err.message}</td></tr>`;
+                })
+                .getTrafficProspectData(m, y, loc, prospect, status);
+        },
+
+        // Render the prospect data table
+        renderProspectTable: (data) => {
+            if (data.error) {
+                const countEl = document.getElementById('crmTableCount');
+                if (countEl) countEl.innerText = data.error;
+                return;
+            }
+
+            // Populate filter dropdowns (preserve current selection)
+            const locSelect = document.getElementById('crmFilterLocation');
+            const prospSelect = document.getElementById('crmFilterProspect');
+            const statusSelect = document.getElementById('crmFilterStatus');
+            const currentLoc = locSelect ? locSelect.value : 'ALL';
+            const currentProsp = prospSelect ? prospSelect.value : 'ALL';
+            const currentStatus = statusSelect ? statusSelect.value : 'ALL';
+
+            if (locSelect && data.locations) {
+                locSelect.innerHTML = '<option value="ALL">All Locations</option>';
+                data.locations.forEach(l => {
+                    const selected = (l === currentLoc) ? ' selected' : '';
+                    locSelect.innerHTML += `<option value="${l}"${selected}>${l}</option>`;
+                });
+            }
+            if (prospSelect && data.prospectLevels) {
+                prospSelect.innerHTML = '<option value="ALL">All Prospect Levels</option>';
+                data.prospectLevels.forEach(p => {
+                    const selected = (p === currentProsp) ? ' selected' : '';
+                    prospSelect.innerHTML += `<option value="${p}"${selected}>${p}</option>`;
+                });
+            }
+            if (statusSelect && data.statuses) {
+                statusSelect.innerHTML = '<option value="ALL">All Status</option>';
+                data.statuses.forEach(s => {
+                    const selected = (s === currentStatus) ? ' selected' : '';
+                    statusSelect.innerHTML += `<option value="${s}"${selected}>${s}</option>`;
+                });
+            }
+
+            // Update counter
+            const countEl = document.getElementById('crmTableCount');
+            if (countEl) countEl.innerText = `Showing ${data.rows.length} records`;
+
+            // Render table rows
+            const tbody = document.getElementById('crmProspectTableBody');
+            if (!tbody) return;
+
+            if (data.rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-16 text-center text-slate-400 italic text-xs">Tidak ada data prospek untuk filter ini.</td></tr>`;
+                return;
+            }
+
+            // Color map for prospect levels
+            const prospectColors = {
+                'penjualan berhasil': 'text-emerald-700 bg-emerald-50 border-emerald-200',
+                'penjualan gagal': 'text-rose-700 bg-rose-50 border-rose-200',
+                'menunggu respon pelanggan': 'text-yellow-700 bg-yellow-50 border-yellow-200',
+                'potensial pelanggan baru': 'text-blue-700 bg-blue-50 border-blue-200',
+                'dalam tahap negosiasi': 'text-purple-700 bg-purple-50 border-purple-200'
+            };
+
+            let html = '';
+            data.rows.forEach((row, idx) => {
+                const pColor = prospectColors[row.prospectLevel.toLowerCase()] || 'text-slate-600 bg-slate-50 border-slate-200';
+                html += `<tr class="hover:bg-slate-50 transition-colors group">
+                    <td class="py-2.5 px-4 text-center text-slate-400 font-medium text-[10px]">${idx + 1}</td>
+                    <td class="py-2.5 px-4 font-mono text-slate-600 text-[11px] whitespace-nowrap">${row.date}</td>
+                    <td class="py-2.5 px-4 font-bold text-slate-700 group-hover:text-brand-blue transition-colors">${row.name}</td>
+                    <td class="py-2.5 px-4 text-slate-500">${row.location}</td>
+                    <td class="py-2.5 px-4 text-slate-500">${row.servedBy}</td>
+                    <td class="py-2.5 px-4 text-slate-500">${row.status}</td>
+                    <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${pColor}">${row.prospectLevel}</span></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        },
+
+        // Export current prospect data to CSV (Excel-compatible)
+        exportProspectCSV: () => {
+            const tbody = document.getElementById('crmProspectTableBody');
+            if (!tbody || tbody.rows.length === 0 || tbody.querySelector('td[colspan]')) {
+                alert('Tidak ada data untuk di-download. Silakan klik "Load Data" terlebih dahulu.');
+                return;
+            }
+
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+
+            // BOM for Excel UTF-8 compatibility
+            let csv = '\uFEFF';
+            csv += 'No,Tanggal,Nama Lengkap,Lokasi Store,Served By,Status Kedatangan,Prospek Level\n';
+
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach((tr, idx) => {
+                const cells = tr.querySelectorAll('td');
+                if (cells.length >= 7) {
+                    const row = [
+                        idx + 1,
+                        '"' + cells[1].innerText + '"',
+                        '"' + cells[2].innerText + '"',
+                        '"' + cells[3].innerText + '"',
+                        '"' + cells[4].innerText + '"',
+                        '"' + cells[5].innerText + '"',
+                        '"' + cells[6].innerText + '"'
+                    ];
+                    csv += row.join(',') + '\n';
+                }
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Prospect_Detail_${m}_${y}.csv`;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+</script>

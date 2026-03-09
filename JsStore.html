@@ -1,0 +1,122 @@
+<script>
+    /**
+     * STORE MODULE - MODULAR CONTROLLER
+     * Handles Store Performance rendering separately from Monthly Overview
+     */
+    const STORE = {
+        // Render Store Performance Table
+        renderTable: (data) => {
+            const activeStores = data.storeStats || [];
+            if (activeStores.length === 0) return;
+
+            let storeHtml = "";
+            activeStores.sort((a, b) => b.actual - a.actual).forEach(s => {
+                const sColors = HELPERS.getStatusColor(s.achievement);
+                const remaining = Math.max(0, s.target - s.actual);
+                storeHtml += `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group">
+            <td class="py-3 px-5 font-semibold text-slate-700 group-hover:text-brand-blue transition-colors text-xs">${s.store}</td>
+            <td class="py-3 px-5 text-right font-mono text-slate-600 font-bold whitespace-nowrap tracking-tight text-[11px]">${HELPERS.formatIDR(s.actual)}</td>
+            <td class="py-3 px-5 text-right font-mono text-rose-500 font-medium whitespace-nowrap tracking-tight text-[11px]">${HELPERS.formatIDR(s.cost)}</td>
+            <td class="py-3 px-5 text-right font-mono text-slate-400 text-[11px] whitespace-nowrap tracking-tight">${HELPERS.formatIDR(s.target)}</td>
+            <td class="py-3 px-5 text-right font-mono text-slate-500 text-[11px] whitespace-nowrap tracking-tight">${HELPERS.formatIDR(remaining)}</td>
+            <td class="py-3 px-5 text-right"><span class="font-bold text-[11px] ${sColors.text}">${HELPERS.formatPct(s.achievement)}</span></td>
+          </tr>`;
+            });
+            UI.setHTML('storeTableBody', storeHtml);
+        },
+
+        // Render Store Sales Contribution Pie Chart
+        renderChart: (storeList) => {
+            const ctxEl = document.getElementById('catChart');
+            if (!ctxEl) return;
+            const sortedStores = (storeList || []).sort((a, b) => b.actual - a.actual);
+            const labels = sortedStores.map(s => s.store);
+            const dataPoints = sortedStores.map(s => s.actual);
+
+            if (STATE.charts.cat) STATE.charts.cat.destroy();
+            STATE.charts.cat = new Chart(ctxEl, {
+                type: 'pie', data: { labels: labels, datasets: [{ data: dataPoints, backgroundColor: THEME.colors.chart, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4 }] },
+                options: { ...THEME.chartDefaults, plugins: { ...THEME.chartDefaults.plugins, tooltip: { callbacks: { label: function (context) { const value = context.parsed; const total = context.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%'; return context.label + ': ' + HELPERS.formatIDR(value) + ' (' + pct + ')'; } } }, datalabels: { ...THEME.chartDefaults.plugins.datalabels, formatter: (value) => value > 0 ? (value >= 1000000000 ? (value / 1000000000).toFixed(1) + 'M' : (value / 1000000).toFixed(0) + 'jt') : '' } } }, plugins: HELPERS.getChartPlugins()
+            });
+        },
+
+        // Render Advisor Performance (>100%) for Store view
+        renderAdvisor: (data) => {
+            const topAdvisors = (data.advisorData || []).filter(a => a.achievement >= 100).sort((a, b) => b.netSales - a.netSales);
+            let advisorHtml = "";
+            if (topAdvisors.length === 0) {
+                advisorHtml = `<tr><td colspan="7" class="py-8 text-center text-slate-400 italic text-xs">No advisors reached 100% target yet.</td></tr>`;
+            } else {
+                topAdvisors.forEach((adv, idx) => {
+                    advisorHtml += `
+                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 group">
+                    <td class="py-2.5 px-5 text-center text-slate-400 text-xs font-bold">${idx + 1}</td>
+                    <td class="py-2.5 px-5 text-xs font-bold text-slate-700 group-hover:text-brand-blue transition-colors">${adv.name}</td>
+                    <td class="py-2.5 px-5 text-xs text-slate-500">${adv.store}</td>
+                    <td class="py-2.5 px-5 text-center text-xs font-mono">${adv.transactions || 0}</td>
+                    <td class="py-2.5 px-5 text-right text-xs font-mono font-bold text-slate-700">${HELPERS.formatIDR(adv.netSales)}</td>
+                    <td class="py-2.5 px-5 text-right text-xs font-mono text-slate-400">${HELPERS.formatIDR(adv.target)}</td>
+                    <td class="py-2.5 px-5 text-right"><span class="font-bold text-[11px] text-emerald-600">${HELPERS.formatPct(adv.achievement)}</span></td>
+                </tr>`;
+                });
+            }
+            UI.setHTML('storeAdvisorTable', advisorHtml);
+        },
+
+        // Render Category Chart for Store view
+        renderCategoryChart: (catData) => {
+            if (!catData) return;
+            const ctxEl = document.getElementById('storeCategoryChart');
+            if (!ctxEl) return;
+
+            const sortedCats = Object.entries(catData)
+                .map(([cat, val]) => ({ cat, net: val.net, qty: val.qty }))
+                .sort((a, b) => b.qty - a.qty);
+
+            const labels = sortedCats.map(c => c.cat);
+            const dataQty = sortedCats.map(c => c.qty);
+
+            if (STATE.charts.storeCategory) STATE.charts.storeCategory.destroy();
+
+            STATE.charts.storeCategory = new Chart(ctxEl, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quantity Sold',
+                        data: dataQty,
+                        backgroundColor: THEME.colors.chart,
+                        borderRadius: 4,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    ...THEME.chartDefaults,
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#64748B' } },
+                        y: { grid: { color: '#F1F5F9', borderDash: [4, 4] }, ticks: { font: { family: 'Inter', size: 10 }, color: '#94A3B8', callback: (value) => value }, border: { display: false } }
+                    },
+                    plugins: {
+                        ...THEME.chartDefaults.plugins,
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const value = context.parsed.y;
+                                    const net = sortedCats[context.dataIndex].net;
+                                    return ` Qty: ${value} pcs (Sales: ${HELPERS.formatIDR(net)})`;
+                                }
+                            }
+                        },
+                        datalabels: { ...THEME.chartDefaults.plugins.datalabels, formatter: (value) => value }
+                    }
+                },
+                plugins: HELPERS.getChartPlugins()
+            });
+        },
+
+        init: () => {
+            console.log("Store Module initialized.");
+        }
+    };
+</script>

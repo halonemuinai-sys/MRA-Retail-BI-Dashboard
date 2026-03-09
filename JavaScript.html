@@ -241,8 +241,9 @@
             STATE.currentMode = actualView;
 
             // Update Sidebar Menu Classes
-            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall'];
-            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing'];
+            // Update Sidebar Menu Classes
+            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall', 'tabCRM', 'tabStore'];
+            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing', 'viewCRM', 'viewStore'];
             const pageTitles = {
                 'monthly': 'Monthly Overview',
                 'quarterlyStandard': 'Quarterly Standard',
@@ -255,7 +256,9 @@
                 'sapTop': 'Product Rank (Top)',
                 'sapProjection': 'Product Projection',
                 'advisor': 'Advisor Performance',
-                'customer': 'Customer Segmentation'
+                'customer': 'Customer Segmentation',
+                'CRM': 'App Sheet (CRM)',
+                'store': 'Store Performance'
             };
 
             const baseClass = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group";
@@ -411,6 +414,14 @@
                         google.script.run.withSuccessHandler(RENDER.quarterlyBudget).getQuarterlyBudgetData(q, y, isRefresh);
                     }
                 }
+            } else if (currentMode === 'CRM') {
+                const m = document.getElementById('monthSelect').value;
+                const y = document.getElementById('yearSelect').value;
+                google.script.run.withSuccessHandler(RENDER.viewCRM).getDashboardData(m, y, isRefresh);
+            } else if (currentMode === 'store') {
+                const m = document.getElementById('monthSelect').value;
+                const y = document.getElementById('yearSelect').value;
+                google.script.run.withSuccessHandler(RENDER.viewStore).getDashboardData(m, y, isRefresh);
             } else if (currentMode === 'crossing') {
                 if (STATE.crossingSubView === 'footfall') {
                     const m = document.getElementById('monthSelect').value;
@@ -808,6 +819,7 @@
                         <td class="py-3 px-5 font-semibold text-slate-700 text-xs group-hover:text-brand-blue underline decoration-dotted decoration-slate-300 underline-offset-4">${adv.name}</td>
                         <td class="py-3 px-5 text-center font-mono text-slate-600 font-bold text-[11px]">${adv.transCount || 0}</td>
                         <td class="py-3 px-5 text-right font-mono text-slate-600 font-bold text-[11px] whitespace-nowrap">${HELPERS.formatIDR(adv.netSales)}</td>
+                        <td class="py-3 px-5 text-right font-mono text-amber-600 font-bold text-[11px] whitespace-nowrap bg-amber-50/30">${HELPERS.formatIDR(adv.crossingNet)}</td>
                         <td class="py-3 px-5 text-right font-mono text-slate-400 text-[11px] whitespace-nowrap">${HELPERS.formatIDR(adv.target)}</td>
                         <td class="py-3 px-5 text-right font-mono text-xs font-bold ${advColors.text}">${HELPERS.formatPct(adv.achievement)}</td>
                         <td class="py-3 px-5 text-right font-mono text-xs text-slate-500">${HELPERS.formatPct(adv.contribution)}</td>
@@ -830,6 +842,7 @@
                                     <th class="py-3 px-5 font-bold">Advisor Name</th>
                                     <th class="py-3 px-5 font-bold text-center">Trans No</th>
                                     <th class="py-3 px-5 text-right font-bold">Net Sales</th>
+                                    <th class="py-3 px-5 text-right font-bold text-amber-600 bg-amber-50/30">Crossing Sales</th>
                                     <th class="py-3 px-5 text-right font-bold">Target</th>
                                     <th class="py-3 px-5 text-right font-bold">Achv %</th>
                                     <th class="py-3 px-5 text-right font-bold text-brand-blue">Contrib %</th>
@@ -1260,6 +1273,8 @@
             });
             UI.setHTML('storeTableBody', storeHtml);
 
+            // --- Traffic Pipeline (Sales Funnel) moved to CRM.renderFunnel ---
+
             // Render Customer Advisor Performance (> 100%)
             const topAdvisors = (data.advisorData || []).filter(a => a.achievement >= 100).sort((a, b) => b.netSales - a.netSales);
             let advisorHtml = "";
@@ -1299,6 +1314,32 @@
                 // Advisor Category Chart
                 CHARTS.renderAdvisorCategoryPie(data.catData);
             } catch (e) { console.error("Chart Error:", e); }
+        },
+
+        viewCRM: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+            if (data.lastSync && document.getElementById('lastSyncLabel')) {
+                document.getElementById('lastSyncLabel').innerText = data.lastSync;
+            }
+            if (typeof CRM !== 'undefined') {
+                CRM.renderFunnel(data);
+                CRM.renderStatusKedatangan(data);
+            }
+        },
+
+        viewStore: (data) => {
+            UI.showLoader(false);
+            if (data.error) { UI.showToast(data.error); return; }
+            if (data.lastSync && document.getElementById('lastSyncLabel')) {
+                document.getElementById('lastSyncLabel').innerText = data.lastSync;
+            }
+            if (typeof STORE !== 'undefined') {
+                STORE.renderTable(data);
+                STORE.renderChart(data.storeStats || []);
+                STORE.renderAdvisor(data);
+                STORE.renderCategoryChart(data.categorySales || null);
+            }
         },
 
         monthlyTransaction: (data) => {
@@ -1895,6 +1936,9 @@
                         <td class="py-3 px-5 border-b border-slate-50 text-right">
                             <span class="font-mono font-bold text-brand-dark">${HELPERS.formatIDR(adv.netSales)}</span>
                         </td>
+                        <td class="py-3 px-5 border-b border-slate-50 text-right bg-amber-50/30">
+                            <span class="font-mono font-bold text-amber-600">${HELPERS.formatIDR(adv.crossingNet)}</span>
+                        </td>
                         <td class="py-3 px-5 border-b border-slate-50 text-right text-slate-500">
                             ${HELPERS.formatIDR(adv.target)}
                         </td>
@@ -1928,6 +1972,7 @@
                                 <tr>
                                     <th class="py-3 px-5 font-bold">Advisor Name</th>
                                     <th class="py-3 px-5 text-right font-bold w-40">Net Sales</th>
+                                    <th class="py-3 px-5 text-right font-bold text-amber-600 w-40">Crossing Sales</th>
                                     <th class="py-3 px-5 text-right font-bold w-40">Target</th>
                                     <th class="py-3 px-5 font-bold w-48 text-center">Achievement</th>
                                     <th class="py-3 px-5 text-center font-bold w-24">Trans Count</th>

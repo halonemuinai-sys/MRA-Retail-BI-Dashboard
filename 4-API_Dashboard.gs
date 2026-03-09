@@ -14,6 +14,10 @@ function runDataSync() {
     // Helper loadMasters dan buildCleanMaster ada di 6-Helpers.gs
     const masters = loadMasters(ss);
     buildCleanMaster(ss, masters);
+    
+    // Update Traffic Data Mart
+    exportTrafficSummary();
+
     return {
       success: true,
       message: "Data berhasil disinkronisasi & dibersihkan."
@@ -364,7 +368,71 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   const lastSyncStr = PropertiesService.getScriptProperties().getProperty('LAST_SYNC') || 'Unknown';
   overview.lastSync = lastSyncStr;
 
-  // Store in cache for 5 minutes (300 seconds)
+  // 5. LOAD TRAFFIC FUNNEL FROM DATA MART (Traffic_Summary)
+  const trafficFunnel = {
+      berhasil: 0,
+      gagal: 0,
+      menunggu: 0,
+      potensial: 0,
+      nego: 0,
+      total: 0
+  };
+
+  try {
+      const trafficSummarySheet = ss.getSheetByName(CONFIG.SHEETS.TRAFFIC_SUMMARY);
+      if (trafficSummarySheet) {
+          const tSumData = trafficSummarySheet.getDataRange().getValues();
+          tSumData.shift(); // remove header
+          tSumData.forEach(row => {
+              // Col 0: Tahun, Col 1: Bulan (1-12)
+              if (row[0] == year && row[1] == monthIndex + 1) {
+                  // Col 3: Penjualan Berhasil, Col 4: Gagal, Col 5: Menunggu
+                  // Col 6: Potensial, Col 7: Nego, Col 8: Total
+                  trafficFunnel.berhasil += Number(row[3]) || 0;
+                  trafficFunnel.gagal += Number(row[4]) || 0;
+                  trafficFunnel.menunggu += Number(row[5]) || 0;
+                  trafficFunnel.potensial += Number(row[6]) || 0;
+                  trafficFunnel.nego += Number(row[7]) || 0;
+                  trafficFunnel.total += Number(row[8]) || 0;
+              }
+          });
+      }
+  } catch (e) {
+      console.warn("Failed to load Traffic_Summary Data Mart: " + e.message);
+  }
+
+  overview.trafficFunnel = trafficFunnel;
+
+  // 6. LOAD STATUS KEDATANGAN FROM EXTERNAL TRAFFIC SHEET
+  const statusKedatangan = { walkIn: 0, followUp: 0, delivery: 0 };
+  try {
+      const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
+      const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+      const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+      if (trafficSheet) {
+          const lastRow = trafficSheet.getLastRow();
+          if (lastRow > 1) {
+              const tData = trafficSheet.getRange(2, 1, lastRow - 1, trafficSheet.getLastColumn()).getValues();
+              tData.forEach(row => {
+                  let dateVal = row[TCOL.DATE];
+                  if (!dateVal) return;
+                  let d;
+                  try { d = new Date(dateVal); if (isNaN(d.getTime())) return; } catch(e) { return; }
+                  if (d.getFullYear() != year || d.getMonth() != monthIndex) return;
+
+                  const st = String(row[TCOL.STATUS] || '').trim().toLowerCase();
+                  if (st.includes('walk in') || st.includes('walk-in') || st === 'walkin') statusKedatangan.walkIn++;
+                  else if (st.includes('follow up') || st.includes('follow-up') || st === 'followup') statusKedatangan.followUp++;
+                  else if (st.includes('delivery') || st.includes('showing')) statusKedatangan.delivery++;
+              });
+          }
+      }
+  } catch (e) {
+      console.warn("Failed to load Status Kedatangan: " + e.message);
+  }
+  overview.statusKedatangan = statusKedatangan;
+
+  // Save to Cache
   try {
     const jsonString = JSON.stringify(overview);
     if (jsonString.length < 100000) { // Safety check for GAS cache limit (100KB string)
@@ -855,4 +923,105 @@ function downloadDailyReportPDF(dateStr) {
   const blob = Utilities.newBlob(html, MimeType.HTML).getAs(MimeType.PDF);
   const base64 = Utilities.base64Encode(blob.getBytes());
   return { base64: base64, filename: 'DailyReport_' + report.date + '.pdf' };
+}
+
+// ==========================================
+// --- CRM: PROSPECT DETAIL DATA ---
+// ==========================================
+
+/**
+ * Mengambil data detail prospek dari sheet Traffic (eksternal).
+ * Digunakan oleh halaman App Sheet (CRM).
+ * @param {string} month - Nama bulan (January, February, dst)
+ * @param {string} year - Tahun (2024, 2025, dst)
+ * @param {string} location - Filter lokasi (kosong = semua)
+ * @param {string} prospectLevel - Filter prospek level (kosong = semua)
+ * @returns {Object} { rows: [...], locations: [...], prospectLevels: [...] }
+ */
+function getTrafficProspectData(month, year, location, prospectLevel, status) {
+  try {
+    const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
+    const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+    const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+    if (!trafficSheet) throw new Error('Sheet Traffic tidak ditemukan.');
+
+    const lastRow = trafficSheet.getLastRow();
+    if (lastRow <= 1) return { rows: [], locations: [], prospectLevels: [], statuses: [] };
+
+    const tData = trafficSheet.getRange(2, 1, lastRow - 1, trafficSheet.getLastColumn()).getValues();
+
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+                        "July", "August", "September", "October", "November", "December"];
+    const targetMonthIdx = monthNames.indexOf(month);
+    const targetYear = parseInt(year);
+
+    const locationSet = new Set();
+    const prospectSet = new Set();
+    const statusSet = new Set();
+    const filtered = [];
+
+    tData.forEach(row => {
+      let dateVal = row[TCOL.DATE];
+      if (!dateVal) return;
+
+      let d;
+      try {
+        d = new Date(dateVal);
+        if (isNaN(d.getTime())) return;
+      } catch (e) { return; }
+
+      const rowYear = d.getFullYear();
+      const rowMonth = d.getMonth();
+
+      const loc = String(row[TCOL.LOCATION] || '').trim();
+      const prospect = String(row[TCOL.PROSPECT] || '').trim();
+      const rowStatus = String(row[TCOL.STATUS] || '').trim();
+
+      if (loc) locationSet.add(loc);
+      if (prospect) prospectSet.add(prospect);
+      if (rowStatus) statusSet.add(rowStatus);
+
+      // Filter by month & year
+      if (rowYear !== targetYear || rowMonth !== targetMonthIdx) return;
+
+      // Filter by location (if specified)
+      if (location && location !== 'ALL' && loc !== location) return;
+
+      // Filter by prospect level (if specified)
+      if (prospectLevel && prospectLevel !== 'ALL' && prospect !== prospectLevel) return;
+
+      // Filter by status kedatangan (if specified)
+      if (status && status !== 'ALL' && rowStatus !== status) return;
+
+      // Format date nicely
+      const dayStr = String(d.getDate()).padStart(2, '0');
+      const monStr = month.substring(0, 3);
+      const dateFormatted = dayStr + ' ' + monStr + ' ' + rowYear;
+
+      filtered.push({
+        date: dateFormatted,
+        name: String(row[TCOL.NAME] || '-').trim(),
+        location: loc || '-',
+        servedBy: String(row[TCOL.SERVED_BY] || '-').trim(),
+        status: rowStatus || '-',
+        prospectLevel: prospect || '-'
+      });
+    });
+
+    // Sort by date descending (most recent first)
+    filtered.sort((a, b) => {
+      const dA = new Date(a.date);
+      const dB = new Date(b.date);
+      return dB - dA;
+    });
+
+    return {
+      rows: filtered,
+      locations: Array.from(locationSet).sort(),
+      prospectLevels: Array.from(prospectSet).sort(),
+      statuses: Array.from(statusSet).sort()
+    };
+  } catch (e) {
+    return { error: 'Gagal load data Traffic: ' + e.message, rows: [], locations: [], prospectLevels: [], statuses: [] };
+  }
 }

@@ -18,7 +18,8 @@ const CONFIG = {
     MASTER_ADVISOR: 'master_sales_advisor',
     MASTER_STOCK: 'master_stock',
     FOOTFALL_PI: 'footfall_pi',
-    FOOTFALL_PS: 'footfall_ps'
+    FOOTFALL_PS: 'footfall_ps',
+    TRAFFIC_SUMMARY: 'Traffic_Summary'
   },
   // Setting Alamat Email Tujuan Report Otomatis
   EMAIL_RECIPIENTS: [
@@ -40,7 +41,10 @@ const CONFIG = {
     },
     TRAFFIC_SHEET_NAME: 'Traffic',
     TRAFFIC_COLS: {
+      NAME: 2,      // Index 2 = Kolom C (Nama Lengkap)
+      SERVED_BY: 5, // Index 5 = Kolom F (Served By)
       LOCATION: 6,  // Index 6 = Kolom G (Lokasi Store)
+      STATUS: 7,    // Index 7 = Kolom H (Status Kedatangan)
       DATE: 11,     // Index 11 = Kolom L (Tanggal Berkunjung)
       PROSPECT: 17  // Index 17 = Kolom R (Prospek Level)
     }
