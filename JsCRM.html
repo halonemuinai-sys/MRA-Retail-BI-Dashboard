@@ -42,37 +42,123 @@
             container.innerHTML = html;
         },
 
-        // Render Status Kedatangan KPI Cards
+        // Render Status Kedatangan + Location Traffic KPI Cards
         renderStatusKedatangan: (data) => {
-            const container = document.getElementById('crmStatusContainer');
-            if (!container || !data.statusKedatangan) return;
+            const statusContainer = document.getElementById('crmStatusContainer');
+            const locContainer = document.getElementById('crmLocationContainer');
+            if (!statusContainer || !data.statusKedatangan) return;
 
             const sk = data.statusKedatangan;
-            const cards = [
+            const lt = data.locationTraffic || { pi: 0, ps: 0, bali: 0 };
+
+            const statusCards = [
                 { label: "Walk In", val: sk.walkIn, colorClass: "text-cyan-600 bg-cyan-50 border-cyan-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>` },
                 { label: "Follow Up", val: sk.followUp, colorClass: "text-amber-600 bg-amber-50 border-amber-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>` },
                 { label: "Delivery & Showing", val: sk.delivery, colorClass: "text-indigo-600 bg-indigo-50 border-indigo-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>` }
             ];
 
-            let html = '';
-            cards.forEach(c => {
-                html += `
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[120px]">
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${c.colorClass}">
-                            ${c.icon}
+            const locCards = [
+                { label: "Plaza Indonesia", val: lt.pi, colorClass: "text-blue-600 bg-blue-50 border-blue-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>` },
+                { label: "Plaza Senayan", val: lt.ps, colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>` },
+                { label: "Bali", val: lt.bali, colorClass: "text-orange-600 bg-orange-50 border-orange-200", icon: `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>` }
+            ];
+
+            const renderCards = (cards) => {
+                let html = '';
+                cards.forEach(c => {
+                    html += `
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[120px]">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${c.colorClass}">
+                                ${c.icon}
+                            </div>
+                            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-right leading-tight">${c.label}</span>
                         </div>
-                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-right leading-tight">${c.label}</span>
+                        <div class="text-3xl font-display font-bold text-slate-800 tracking-tight leading-none">${c.val}</div>
+                    </div>`;
+                });
+                return html;
+            };
+
+            statusContainer.innerHTML = renderCards(statusCards);
+            if (locContainer) locContainer.innerHTML = renderCards(locCards);
+        },
+
+        // Render Location Traffic KPI Card (single card)
+        renderLocationTraffic: (data) => {
+            const card = document.getElementById('crmLocationCard');
+            if (!card || !data.locationTraffic) return;
+
+            const lt = data.locationTraffic;
+            const max = Math.max(lt.pi, lt.ps, lt.bali, 1);
+
+            const locations = [
+                { label: 'Plaza Indonesia', val: lt.pi, color: 'bg-blue-500', bgLight: 'bg-blue-100' },
+                { label: 'Plaza Senayan', val: lt.ps, color: 'bg-emerald-500', bgLight: 'bg-emerald-100' },
+                { label: 'Bali', val: lt.bali, color: 'bg-amber-500', bgLight: 'bg-amber-100' }
+            ];
+
+            let html = `<div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </div>
-                    <div class="text-3xl font-display font-bold text-slate-800 tracking-tight leading-none">${c.val}</div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Kunjungan</span>
+                </div>
+                <span class="text-2xl font-display font-bold text-brand-dark">${lt.total}</span>
+            </div>
+            <div class="space-y-2.5">`;
+
+            locations.forEach(loc => {
+                const pct = max > 0 ? Math.round((loc.val / max) * 100) : 0;
+                html += `<div class="flex items-center gap-3">
+                    <span class="text-[11px] font-bold text-slate-600 w-28 shrink-0">${loc.label}</span>
+                    <div class="flex-grow ${loc.bgLight} rounded-full h-5 overflow-hidden">
+                        <div class="${loc.color} h-full rounded-full transition-all duration-700 flex items-center justify-end pr-2" style="width: ${pct}%">
+                            <span class="text-[10px] font-bold text-white drop-shadow-sm">${loc.val}</span>
+                        </div>
+                    </div>
                 </div>`;
             });
-            container.innerHTML = html;
+
+            html += '</div>';
+            card.innerHTML = html;
         },
 
         // Trigger loading data khusus jika dipanggil (opsional, untuk extensionality)
         init: () => {
              console.log("CRM Module initialized.");
+        },
+
+        // Send CRM Email Report
+        sendEmailReport: () => {
+            const btn = document.getElementById('btnSendCrmEmail');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"/><path fill="currentColor" class="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Sending...`;
+            }
+            const m = document.getElementById('monthSelect').value;
+            const y = document.getElementById('yearSelect').value;
+            google.script.run
+                .withSuccessHandler(res => {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Send Report`;
+                    }
+                    if (res && res.success) {
+                        UI.showToast('✅ ' + res.message);
+                    } else {
+                        UI.showToast('❌ ' + (res ? res.message : 'Unknown error'));
+                    }
+                })
+                .withFailureHandler(err => {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Send Report`;
+                    }
+                    UI.showToast('❌ Error: ' + err.message);
+                })
+                .sendCRMEmailReport(m, y);
         },
 
         // Load prospect detail data from Traffic sheet

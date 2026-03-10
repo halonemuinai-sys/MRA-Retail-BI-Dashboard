@@ -292,19 +292,288 @@ function installDailyEmailTrigger() {
 }
 
 /**
+ * ======================================================================
+ * CRM WEEKLY EMAIL REPORT
+ * ======================================================================
+ * Mengirim email ringkasan CRM/App Sheet: Traffic Funnel, Status
+ * Kedatangan, Location Traffic, dan Top Advisors.
+ */
+function sendCRMEmailReport(monthStr, yearStr) {
+  try {
+    const ss = getSpreadsheet();
+    const now = new Date();
+    const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    
+    // monthStr comes as month name (e.g. "March") from the dropdown
+    let monthIndex;
+    if (monthStr) {
+      const idx = mNames.indexOf(monthStr);
+      monthIndex = idx >= 0 ? idx : now.getMonth();
+    } else {
+      monthIndex = now.getMonth();
+    }
+    const month = monthIndex + 1;
+    const year = yearStr ? parseInt(yearStr) : now.getFullYear();
+    const monthName = mNames[monthIndex];
+
+    // 1. TRAFFIC FUNNEL from Traffic_Summary
+    const funnel = { berhasil:0, gagal:0, menunggu:0, potensial:0, nego:0, total:0 };
+    try {
+      const tsSheet = ss.getSheetByName(CONFIG.SHEETS.TRAFFIC_SUMMARY);
+      if (tsSheet) {
+        const tsd = tsSheet.getDataRange().getValues();
+        tsd.shift();
+        tsd.forEach(r => {
+          if (r[0] == year && r[1] == month) {
+            funnel.berhasil += Number(r[3])||0;
+            funnel.gagal += Number(r[4])||0;
+            funnel.menunggu += Number(r[5])||0;
+            funnel.potensial += Number(r[6])||0;
+            funnel.nego += Number(r[7])||0;
+            funnel.total += Number(r[8])||0;
+          }
+        });
+      }
+    } catch(e) { console.warn("CRM Email - Funnel error: " + e.message); }
+
+    // 2. STATUS KEDATANGAN + LOCATION + TOP ADVISORS from Traffic Sheet
+    const status = { walkIn:0, followUp:0, delivery:0 };
+    const loc = { pi:0, ps:0, bali:0, total:0 };
+    const advisorMap = {};
+
+    try {
+      const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
+      const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+      const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+      if (trafficSheet) {
+        const lastRow = trafficSheet.getLastRow();
+        if (lastRow > 1) {
+          const tData = trafficSheet.getRange(2, 1, lastRow - 1, trafficSheet.getLastColumn()).getValues();
+          tData.forEach(row => {
+            let dateVal = row[TCOL.DATE];
+            if (!dateVal) return;
+            let d;
+            try { d = new Date(dateVal); if (isNaN(d.getTime())) return; } catch(e) { return; }
+            if (d.getFullYear() != year || d.getMonth() != monthIndex) return;
+
+            // Status Kedatangan
+            const st = String(row[TCOL.STATUS]||'').trim().toLowerCase();
+            if (st.includes('walk in') || st.includes('walk-in') || st === 'walkin') status.walkIn++;
+            else if (st.includes('follow up') || st.includes('follow-up') || st === 'followup') status.followUp++;
+            else if (st.includes('delivery') || st.includes('showing')) status.delivery++;
+
+            // Location Traffic
+            const l = String(row[TCOL.LOCATION]||'').trim().toLowerCase();
+            loc.total++;
+            if (l.includes('plaza indonesia') || l === 'pi') loc.pi++;
+            else if (l.includes('plaza senayan') || l === 'ps') loc.ps++;
+            else if (l.includes('bali')) loc.bali++;
+
+            // Top Advisors
+            const adv = String(row[TCOL.SERVED_BY]||'').trim();
+            if (adv) advisorMap[adv] = (advisorMap[adv]||0) + 1;
+          });
+        }
+      }
+    } catch(e) { console.warn("CRM Email - Traffic error: " + e.message); }
+
+    const topAdvisors = Object.entries(advisorMap)
+      .sort((a,b) => b[1] - a[1]);
+
+    const totalVisits = status.walkIn + status.followUp + status.delivery;
+
+    // BUILD HTML EMAIL — Professional Light Template
+    const thBg = '#e8f0fe';
+    const thColor = '#1a3a5c';
+    const borderColor = '#d6e4f0';
+    const zebraLight = '#f5f8fc';
+    const sectionTitle = 'font-size:14px; font-weight:600; color:#1a3a5c; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 12px 0;';
+    const cellStyle = `padding:9px 14px; border:1px solid ${borderColor}; font-size:13px;`;
+    const cellRight = `${cellStyle} text-align:right;`;
+    const cellBold = `${cellRight} font-weight:600;`;
+    const thStyle = `padding:9px 14px; border:1px solid ${borderColor}; color:${thColor}; background:${thBg}; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;`;
+
+    let html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; color: #333333; max-width: 640px; margin: 0 auto; background: #ffffff;">
+      
+      <!-- HEADER -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0f5fb; border-bottom: 3px solid #4a90d9;">
+        <tr>
+          <td style="padding: 24px 28px;">
+            <p style="color: #1a3a5c; font-size: 18px; font-weight: 700; margin: 0 0 2px 0; letter-spacing: -0.3px;">CRM Performance Report</p>
+            <p style="color: #6b8db5; font-size: 12px; margin: 0; font-weight: 400;">Period: ${monthName} ${year} &mdash; Bvlgari Indonesia</p>
+          </td>
+        </tr>
+      </table>
+
+      <div style="padding: 24px 28px;">
+
+        <p style="font-size: 13px; color: #374151; line-height: 1.6; margin: 0 0 24px 0;">
+          Dear All,<br><br>
+          Berikut ringkasan performa CRM untuk periode <b>${monthName} ${year}</b>. 
+          Tercatat <b>${loc.total}</b> total kunjungan dengan rincian 
+          <b>${status.walkIn}</b> Walk-In, <b>${status.followUp}</b> Follow-Up, 
+          dan <b>${status.delivery}</b> Delivery/Showing.
+        </p>
+
+        <!-- 1. TRAFFIC & PROFILING FUNNEL -->
+        <p style="${sectionTitle}">Traffic &amp; Profiling Funnel</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <th style="${thStyle} text-align:left;">Category</th>
+            <th style="${thStyle} text-align:right;">Count</th>
+          </tr>
+          <tr>
+            <td style="${cellStyle} font-weight:600;">Total Profiling</td>
+            <td style="${cellBold} font-size:15px;">${funnel.total}</td>
+          </tr>
+          <tr style="background:${zebraLight};">
+            <td style="${cellStyle}">Penjualan Berhasil</td>
+            <td style="${cellBold}">${funnel.berhasil}</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Menunggu</td>
+            <td style="${cellBold}">${funnel.menunggu}</td>
+          </tr>
+          <tr style="background:${zebraLight};">
+            <td style="${cellStyle}">Negosiasi</td>
+            <td style="${cellBold}">${funnel.nego}</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Potensial</td>
+            <td style="${cellBold}">${funnel.potensial}</td>
+          </tr>
+          <tr style="background:${zebraLight};">
+            <td style="${cellStyle}">Gagal</td>
+            <td style="${cellBold}">${funnel.gagal}</td>
+          </tr>
+        </table>
+
+        <!-- 2. STATUS KEDATANGAN -->
+        <p style="${sectionTitle}">Status Kedatangan</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <th style="${thStyle} text-align:left;">Status</th>
+            <th style="${thStyle} text-align:right;">Jumlah</th>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Walk-In</td>
+            <td style="${cellBold}">${status.walkIn}</td>
+          </tr>
+          <tr style="background:${zebraLight};">
+            <td style="${cellStyle}">Follow-Up / Appointment</td>
+            <td style="${cellBold}">${status.followUp}</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Delivery &amp; Showing</td>
+            <td style="${cellBold}">${status.delivery}</td>
+          </tr>
+          <tr style="background:#eef2ff; font-weight:600;">
+            <td style="${cellStyle}">Total</td>
+            <td style="${cellBold}">${status.walkIn + status.followUp + status.delivery}</td>
+          </tr>
+        </table>
+
+        <!-- 3. LOCATION TRAFFIC -->
+        <p style="${sectionTitle}">Store Location Traffic</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <th style="${thStyle} text-align:left;">Location</th>
+            <th style="${thStyle} text-align:right;">Visits</th>
+            <th style="${thStyle} text-align:right;">Share (%)</th>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Plaza Indonesia</td>
+            <td style="${cellBold}">${loc.pi}</td>
+            <td style="${cellRight}">${loc.total > 0 ? ((loc.pi/loc.total)*100).toFixed(1) : '0.0'}%</td>
+          </tr>
+          <tr style="background:${zebraLight};">
+            <td style="${cellStyle}">Plaza Senayan</td>
+            <td style="${cellBold}">${loc.ps}</td>
+            <td style="${cellRight}">${loc.total > 0 ? ((loc.ps/loc.total)*100).toFixed(1) : '0.0'}%</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Bali</td>
+            <td style="${cellBold}">${loc.bali}</td>
+            <td style="${cellRight}">${loc.total > 0 ? ((loc.bali/loc.total)*100).toFixed(1) : '0.0'}%</td>
+          </tr>
+          <tr style="background:#eef2ff; font-weight:600;">
+            <td style="${cellStyle}">Total</td>
+            <td style="${cellBold}">${loc.total}</td>
+            <td style="${cellRight}">100.0%</td>
+          </tr>
+        </table>
+
+        <!-- 4. TOP ADVISORS -->
+        <p style="${sectionTitle}">Customer Advisors Performance</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <th style="${thStyle} text-align:center; width:40px;">No.</th>
+            <th style="${thStyle} text-align:left;">Advisor Name</th>
+            <th style="${thStyle} text-align:right;">Prospects Handled</th>
+          </tr>`;
+
+    if (topAdvisors.length === 0) {
+      html += `<tr><td colspan="3" style="${cellStyle} text-align:center; color:#9ca3af; font-style:italic;">No data available for this period.</td></tr>`;
+    } else {
+      topAdvisors.forEach(([name, count], idx) => {
+        const bg = idx % 2 !== 0 ? `background:${zebraLight};` : '';
+        html += `<tr style="${bg}">
+          <td style="${cellStyle} text-align:center; font-weight:600;">${idx + 1}</td>
+          <td style="${cellStyle}">${name}</td>
+          <td style="${cellBold}">${count}</td>
+        </tr>`;
+      });
+    }
+
+    html += `
+        </table>
+
+        <!-- DASHBOARD LINK -->
+        <p style="margin: 28px 0 8px 0; font-size: 13px; color: #374151;">
+          For detailed analysis, please access the full dashboard:
+        </p>
+        <p style="margin: 0 0 24px 0;">
+          <a href="https://script.google.com/macros/s/AKfycbze-dmRcWkRsbBx9qdnWe1c6DatoawhFS2cvrgG0el7AOy4BTfxLaVw91PcD4C9NrMS_w/exec" 
+             style="color: #2563EB; font-size: 13px; font-weight: 600; text-decoration: underline;">
+            Open Bvlgari BI Dashboard
+          </a>
+        </p>
+
+        <!-- FOOTER -->
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 14px; margin-top: 8px;">
+          <p style="font-size: 11px; color: #9ca3af; margin: 0; line-height: 1.5;">
+            This report was automatically generated by the Bvlgari Intelligence Dashboard<br>
+            ${new Date().toLocaleString('id-ID')} &mdash; MRA Retail Indonesia
+          </p>
+        </div>
+
+      </div>
+    </div>`;
+
+    // SEND
+    const recipients = CONFIG.EMAIL_RECIPIENTS;
+    if (!recipients || recipients.length === 0) {
+      return { success: false, message: "No email recipients configured in Config." };
+    }
+
+    MailApp.sendEmail({
+      to: recipients.join(","),
+      subject: `CRM Performance Report - ${monthName} ${year} | Bvlgari Indonesia`,
+      htmlBody: html
+    });
+
+    return { success: true, message: "CRM Report sent to " + recipients.join(", ") };
+
+  } catch(e) {
+    return { success: false, message: e.message };
+  }
+}
+
+/**
  * ------------------------------------------------------------------------
  * RUN THIS FUNCTION FROM THE APPS SCRIPT EDITOR TO GRANT EMAIL PERMISSION
  * ------------------------------------------------------------------------
- * Karena kita baru saja menambahkan fitur pengiriman Email (MailApp), 
- * Google Apps Script membutuhkan izin eksplisit dari Mas Aris.
- * 
- * CARA:
- * 1. Di bagian atas editor ini, pilih fungsi "testMailPermission"
- * 2. Klik tombol "Run" (Jalankan)
- * 3. Nanti akan muncul pop-up "Authorization Required", klik Review.
- * 4. Kalau sukses, akan ada email masuk ke Mas Aris berisi teks pendek.
- * 
- * Setelah ini berhasil dijalankan sekali, tombol di Dashboard pasti bisa dipakai!
  */
 function testMailPermission() {
   const recipients = CONFIG.EMAIL_RECIPIENTS;

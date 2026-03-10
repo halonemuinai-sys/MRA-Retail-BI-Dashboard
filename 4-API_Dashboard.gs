@@ -403,8 +403,9 @@ function getDashboardData(monthName, year, forceRefresh = false) {
 
   overview.trafficFunnel = trafficFunnel;
 
-  // 6. LOAD STATUS KEDATANGAN FROM EXTERNAL TRAFFIC SHEET
+  // 6. LOAD STATUS KEDATANGAN & LOCATION TRAFFIC FROM EXTERNAL TRAFFIC SHEET
   const statusKedatangan = { walkIn: 0, followUp: 0, delivery: 0 };
+  const locationTraffic = { pi: 0, ps: 0, bali: 0, total: 0 };
   try {
       const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
       const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
@@ -420,17 +421,26 @@ function getDashboardData(monthName, year, forceRefresh = false) {
                   try { d = new Date(dateVal); if (isNaN(d.getTime())) return; } catch(e) { return; }
                   if (d.getFullYear() != year || d.getMonth() != monthIndex) return;
 
+                  // Status Kedatangan
                   const st = String(row[TCOL.STATUS] || '').trim().toLowerCase();
                   if (st.includes('walk in') || st.includes('walk-in') || st === 'walkin') statusKedatangan.walkIn++;
                   else if (st.includes('follow up') || st.includes('follow-up') || st === 'followup') statusKedatangan.followUp++;
                   else if (st.includes('delivery') || st.includes('showing')) statusKedatangan.delivery++;
+
+                  // Location Traffic
+                  const loc = String(row[TCOL.LOCATION] || '').trim().toLowerCase();
+                  locationTraffic.total++;
+                  if (loc.includes('plaza indonesia') || loc === 'pi') locationTraffic.pi++;
+                  else if (loc.includes('plaza senayan') || loc === 'ps') locationTraffic.ps++;
+                  else if (loc.includes('bali')) locationTraffic.bali++;
               });
           }
       }
   } catch (e) {
-      console.warn("Failed to load Status Kedatangan: " + e.message);
+      console.warn("Failed to load Traffic data: " + e.message);
   }
   overview.statusKedatangan = statusKedatangan;
+  overview.locationTraffic = locationTraffic;
 
   // Save to Cache
   try {
