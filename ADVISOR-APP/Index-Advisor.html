@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bvlgari Advisor Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { 'brand-dark':'#1e293b', 'brand-blue':'#2563eb', 'brand-gold':'#d4af37' },
+                    fontFamily: { 'display':['Playfair Display','serif'], 'sans':['Inter','sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent; background:#f8fafc; }
+        .bottom-nav { position:fixed; bottom:0; left:0; right:0; height:72px; background:#fff; border-top:1px solid #e2e8f0; display:flex; justify-content:space-around; align-items:center; z-index:50; }
+        .nav-item { display:flex; flex-direction:column; align-items:center; gap:3px; color:#94a3b8; cursor:pointer; transition:all 0.2s; padding:8px 16px; border-radius:12px; }
+        .nav-item:active { transform:scale(0.95); }
+        .nav-item.active { color:#2563eb; background:#eff6ff; }
+        .page { display:none; padding-bottom:90px; }
+        .page.active { display:block; animation:fadeUp 0.3s ease-out; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        .card { background:#fff; border:1px solid #e2e8f0; border-radius:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+        .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-100px); background:#1e293b; color:#fff; padding:12px 24px; border-radius:12px; font-size:13px; font-weight:600; z-index:100; transition:transform 0.4s ease; }
+        .toast.show { transform:translateX(-50%) translateY(0); }
+        input, select { font-size:16px !important; } /* Prevent iOS zoom */
+    </style>
+</head>
+<body class="text-slate-800 max-w-lg mx-auto relative min-h-screen">
+
+    <!-- TOAST -->
+    <div id="toast" class="toast"></div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden" style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%)">
+        <!-- Decorative circles -->
+        <div class="absolute top-[-80px] left-[-60px] w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[-60px] right-[-40px] w-56 h-56 bg-brand-gold opacity-10 rounded-full blur-3xl"></div>
+
+        <!-- Logo -->
+        <div class="mb-8 text-center relative z-10">
+            <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                <svg class="w-8 h-8 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </div>
+            <p class="text-[10px] font-bold text-white/40 uppercase tracking-[0.4em] mb-1">Welcome to</p>
+            <h1 class="text-4xl font-display font-bold text-white">BVLGARI</h1>
+            <p class="text-xs text-white/50 mt-2 font-medium tracking-wider">Advisor Portal</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="w-full max-w-xs relative z-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6">
+            <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">Pilih Nama Anda</label>
+            <select id="loginSelect" title="Pilih Advisor" class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-3 font-bold text-white focus:ring-2 focus:ring-brand-gold outline-none">
+                <option value="" class="text-slate-800">Memuat daftar advisor...</option>
+            </select>
+            <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">PIN</label>
+            <input type="password" id="loginPin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="• • • •" title="PIN Login" class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-5 font-bold text-white text-center tracking-[0.5em] focus:ring-2 focus:ring-brand-gold outline-none placeholder-white/30">
+            <button onclick="APP.login()" id="btnLogin" class="w-full bg-gradient-to-r from-brand-gold to-yellow-600 text-brand-dark py-4 rounded-2xl font-bold shadow-lg shadow-brand-gold/20 active:scale-95 transition-transform">
+                Masuk
+            </button>
+            <p class="text-[10px] text-white/30 text-center mt-4">Hubungi IT jika lupa PIN Anda</p>
+        </div>
+
+        <!-- Footer -->
+        <p class="absolute bottom-6 text-[10px] text-white/20 font-medium tracking-wider z-10">MRA Retail | Created By Aris Setiyono</p>
+    </div>
+
+    <!-- MAIN APP (Hidden until login) -->
+    <div id="mainApp" class="hidden">
+
+        <!-- HEADER -->
+        <div class="bg-white p-5 pt-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-40">
+            <div>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em]">Advisor Portal</p>
+                <p class="text-lg font-display font-bold text-brand-dark" id="headerName">—</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="APP.nav('settings')" class="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-colors" title="Pengaturan">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </button>
+                <button onclick="APP.logout()" class="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Logout">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- MONTH/YEAR FILTER -->
+        <div class="bg-white px-5 py-3 border-b border-slate-100 flex gap-2">
+            <select id="filterMonth" title="Pilih Bulan" onchange="APP.applyFilter()" class="flex-1 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 outline-none"></select>
+            <select id="filterYear" title="Pilih Tahun" onchange="APP.applyFilter()" class="w-24 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 outline-none"></select>
+        </div>
+
+        <main class="p-4 pt-5">
+
+            <!-- PAGE: DASHBOARD -->
+            <div id="page-dashboard" class="page active">
+
+                <!-- MY PERFORMANCE CARD -->
+                <div class="card p-6 mb-5 relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-28 h-28 bg-blue-50 rounded-full opacity-40"></div>
+                    <div class="flex items-center gap-2 mb-3 relative">
+                        <p class="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">My Performance (MTD)</p>
+                        <span class="text-[10px] font-bold text-blue-300 bg-blue-50 px-2 py-0.5 rounded-full" id="perfPeriod">—</span>
+                    </div>
+                    <div class="flex items-baseline gap-2 mb-5 relative">
+                        <span class="text-3xl font-bold tracking-tight" id="mySalesVal">—</span>
+                        <span class="text-xs text-slate-400">Net Sales</span>
+                    </div>
+                    <div class="flex justify-between items-end mb-2 text-xs">
+                        <span class="font-bold text-slate-500">Target Achievement</span>
+                        <span class="font-bold text-brand-blue" id="pctVal">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                        <div id="progressBar" class="bg-brand-blue h-full rounded-full transition-all duration-1000 ease-out" style="width:0%"></div>
+                    </div>
+                    <div class="flex justify-between mt-3">
+                        <span class="text-[10px] text-slate-400">Target: <b id="targetVal">—</b></span>
+                        <span class="text-[10px] text-slate-400">Sisa: <b id="remainVal">—</b></span>
+                    </div>
+                </div>
+
+                <!-- QUICK STATS ROW -->
+                <div class="grid grid-cols-3 gap-3 mb-5">
+                    <div class="card p-4 text-center">
+                        <p class="text-2xl font-bold text-brand-dark" id="totalTrx">0</p>
+                        <p class="text-[9px] text-slate-400 font-bold uppercase mt-1">Transaksi</p>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <p class="text-2xl font-bold text-emerald-600" id="totalProspect">0</p>
+                        <p class="text-[9px] text-slate-400 font-bold uppercase mt-1">Prospek</p>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <p class="text-2xl font-bold text-amber-600" id="totalFollowUp">0</p>
+                        <p class="text-[9px] text-slate-400 font-bold uppercase mt-1">Follow Up</p>
+                    </div>
+                </div>
+
+                <!-- QUICK ACTIONS -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="APP.nav('prospect')" class="card p-5 flex flex-col gap-3 items-center active:scale-95 transition-transform">
+                        <div class="w-11 h-11 bg-cyan-50 text-cyan-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </div>
+                        <span class="text-xs font-bold text-slate-600">Lihat Prospek</span>
+                    </button>
+                    <button onclick="APP.nav('stats')" class="card p-5 flex flex-col gap-3 items-center active:scale-95 transition-transform">
+                        <div class="w-11 h-11 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        </div>
+                        <span class="text-xs font-bold text-slate-600">Laporan Saya</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PAGE: PROSPECT LIST -->
+            <div id="page-prospect" class="page">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-display font-bold">Daftar Prospek</h2>
+                    <span class="text-xs bg-blue-50 text-brand-blue px-3 py-1 rounded-full font-bold" id="prospectCount">0</span>
+                </div>
+                <div id="prospectList" class="space-y-3">
+                    <div class="card p-8 text-center text-slate-400 text-sm">Memuat data...</div>
+                </div>
+            </div>
+
+            <!-- PAGE: STATS / LAPORAN -->
+            <div id="page-stats" class="page">
+                <h2 class="text-lg font-display font-bold mb-4">Laporan Bulanan</h2>
+                
+                <!-- CATEGORY BREAKDOWN -->
+                <div class="card p-5 mb-5">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Penjualan per Main Category (Bulan Ini)</p>
+                    <div id="categoryBreakdown" class="space-y-2">
+                        <p class="text-sm text-slate-400 text-center py-4">Buka halaman ini setelah login</p>
+                    </div>
+                </div>
+
+                <!-- MONTHLY CHART -->
+                <div class="card p-5 mb-5">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Net Sales per Bulan (2026)</p>
+                    <canvas id="monthlyChart" height="180"></canvas>
+                </div>
+                <div class="card p-5">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Ringkasan Tahunan</p>
+                    <div class="space-y-3" id="yearSummary"></div>
+                </div>
+            </div>
+
+            <!-- PAGE: SETTINGS -->
+            <div id="page-settings" class="page">
+                <h2 class="text-lg font-display font-bold mb-4">Pengaturan</h2>
+                <div class="card p-5 mb-4">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Ubah PIN</p>
+                    <input type="password" id="pinOld" maxlength="4" inputmode="numeric" placeholder="PIN Lama" title="PIN Lama" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl mb-3 text-sm font-bold text-center tracking-[0.3em] outline-none focus:ring-2 focus:ring-brand-blue">
+                    <input type="password" id="pinNew" maxlength="4" inputmode="numeric" placeholder="PIN Baru (4 digit)" title="PIN Baru" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl mb-3 text-sm font-bold text-center tracking-[0.3em] outline-none focus:ring-2 focus:ring-brand-blue">
+                    <input type="password" id="pinConfirm" maxlength="4" inputmode="numeric" placeholder="Konfirmasi PIN Baru" title="Konfirmasi PIN" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl mb-4 text-sm font-bold text-center tracking-[0.3em] outline-none focus:ring-2 focus:ring-brand-blue">
+                    <button onclick="APP.changePIN()" id="btnChangePin" class="w-full bg-brand-dark text-white py-3 rounded-xl font-bold active:scale-95 transition-transform">Ubah PIN</button>
+                </div>
+                <div class="card p-5">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Informasi Akun</p>
+                    <div class="space-y-2">
+                        <div class="flex justify-between py-2 border-b border-slate-50">
+                            <span class="text-xs text-slate-500">Nama</span>
+                            <span class="text-xs font-bold" id="settingName">—</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-slate-50">
+                            <span class="text-xs text-slate-500">Store</span>
+                            <span class="text-xs font-bold" id="settingStore">—</span>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <span class="text-xs text-slate-500">Role</span>
+                            <span class="text-xs font-bold" id="settingRole">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- BOTTOM NAV -->
+        <nav class="bottom-nav">
+            <button onclick="APP.nav('dashboard')" id="nav-dashboard" class="nav-item active">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                <span class="text-[10px] font-bold">Beranda</span>
+            </button>
+            <button onclick="APP.nav('prospect')" id="nav-prospect" class="nav-item">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span class="text-[10px] font-bold">Prospek</span>
+            </button>
+            <button onclick="APP.nav('stats')" id="nav-stats" class="nav-item">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span class="text-[10px] font-bold">Laporan</span>
+            </button>
+        </nav>
+    </div>
+
+<script>
+// ============================================================
+// APP CONTROLLER — Uses google.script.run for real data
+// ============================================================
+const APP = {
+    currentUser: null,
+    chartInstance: null,
+    perfData: null,
+    selectedMonth: new Date().getMonth(),
+    selectedYear: new Date().getFullYear(),
+
+    // Load advisor list from Google Sheet on page load
+    init: () => {
+        google.script.run
+            .withSuccessHandler(res => {
+                const sel = document.getElementById('loginSelect');
+                sel.innerHTML = '<option value="">-- Pilih Advisor --</option>';
+                if (res.success) {
+                    res.advisors.forEach(a => {
+                        const opt = document.createElement('option');
+                        opt.value = a.name;
+                        opt.textContent = a.name + ' — ' + a.store;
+                        sel.appendChild(opt);
+                    });
+                } else {
+                    APP.toast(res.message);
+                }
+            })
+            .withFailureHandler(err => APP.toast('Gagal memuat daftar: ' + err.message))
+            .getAdvisorList();
+    },
+
+    // Login with name + PIN
+    login: () => {
+        const name = document.getElementById('loginSelect').value;
+        const pin = document.getElementById('loginPin').value;
+        if (!name) { APP.toast('Pilih nama advisor terlebih dahulu'); return; }
+        if (!pin || pin.length < 4) { APP.toast('Masukkan PIN 4 digit'); return; }
+
+        const btn = document.getElementById('btnLogin');
+        btn.disabled = true; btn.textContent = 'Memverifikasi...';
+
+        google.script.run
+            .withSuccessHandler(res => {
+                btn.disabled = false; btn.textContent = 'Masuk';
+                if (res.success) {
+                    APP.currentUser = res.user;
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    document.getElementById('headerName').textContent = res.user.name;
+                    // Populate settings info
+                    document.getElementById('settingName').textContent = res.user.name;
+                    document.getElementById('settingStore').textContent = res.user.store;
+                    document.getElementById('settingRole').textContent = res.user.role;
+                    // Init filter dropdowns
+                    APP.initFilters();
+                    APP.loadDashboard();
+                } else {
+                    APP.toast(res.message);
+                }
+            })
+            .withFailureHandler(err => {
+                btn.disabled = false; btn.textContent = 'Masuk';
+                APP.toast('Error: ' + err.message);
+            })
+            .loginAdvisor(name, pin);
+    },
+
+    logout: () => {
+        APP.currentUser = null;
+        APP.perfData = null;
+        document.getElementById('mainApp').classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('loginSelect').value = '';
+        document.getElementById('loginPin').value = '';
+    },
+
+    nav: (pageId) => {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        const navBtn = document.getElementById('nav-' + pageId);
+        if (navBtn) navBtn.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + pageId).classList.add('active');
+        if (pageId === 'prospect') APP.loadProspects();
+        if (pageId === 'stats') APP.renderChart();
+    },
+
+    // ---- FILTER INIT ----
+    initFilters: () => {
+        const mNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const mSel = document.getElementById('filterMonth');
+        const ySel = document.getElementById('filterYear');
+        mSel.innerHTML = '';
+        mNames.forEach((m, i) => {
+            const opt = document.createElement('option');
+            opt.value = i; opt.textContent = m;
+            if (i === APP.selectedMonth) opt.selected = true;
+            mSel.appendChild(opt);
+        });
+        ySel.innerHTML = '';
+        const curY = new Date().getFullYear();
+        for (let y = curY; y >= curY - 2; y--) {
+            const opt = document.createElement('option');
+            opt.value = y; opt.textContent = y;
+            if (y === APP.selectedYear) opt.selected = true;
+            ySel.appendChild(opt);
+        }
+    },
+
+    applyFilter: () => {
+        APP.selectedMonth = parseInt(document.getElementById('filterMonth').value);
+        APP.selectedYear  = parseInt(document.getElementById('filterYear').value);
+        APP.loadDashboard();
+    },
+
+    // ---- CHANGE PIN ----
+    changePIN: () => {
+        const oldP = document.getElementById('pinOld').value;
+        const newP = document.getElementById('pinNew').value;
+        const confP = document.getElementById('pinConfirm').value;
+        if (!oldP || oldP.length < 4) { APP.toast('Masukkan PIN lama'); return; }
+        if (!newP || newP.length < 4) { APP.toast('PIN baru harus 4 digit'); return; }
+        if (newP !== confP) { APP.toast('Konfirmasi PIN tidak cocok'); return; }
+
+        const btn = document.getElementById('btnChangePin');
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+        google.script.run
+            .withSuccessHandler(res => {
+                btn.disabled = false; btn.textContent = 'Ubah PIN';
+                APP.toast(res.message);
+                if (res.success) {
+                    document.getElementById('pinOld').value = '';
+                    document.getElementById('pinNew').value = '';
+                    document.getElementById('pinConfirm').value = '';
+                }
+            })
+            .withFailureHandler(err => {
+                btn.disabled = false; btn.textContent = 'Ubah PIN';
+                APP.toast('Error: ' + err.message);
+            })
+            .changeAdvisorPin(APP.currentUser.name, oldP, newP);
+    },
+
+    toast: (msg) => {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    },
+
+    fmt: (n) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(n),
+
+    // ---- DASHBOARD ----
+    loadDashboard: () => {
+        google.script.run
+            .withSuccessHandler(res => {
+                if (res.success) {
+                    const d = res.data;
+                    APP.perfData = d;
+                    const pct = Math.min(d.achievement, 100);
+                    document.getElementById('perfPeriod').textContent = d.monthName + ' ' + d.selectedYear;
+                    document.getElementById('mySalesVal').textContent = APP.fmt(d.totalSales);
+                    document.getElementById('targetVal').textContent = APP.fmt(d.target);
+                    document.getElementById('remainVal').textContent = APP.fmt(Math.max(d.target - d.totalSales, 0));
+                    document.getElementById('pctVal').textContent = d.achievement.toFixed(1) + '%';
+                    document.getElementById('totalTrx').textContent = d.totalTrx;
+                    document.getElementById('totalProspect').textContent = d.totalQty || 0;
+                    document.getElementById('totalFollowUp').textContent = 0;
+                    setTimeout(() => { document.getElementById('progressBar').style.width = pct + '%'; }, 100);
+                }
+            })
+            .getAdvisorDashboardData(APP.currentUser.name, APP.selectedMonth, APP.selectedYear);
+    },
+
+    // ---- PROSPECT LIST ----
+    loadProspects: () => {
+        const container = document.getElementById('prospectList');
+        container.innerHTML = '<div class="card p-8 text-center text-slate-400 text-sm">Memuat data prospek...</div>';
+
+        google.script.run
+            .withSuccessHandler(res => {
+                if (res.success) {
+                    const prospects = res.prospects;
+                    const stats = res.stats || {};
+                    document.getElementById('prospectCount').textContent = prospects.length + ' data';
+
+                    // Update quick stats on dashboard too
+                    document.getElementById('totalProspect').textContent = stats.total || 0;
+                    document.getElementById('totalFollowUp').textContent = stats.followUp || 0;
+
+                    if (prospects.length === 0) {
+                        container.innerHTML = '<div class="card p-8 text-center text-slate-400 text-sm">Belum ada data prospek.</div>';
+                        return;
+                    }
+
+                    const levelStyle = (lvl) => {
+                        const l = String(lvl).toLowerCase();
+                        if (l.includes('berhasil')) return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+                        if (l.includes('potensial') || l.includes('nego')) return 'bg-amber-50 text-amber-600 border-amber-200';
+                        if (l.includes('gagal')) return 'bg-red-50 text-red-600 border-red-200';
+                        return 'bg-slate-50 text-slate-500 border-slate-200';
+                    };
+
+                    let html = '';
+                    prospects.forEach(p => {
+                        html += '<div class="card p-4">' +
+                            '<div class="flex justify-between items-start mb-2">' +
+                                '<div>' +
+                                    '<p class="font-bold text-sm text-slate-800">' + p.name + '</p>' +
+                                    '<p class="text-[11px] text-slate-400 mt-0.5">' + p.location + ' · ' + p.date + '</p>' +
+                                '</div>' +
+                                '<span class="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase border ' + levelStyle(p.prospectLevel) + '">' + p.prospectLevel + '</span>' +
+                            '</div>' +
+                            '<div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">' +
+                                '<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">' + p.status + '</span>' +
+                            '</div>' +
+                        '</div>';
+                    });
+                    container.innerHTML = html;
+                }
+            })
+            .getAdvisorProspects(APP.currentUser.name, APP.selectedMonth, APP.selectedYear);
+    },
+
+    // ---- CHART + CATEGORY ----
+    renderChart: () => {
+        if (!APP.perfData) return;
+
+        // Render Category Breakdown
+        const catBox = document.getElementById('categoryBreakdown');
+        const cats = APP.perfData.categoryBreakdown || [];
+        if (cats.length === 0) {
+            catBox.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">Belum ada transaksi bulan ini.</p>';
+        } else {
+            let catHtml = '<div class="overflow-x-auto">' +
+                '<table class="w-full text-xs">' +
+                '<tr class="border-b border-slate-200">' +
+                    '<th class="text-left py-2 text-slate-400 font-bold uppercase">Category</th>' +
+                    '<th class="text-right py-2 text-slate-400 font-bold uppercase">Qty</th>' +
+                    '<th class="text-right py-2 text-slate-400 font-bold uppercase">Net Sales</th>' +
+                '</tr>';
+            let grandTotal = 0;
+            cats.forEach(c => {
+                grandTotal += c.netSales;
+                catHtml += '<tr class="border-b border-slate-50">' +
+                    '<td class="py-2.5 font-bold text-slate-700">' + c.category + '</td>' +
+                    '<td class="py-2.5 text-right text-slate-500">' + c.qty + '</td>' +
+                    '<td class="py-2.5 text-right font-bold text-brand-dark">' + APP.fmt(c.netSales) + '</td>' +
+                '</tr>';
+            });
+            catHtml += '<tr class="font-bold">' +
+                '<td class="py-2.5 text-brand-blue">Total</td>' +
+                '<td class="py-2.5 text-right text-brand-blue">' + cats.reduce((s,c) => s + c.qty, 0) + '</td>' +
+                '<td class="py-2.5 text-right text-brand-blue">' + APP.fmt(grandTotal) + '</td>' +
+            '</tr></table></div>';
+            catBox.innerHTML = catHtml;
+        }
+
+        // Render Monthly Bar Chart
+        if (!APP.perfData.monthlyChart) return;
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        if (APP.chartInstance) APP.chartInstance.destroy();
+
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+        const currentMonth = new Date().getMonth();
+        const data = APP.perfData.monthlyChart;
+
+        APP.chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [{
+                    data: data,
+                    backgroundColor: data.map((_, i) => i === currentMonth ? '#2563eb' : '#e2e8f0'),
+                    borderRadius: 6, barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend:{ display:false }, tooltip:{ callbacks:{ label: c => APP.fmt(c.raw) }}},
+                scales: { y:{ display:false }, x:{ grid:{ display:false }, ticks:{ font:{ size:10, weight:'600' }, color:'#94a3b8' }}}
+            }
+        });
+
+        const total = data.reduce((a,b) => a + b, 0);
+        const best = Math.max(...data);
+        const bestMonth = months[data.indexOf(best)];
+        document.getElementById('yearSummary').innerHTML =
+            '<div class="flex justify-between py-2 border-b border-slate-50">' +
+                '<span class="text-xs text-slate-500">Total YTD</span>' +
+                '<span class="text-sm font-bold">' + APP.fmt(total) + '</span>' +
+            '</div>' +
+            '<div class="flex justify-between py-2 border-b border-slate-50">' +
+                '<span class="text-xs text-slate-500">Bulan Terbaik</span>' +
+                '<span class="text-sm font-bold">' + bestMonth + ' (' + APP.fmt(best) + ')</span>' +
+            '</div>' +
+            '<div class="flex justify-between py-2">' +
+                '<span class="text-xs text-slate-500">Rata-rata / Bulan</span>' +
+                '<span class="text-sm font-bold">' + APP.fmt(Math.round(total / (currentMonth + 1))) + '</span>' +
+            '</div>';
+    }
+};
+
+// Init on load
+window.onload = APP.init;
+</script>
+</body>
+</html>
