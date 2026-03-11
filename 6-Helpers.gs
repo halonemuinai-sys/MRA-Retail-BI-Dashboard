@@ -142,8 +142,12 @@ function calculateAdvisorPerformance(rows, COL, ss, monthName, year, globalTarge
     const transDate = parseDateFix(row[COL.DATE]);
     const transMonth = transDate.getMonth(); // 0-11
 
-    // Detect Crossing Sale
     const isHO = (l) => l.toLowerCase() === "head office" || l.toLowerCase() === "ho";
+    
+    // EXCLUDE HO SALES ENTIRELY FROM ADVISOR PERFORMANCE
+    if (isHO(transLoc)) return;
+
+    // Detect Crossing Sale
     const validStores = ["plaza indonesia", "plaza senayan", "bali", "bali boutique"];
     let crossingNet = 0;
     let crossingQty = 0;

@@ -226,6 +226,10 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
         match = salesman.toLowerCase() === advisorName.toLowerCase();
       }
       if (!match) return;
+      
+      // EXCLUDE HO SALES ENTIRELY FROM ADVISOR/MANAGER PERFORMANCE
+      const locLower = location.toLowerCase();
+      if (locLower === 'head office' || locLower === 'ho') return;
 
       const date = new Date(row[COL.DATE]);
       const net = Number(row[COL.NET_SALES]) || 0;
