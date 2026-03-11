@@ -30,6 +30,20 @@
         .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-100px); background:#1e293b; color:#fff; padding:12px 24px; border-radius:12px; font-size:13px; font-weight:600; z-index:100; transition:transform 0.4s ease; }
         .toast.show { transform:translateX(-50%) translateY(0); }
         input, select { font-size:16px !important; } /* Prevent iOS zoom */
+        
+        /* Modern Login Utilities */
+        @keyframes float { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-20px) scale(1.05)} }
+        .animate-float { animation:float 8s ease-in-out infinite; }
+        .animate-float-delayed { animation:float 10s ease-in-out 4s infinite; }
+        .fade-in-up { animation:fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity:0; }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        .glass-input { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: white; transition: all 0.3s ease; }
+        .glass-input:focus { background: rgba(255, 255, 255, 0.08); border-color: rgba(212, 175, 55, 0.5); outline: none; box-shadow: 0 0 15px rgba(212, 175, 55, 0.15); }
+        /* Style select options to be readable */
+        select option { background: #1e293b; color: white; }
     </style>
 </head>
 <body class="text-slate-800 max-w-lg mx-auto relative min-h-screen">
@@ -38,42 +52,53 @@
     <div id="toast" class="toast"></div>
 
     <!-- LOGIN SCREEN -->
-    <div id="loginScreen" class="flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden" style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%)">
-        <!-- Decorative circles -->
-        <div class="absolute top-[-80px] left-[-60px] w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl"></div>
-        <div class="absolute bottom-[-60px] right-[-40px] w-56 h-56 bg-brand-gold opacity-10 rounded-full blur-3xl"></div>
+    <div id="loginScreen" class="flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden bg-slate-900">
+        <!-- Modern Background Gradient -->
+        <div class="absolute inset-0" style="background: radial-gradient(circle at top right, #1e3a8a 0%, transparent 40%), radial-gradient(circle at bottom left, #0f172a 0%, #020617 100%);"></div>
+        
+        <!-- Animated Orbs -->
+        <div class="animate-float absolute top-[10%] left-[-10%] w-72 h-72 bg-blue-600/20 rounded-full blur-[80px]"></div>
+        <div class="animate-float-delayed absolute bottom-[5%] right-[-10%] w-80 h-80 bg-amber-600/10 rounded-full blur-[80px]"></div>
 
         <!-- Logo -->
-        <div class="mb-8 text-center relative z-10">
-            <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                <svg class="w-8 h-8 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <div class="mb-10 text-center relative z-10 fade-in-up">
+            <div class="w-16 h-16 mx-auto mb-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center shadow-2xl">
+                <svg class="w-8 h-8 text-transparent bg-clip-text bg-gradient-to-br from-amber-200 to-yellow-600" fill="none" viewBox="0 0 24 24" stroke="url(#goldGradient)"><defs><linearGradient id="goldGradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fef08a"/><stop offset="100%" stop-color="#ca8a04"/></linearGradient></defs><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             </div>
-            <p class="text-[10px] font-bold text-white/40 uppercase tracking-[0.4em] mb-1">Welcome to</p>
-            <h1 class="text-4xl font-display font-bold text-white">BVLGARI</h1>
-            <p class="text-xs text-white/50 mt-2 font-medium tracking-wider">Advisor Portal</p>
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.5em] mb-2">Welcome to</p>
+            <h1 class="text-4xl font-display font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-400 to-amber-600 drop-shadow-lg">BVLGARI</h1>
+            <p class="text-[11px] text-slate-400 mt-3 font-medium tracking-[0.2em] uppercase">Advisor Portal</p>
         </div>
 
         <!-- Login Card -->
-        <div class="w-full max-w-xs relative z-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6">
-            <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">Pilih Lokasi Store</label>
-            <select id="loginStore" title="Pilih Lokasi Store" onchange="APP.onStoreChange()" class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-4 font-bold text-white focus:ring-2 focus:ring-brand-gold outline-none">
-                <option value="" class="text-slate-800">Memuat lokasi...</option>
-            </select>
+        <div class="w-full max-w-xs relative z-10 glass-card rounded-[2rem] p-7 fade-in-up delay-100">
+            <div class="mb-5 fade-in-up delay-200">
+                <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Lokasi Store</label>
+                <select id="loginStore" title="Pilih Lokasi Store" onchange="APP.onStoreChange()" class="w-full glass-input p-4 rounded-2xl font-semibold text-sm">
+                    <option value="" disabled selected>Pilih Lokasi...</option>
+                </select>
+            </div>
 
-            <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">Pilih Nama Anda</label>
-            <select id="loginSelect" title="Pilih Advisor" disabled class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-3 font-bold text-white focus:ring-2 focus:ring-brand-gold outline-none disabled:opacity-50">
-                <option value="" class="text-slate-800">Pilih Lokasi Dulu</option>
-            </select>
-            <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">PIN</label>
-            <input type="password" id="loginPin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="• • • •" title="PIN Login" class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-5 font-bold text-white text-center tracking-[0.5em] focus:ring-2 focus:ring-brand-gold outline-none placeholder-white/30">
-            <button onclick="APP.login()" id="btnLogin" class="w-full bg-gradient-to-r from-brand-gold to-yellow-600 text-brand-dark py-4 rounded-2xl font-bold shadow-lg shadow-brand-gold/20 active:scale-95 transition-transform">
-                Masuk
+            <div class="mb-5 fade-in-up delay-200">
+                <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Nama Advisor</label>
+                <select id="loginSelect" title="Pilih Advisor" disabled class="w-full glass-input p-4 rounded-2xl font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                    <option value="" disabled selected>Pilih Lokasi Dulu</option>
+                </select>
+            </div>
+
+            <div class="mb-8 fade-in-up delay-200">
+                <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">PIN Akses</label>
+                <input type="password" id="loginPin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••" title="PIN Login" class="w-full glass-input p-4 rounded-2xl font-bold text-center tracking-[1em] text-lg placeholder-white/20">
+            </div>
+
+            <button onclick="APP.login()" id="btnLogin" class="w-full py-4 rounded-2xl font-bold text-slate-900 bg-gradient-to-r from-amber-300 via-yellow-500 to-amber-500 hover:to-amber-600 shadow-lg shadow-amber-500/20 active:scale-95 transition-all fade-in-up delay-300">
+                MASUK
             </button>
-            <p class="text-[10px] text-white/30 text-center mt-4">Hubungi IT jika lupa PIN Anda</p>
+            <p class="text-[10px] text-slate-500 text-center mt-5 fade-in-up delay-300">Hubungi IT jika lupa PIN Anda</p>
         </div>
 
         <!-- Footer -->
-        <p class="absolute bottom-6 text-[10px] text-white/20 font-medium tracking-wider z-10">MRA Retail | Created By Aris Setiyono</p>
+        <p class="absolute bottom-6 text-[9px] text-slate-600 font-medium tracking-[0.2em] z-10 fade-in-up delay-300">MRA RETAIL</p>
     </div>
 
     <!-- MAIN APP (Hidden until login) -->
