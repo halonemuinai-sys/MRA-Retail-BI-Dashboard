@@ -351,7 +351,12 @@ function getAnnualAdvisorData(year) {
   // 1. Sum Actual Sales
   yearData.forEach(row => {
      const name = String(row[COL.SALESMAN]).trim().toLowerCase();
+     const loc = String(row[COL.LOCATION]).trim();
      if(!name) return;
+     
+     // EXCLUDE HO SALES ENTIRELY FROM ANNUAL ADVISOR PERFORMANCE
+     if (loc.toLowerCase() === "head office" || loc.toLowerCase() === "ho") return;
+     
      const net = Number(row[COL.NET_SALES]) || 0;
      const transId = row[COL.TRANS_NO];
      const transDate = parseDateFix(row[COL.DATE]);
