@@ -151,19 +151,31 @@ function changeAdvisorPin(name, oldPin, newPin) {
 // DATA API: Dashboard Performance
 // ============================
 
+// Helper: check if role is manager-level
+function _isManagerRole(role) {
+  if (!role) return false;
+  const r = String(role).trim().toLowerCase();
+  return ['supervisor','manager','store manager','sm','asm','assistant store manager','spv'].some(k => r.includes(k));
+}
+
 /**
- * Mengambil data performa advisor + target dari master_sales_advisor
+ * Mengambil data performa advisor atau store (untuk manager).
  * @param {string} advisorName
  * @param {number} month - Bulan (0-11), default bulan ini
  * @param {number} year  - Tahun, default tahun ini
+ * @param {string} role  - Role user (optional)
+ * @param {string} store - Store name (optional, untuk manager)
  */
-function getAdvisorDashboardData(advisorName, month, year) {
+function getAdvisorDashboardData(advisorName, month, year, role, store) {
+  const isManager = _isManagerRole(role);
+
   // --- CACHE CHECK ---
   const cache = CacheService.getScriptCache();
   const now = new Date();
   const m = (month !== undefined && month !== null) ? parseInt(month) : now.getMonth();
   const y = (year  !== undefined && year  !== null) ? parseInt(year)  : now.getFullYear();
-  const cacheKey = 'dash_' + advisorName.toLowerCase().replace(/\s/g,'') + '_' + m + '_' + y;
+  const prefix = isManager ? 'sdash_' + String(store||'').toLowerCase().replace(/\s/g,'') : 'dash_' + advisorName.toLowerCase().replace(/\s/g,'');
+  const cacheKey = prefix + '_' + m + '_' + y;
   const cached = cache.get(cacheKey);
   if (cached) {
     try { return JSON.parse(cached); } catch(e) { /* cache corrupt, recalculate */ }
@@ -179,39 +191,58 @@ function getAdvisorDashboardData(advisorName, month, year) {
     const selectedMonth = m;
     const selectedYear  = y;
     const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const storeLower = String(store || '').trim().toLowerCase();
 
-    let myTotalSales = 0;
-    let myTrxCount = 0;
-    let myQty = 0;
-    let myMonthlySales = Array(12).fill(0);
-    const categoryMap = {}; // { catName: { net, qty, count } }
+    let totalSales = 0, trxCount = 0, totalQty = 0;
+    let monthlySales = Array(12).fill(0);
+    const categoryMap = {};
+    const staffMap = {}; // For manager: { salesmanName: { net, qty, count } }
 
     data.forEach(row => {
-      if (String(row[COL.SALESMAN]).trim().toLowerCase() === advisorName.toLowerCase()) {
-        const date = new Date(row[COL.DATE]);
-        const net = Number(row[COL.NET_SALES]) || 0;
-        const qty = Number(row[COL.QTY]) || 0;
+      const salesman = String(row[COL.SALESMAN]).trim();
+      const location = String(row[COL.LOCATION]).trim();
 
-        if (date.getFullYear() === selectedYear) {
-          myMonthlySales[date.getMonth()] += net;
-          if (date.getMonth() === selectedMonth) {
-            myTotalSales += net;
-            myTrxCount++;
-            myQty += qty;
+      // Filter: manager sees entire store, advisor sees only their data
+      let match = false;
+      if (isManager) {
+        match = location.toLowerCase() === storeLower;
+      } else {
+        match = salesman.toLowerCase() === advisorName.toLowerCase();
+      }
+      if (!match) return;
 
-            // Category breakdown bulan ini
-            const cat = String(row[COL.MAIN_CAT] || 'Uncategorized').trim();
-            if (!categoryMap[cat]) categoryMap[cat] = { net: 0, qty: 0, count: 0 };
-            categoryMap[cat].net += net;
-            categoryMap[cat].qty += qty;
-            categoryMap[cat].count++;
+      const date = new Date(row[COL.DATE]);
+      const net = Number(row[COL.NET_SALES]) || 0;
+      const qty = Number(row[COL.QTY]) || 0;
+
+      if (date.getFullYear() === selectedYear) {
+        monthlySales[date.getMonth()] += net;
+        if (date.getMonth() === selectedMonth) {
+          totalSales += net;
+          trxCount++;
+          totalQty += qty;
+
+          // Category breakdown
+          const cat = String(row[COL.MAIN_CAT] || 'Uncategorized').trim();
+          if (!categoryMap[cat]) categoryMap[cat] = { net: 0, qty: 0, count: 0 };
+          categoryMap[cat].net += net;
+          categoryMap[cat].qty += qty;
+          categoryMap[cat].count++;
+
+          // Staff breakdown (manager only)
+          if (isManager) {
+            if (!staffMap[salesman]) staffMap[salesman] = { net: 0, qty: 0, count: 0 };
+            staffMap[salesman].net += net;
+            staffMap[salesman].qty += qty;
+            staffMap[salesman].count++;
           }
         }
       }
     });
 
     // Ambil target dari master_sales_advisor
-    let myTarget = 0;
+    let totalTarget = 0;
+    const staffTargets = {}; // { salesmanName: targetValue }
     try {
       const advSheet = ss.getSheetByName('master_sales_advisor');
       if (advSheet) {
@@ -225,13 +256,39 @@ function getAdvisorDashboardData(advisorName, month, year) {
           });
 
           if (monthColIndex > -1) {
+            // Get staff list for this store from login sheet (for manager)
+            let storeStaff = [];
+            if (isManager) {
+              try {
+                const loginSS = SpreadsheetApp.openById(ADVISOR_SS_ID);
+                const loginSheet = loginSS.getSheetByName(LOGIN_SHEET_NAME);
+                if (loginSheet) {
+                  const loginData = loginSheet.getDataRange().getValues();
+                  loginData.shift();
+                  storeStaff = loginData
+                    .filter(r => String(r[2]).trim().toLowerCase() === storeLower && String(r[4]).trim().toLowerCase() === 'active')
+                    .map(r => String(r[0]).trim());
+                }
+              } catch(e) { /* ignore */ }
+            }
+
             for (let i = 1; i < advData.length; i++) {
               const r = advData[i];
               if (String(r[0]) != String(selectedYear)) continue;
-              const sheetName = String(r[1]).trim().toLowerCase();
-              if (sheetName === advisorName.toLowerCase() || advisorName.toLowerCase().includes(sheetName)) {
-                myTarget = Number(r[monthColIndex]) || 0;
-                break;
+              const sheetName = String(r[1]).trim();
+              const target = Number(r[monthColIndex]) || 0;
+
+              if (isManager) {
+                // Sum targets of all staff belonging to this store
+                if (storeStaff.some(s => s.toLowerCase() === sheetName.toLowerCase() || s.toLowerCase().includes(sheetName.toLowerCase()))) {
+                  totalTarget += target;
+                  staffTargets[sheetName] = target;
+                }
+              } else {
+                if (sheetName.toLowerCase() === advisorName.toLowerCase() || advisorName.toLowerCase().includes(sheetName.toLowerCase())) {
+                  totalTarget = target;
+                  break;
+                }
               }
             }
           }
@@ -239,30 +296,44 @@ function getAdvisorDashboardData(advisorName, month, year) {
       }
     } catch(e) { console.warn('Target lookup error: ' + e.message); }
 
-    if (myTarget === 0) myTarget = 500000000; // Fallback default
+    if (totalTarget === 0) totalTarget = isManager ? 2000000000 : 500000000;
+
+    // Build staff breakdown for managers
+    let staffBreakdown = [];
+    if (isManager) {
+      staffBreakdown = Object.entries(staffMap)
+        .map(([name, d]) => {
+          const t = staffTargets[name] || 500000000;
+          return { name, netSales: d.net, qty: d.qty, count: d.count, target: t, achievement: t > 0 ? (d.net / t * 100) : 0 };
+        })
+        .sort((a, b) => b.netSales - a.netSales);
+    }
 
     const result = {
       success: true,
       data: {
-        name: advisorName,
-        totalSales: myTotalSales,
-        totalTrx: myTrxCount,
-        totalQty: myQty,
-        target: myTarget,
-        achievement: myTarget > 0 ? (myTotalSales / myTarget) * 100 : 0,
-        monthlyChart: myMonthlySales,
+        name: isManager ? store : advisorName,
+        isManager: isManager,
+        storeName: store || '',
+        totalSales: totalSales,
+        totalTrx: trxCount,
+        totalQty: totalQty,
+        target: totalTarget,
+        achievement: totalTarget > 0 ? (totalSales / totalTarget) * 100 : 0,
+        monthlyChart: monthlySales,
         monthName: mNames[selectedMonth],
         selectedMonth: selectedMonth,
         selectedYear: selectedYear,
         categoryBreakdown: Object.entries(categoryMap)
           .map(([cat, d]) => ({ category: cat, netSales: d.net, qty: d.qty, count: d.count }))
           .sort((a, b) => b.netSales - a.netSales),
+        staffBreakdown: staffBreakdown,
         lastSync: new Date().toLocaleString('id-ID')
       }
     };
 
     // --- SAVE TO CACHE ---
-    try { cache.put(cacheKey, JSON.stringify(result), CACHE_TTL); } catch(e) { /* ignore cache save errors */ }
+    try { cache.put(cacheKey, JSON.stringify(result), CACHE_TTL); } catch(e) { /* ignore */ }
 
     return result;
   } catch (e) {
@@ -275,18 +346,23 @@ function getAdvisorDashboardData(advisorName, month, year) {
 // ============================
 
 /**
- * Mengambil Prospect Detail Data milik advisor.
+ * Mengambil Prospect Detail Data milik advisor, atau seluruh store (untuk manager).
  * @param {string} advisorName
  * @param {number} month - Bulan (0-11)
  * @param {number} year  - Tahun
+ * @param {string} role  - Role user (optional)
+ * @param {string} store - Store name (optional, untuk manager)
  */
-function getAdvisorProspects(advisorName, month, year) {
+function getAdvisorProspects(advisorName, month, year, role, store) {
+  const isManager = _isManagerRole(role);
+
   // --- CACHE CHECK ---
   const cache = CacheService.getScriptCache();
   const now = new Date();
   const m = (month !== undefined && month !== null) ? parseInt(month) : now.getMonth();
   const y = (year  !== undefined && year  !== null) ? parseInt(year)  : now.getFullYear();
-  const cacheKey = 'prosp_' + advisorName.toLowerCase().replace(/\s/g,'') + '_' + m + '_' + y;
+  const prefix = isManager ? 'sprosp_' + String(store||'').toLowerCase().replace(/\s/g,'') : 'prosp_' + advisorName.toLowerCase().replace(/\s/g,'');
+  const cacheKey = prefix + '_' + m + '_' + y;
   const cached = cache.get(cacheKey);
   if (cached) {
     try { return JSON.parse(cached); } catch(e) { /* cache corrupt, recalculate */ }
@@ -307,13 +383,21 @@ function getAdvisorProspects(advisorName, month, year) {
     const selectedMonth = m;
     const selectedYear  = y;
     const mNames = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+    const storeLower = String(store || '').trim().toLowerCase();
 
     const prospects = [];
     let walkIn = 0, followUp = 0, delivery = 0;
 
     tData.forEach(row => {
       const servedBy = String(row[TCOL.SERVED_BY] || '').trim();
-      if (servedBy.toLowerCase() !== advisorName.toLowerCase()) return;
+      const location = String(row[TCOL.LOCATION] || '').trim();
+
+      // Filter: manager sees all store prospects, advisor sees only theirs
+      if (isManager) {
+        if (location.toLowerCase() !== storeLower) return;
+      } else {
+        if (servedBy.toLowerCase() !== advisorName.toLowerCase()) return;
+      }
 
       let dateVal = row[TCOL.DATE];
       if (!dateVal) return;
@@ -339,9 +423,10 @@ function getAdvisorProspects(advisorName, month, year) {
       prospects.push({
         date: dateFormatted,
         name: String(row[TCOL.NAME] || '-').trim(),
-        location: String(row[TCOL.LOCATION] || '-').trim(),
+        location: location || '-',
         status: rowStatus || '-',
-        prospectLevel: String(row[TCOL.PROSPECT] || '-').trim()
+        prospectLevel: String(row[TCOL.PROSPECT] || '-').trim(),
+        servedBy: servedBy || '-'
       });
     });
 

@@ -116,7 +116,7 @@
                 <div class="card p-6 mb-5 relative overflow-hidden">
                     <div class="absolute -right-6 -top-6 w-28 h-28 bg-blue-50 rounded-full opacity-40"></div>
                     <div class="flex items-center gap-2 mb-3 relative">
-                        <p class="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">My Performance (MTD)</p>
+                        <p class="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]" id="perfTitle">My Performance (MTD)</p>
                         <span class="text-[10px] font-bold text-blue-300 bg-blue-50 px-2 py-0.5 rounded-full" id="perfPeriod">—</span>
                     </div>
                     <div class="flex items-baseline gap-2 mb-5 relative">
@@ -183,6 +183,12 @@
             <!-- PAGE: STATS / LAPORAN -->
             <div id="page-stats" class="page">
                 <h2 class="text-lg font-display font-bold mb-4">Laporan Bulanan</h2>
+
+                <!-- STAFF LEADERBOARD (Manager Only) -->
+                <div id="staffLeaderboard" class="card p-5 mb-5 hidden">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">📊 Staff Leaderboard</p>
+                    <div id="staffLeaderboardContent"></div>
+                </div>
                 
                 <!-- CATEGORY BREAKDOWN -->
                 <div class="card p-5 mb-5">
@@ -453,6 +459,7 @@ const APP = {
 
     // ---- DASHBOARD ----
     loadDashboard: () => {
+        const u = APP.currentUser;
         google.script.run
             .withSuccessHandler(res => {
                 APP.hideLoader();
@@ -460,6 +467,15 @@ const APP = {
                     const d = res.data;
                     APP.perfData = d;
                     const pct = Math.min(d.achievement, 100);
+                    
+                    // Dynamic title for manager vs advisor
+                    const perfTitle = document.getElementById('perfTitle');
+                    if (d.isManager) {
+                        perfTitle.textContent = 'Store Performance (MTD)';
+                    } else {
+                        perfTitle.textContent = 'My Performance (MTD)';
+                    }
+                    
                     document.getElementById('perfPeriod').textContent = d.monthName + ' ' + d.selectedYear;
                     document.getElementById('mySalesVal').textContent = APP.fmt(d.totalSales);
                     document.getElementById('targetVal').textContent = APP.fmt(d.target);
@@ -482,7 +498,7 @@ const APP = {
                 APP.hideLoader();
                 APP.toast('Gagal memuat dashboard: ' + err.message);
             })
-            .getAdvisorDashboardData(APP.currentUser.name, APP.selectedMonth, APP.selectedYear);
+            .getAdvisorDashboardData(u.name, APP.selectedMonth, APP.selectedYear, u.role, u.store);
     },
 
     // ---- PROSPECT LIST ----
@@ -518,8 +534,13 @@ const APP = {
                         return 'bg-slate-50 text-slate-500 border-slate-200';
                     };
 
+                    const isM = APP.currentUser && APP.currentUser.role && ['supervisor','manager','store manager','sm','asm','assistant store manager','spv'].some(k => APP.currentUser.role.toLowerCase().includes(k));
+
                     let html = '';
                     prospects.forEach(p => {
+                        const advisorBadge = (isM && p.servedBy && p.servedBy !== '-') 
+                            ? '<span class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-200">👤 ' + p.servedBy + '</span>' 
+                            : '';
                         html += '<div class="card p-4">' +
                             '<div class="flex justify-between items-start mb-2">' +
                                 '<div>' +
@@ -530,6 +551,7 @@ const APP = {
                             '</div>' +
                             '<div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">' +
                                 '<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">' + p.status + '</span>' +
+                                advisorBadge +
                             '</div>' +
                         '</div>';
                     });
@@ -541,12 +563,43 @@ const APP = {
                 APP.toast('Gagal memuat prospek: ' + err.message);
                 container.innerHTML = '<div class="card p-8 text-center text-red-400 text-sm">Gagal memuat data.</div>';
             })
-            .getAdvisorProspects(APP.currentUser.name, APP.selectedMonth, APP.selectedYear);
+            .getAdvisorProspects(APP.currentUser.name, APP.selectedMonth, APP.selectedYear, APP.currentUser.role, APP.currentUser.store);
     },
 
     // ---- CHART + CATEGORY ----
     renderChart: () => {
         if (!APP.perfData) return;
+
+        // Render Staff Leaderboard (Manager Only)
+        const lbBox = document.getElementById('staffLeaderboard');
+        const staff = APP.perfData.staffBreakdown || [];
+        if (staff.length > 0) {
+            lbBox.classList.remove('hidden');
+            let lbHtml = '<div class="overflow-x-auto">' +
+                '<table class="w-full text-xs">' +
+                '<tr class="border-b border-slate-200">' +
+                    '<th class="text-left py-2 text-slate-400 font-bold uppercase">#</th>' +
+                    '<th class="text-left py-2 text-slate-400 font-bold uppercase">Advisor</th>' +
+                    '<th class="text-right py-2 text-slate-400 font-bold uppercase">Qty</th>' +
+                    '<th class="text-right py-2 text-slate-400 font-bold uppercase">Net Sales</th>' +
+                    '<th class="text-right py-2 text-slate-400 font-bold uppercase">Ach %</th>' +
+                '</tr>';
+            staff.forEach((s, i) => {
+                const achColor = s.achievement >= 100 ? 'text-emerald-600' : s.achievement >= 50 ? 'text-amber-600' : 'text-red-500';
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+                lbHtml += '<tr class="border-b border-slate-50">' +
+                    '<td class="py-2.5 text-center">' + medal + '</td>' +
+                    '<td class="py-2.5 font-bold text-slate-700">' + s.name + '</td>' +
+                    '<td class="py-2.5 text-right text-slate-500">' + s.qty + '</td>' +
+                    '<td class="py-2.5 text-right font-bold text-brand-dark">' + APP.fmt(s.netSales) + '</td>' +
+                    '<td class="py-2.5 text-right font-bold ' + achColor + '">' + s.achievement.toFixed(1) + '%</td>' +
+                '</tr>';
+            });
+            lbHtml += '</table></div>';
+            document.getElementById('staffLeaderboardContent').innerHTML = lbHtml;
+        } else {
+            lbBox.classList.add('hidden');
+        }
 
         // Render Category Breakdown
         const catBox = document.getElementById('categoryBreakdown');
