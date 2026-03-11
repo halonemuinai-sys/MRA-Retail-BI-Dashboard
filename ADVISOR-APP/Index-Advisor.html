@@ -74,6 +74,12 @@
     <!-- MAIN APP (Hidden until login) -->
     <div id="mainApp" class="hidden">
 
+        <!-- GLOBAL LOADER -->
+        <div id="globalLoader" class="fixed inset-0 bg-white/70 backdrop-blur-sm z-[100] hidden flex-col items-center justify-center">
+            <div class="w-12 h-12 border-4 border-slate-200 border-t-brand-dark rounded-full animate-spin mb-3"></div>
+            <p class="text-xs font-bold text-brand-dark uppercase tracking-widest animate-pulse">Memuat Data...</p>
+        </div>
+
         <!-- HEADER -->
         <div class="bg-white p-5 pt-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-40">
             <div>
@@ -349,10 +355,24 @@ const APP = {
         }
     },
 
+    // ---- LOADER ----
+    showLoader: () => document.getElementById('globalLoader').classList.remove('hidden'),
+    hideLoader: () => document.getElementById('globalLoader').classList.add('hidden'),
+
     applyFilter: () => {
         APP.selectedMonth = parseInt(document.getElementById('filterMonth').value);
         APP.selectedYear  = parseInt(document.getElementById('filterYear').value);
-        APP.loadDashboard();
+        
+        APP.showLoader();
+        
+        // Reload actively viewed page
+        const activePage = document.querySelector('.page.active').id;
+        if (activePage === 'page-prospect') {
+            APP.loadDashboard(); // Background update for quick stats
+            APP.loadProspects();
+        } else {
+            APP.loadDashboard();
+        }
     },
 
     // ---- CHANGE PIN ----
@@ -396,6 +416,7 @@ const APP = {
     loadDashboard: () => {
         google.script.run
             .withSuccessHandler(res => {
+                APP.hideLoader();
                 if (res.success) {
                     const d = res.data;
                     APP.perfData = d;
@@ -408,8 +429,19 @@ const APP = {
                     document.getElementById('totalTrx').textContent = d.totalTrx;
                     document.getElementById('totalProspect').textContent = d.totalQty || 0;
                     document.getElementById('totalFollowUp').textContent = 0;
-                    setTimeout(() => { document.getElementById('progressBar').style.width = pct + '%'; }, 100);
+                    
+                    const pBar = document.getElementById('progressBar');
+                    if(pBar) setTimeout(() => { pBar.style.width = pct + '%'; }, 100);
+                    
+                    // Render chart only if stats page is open
+                    if (document.getElementById('page-stats').classList.contains('active')) {
+                        APP.renderChart();
+                    }
                 }
+            })
+            .withFailureHandler(err => {
+                APP.hideLoader();
+                APP.toast('Gagal memuat dashboard: ' + err.message);
             })
             .getAdvisorDashboardData(APP.currentUser.name, APP.selectedMonth, APP.selectedYear);
     },
@@ -421,14 +453,18 @@ const APP = {
 
         google.script.run
             .withSuccessHandler(res => {
+                APP.hideLoader();
                 if (res.success) {
                     const prospects = res.prospects;
                     const stats = res.stats || {};
-                    document.getElementById('prospectCount').textContent = prospects.length + ' data';
+                    const pCount = document.getElementById('prospectCount');
+                    if(pCount) pCount.textContent = prospects.length + ' data';
 
                     // Update quick stats on dashboard too
-                    document.getElementById('totalProspect').textContent = stats.total || 0;
-                    document.getElementById('totalFollowUp').textContent = stats.followUp || 0;
+                    const tProsp = document.getElementById('totalProspect');
+                    if(tProsp) tProsp.textContent = stats.total || 0;
+                    const tFolup = document.getElementById('totalFollowUp');
+                    if(tFolup) tFolup.textContent = stats.followUp || 0;
 
                     if (prospects.length === 0) {
                         container.innerHTML = '<div class="card p-8 text-center text-slate-400 text-sm">Belum ada data prospek.</div>';
@@ -460,6 +496,11 @@ const APP = {
                     });
                     container.innerHTML = html;
                 }
+            })
+            .withFailureHandler(err => {
+                APP.hideLoader();
+                APP.toast('Gagal memuat prospek: ' + err.message);
+                container.innerHTML = '<div class="card p-8 text-center text-red-400 text-sm">Gagal memuat data.</div>';
             })
             .getAdvisorProspects(APP.currentUser.name, APP.selectedMonth, APP.selectedYear);
     },
