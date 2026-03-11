@@ -55,9 +55,14 @@
 
         <!-- Login Card -->
         <div class="w-full max-w-xs relative z-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6">
+            <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">Pilih Lokasi Store</label>
+            <select id="loginStore" title="Pilih Lokasi Store" onchange="APP.onStoreChange()" class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-4 font-bold text-white focus:ring-2 focus:ring-brand-gold outline-none">
+                <option value="" class="text-slate-800">Memuat lokasi...</option>
+            </select>
+
             <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">Pilih Nama Anda</label>
-            <select id="loginSelect" title="Pilih Advisor" class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-3 font-bold text-white focus:ring-2 focus:ring-brand-gold outline-none">
-                <option value="" class="text-slate-800">Memuat daftar advisor...</option>
+            <select id="loginSelect" title="Pilih Advisor" disabled class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-3 font-bold text-white focus:ring-2 focus:ring-brand-gold outline-none disabled:opacity-50">
+                <option value="" class="text-slate-800">Pilih Lokasi Dulu</option>
             </select>
             <label class="block text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">PIN</label>
             <input type="password" id="loginPin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="• • • •" title="PIN Login" class="w-full bg-white/15 border border-white/20 p-4 rounded-2xl mb-5 font-bold text-white text-center tracking-[0.5em] focus:ring-2 focus:ring-brand-gold outline-none placeholder-white/30">
@@ -256,19 +261,27 @@ const APP = {
     perfData: null,
     selectedMonth: new Date().getMonth(),
     selectedYear: new Date().getFullYear(),
+    allAdvisors: [],
 
     // Load advisor list from Google Sheet on page load
     init: () => {
         google.script.run
             .withSuccessHandler(res => {
-                const sel = document.getElementById('loginSelect');
-                sel.innerHTML = '<option value="">-- Pilih Advisor --</option>';
+                const storeSel = document.getElementById('loginStore');
+                const advSel = document.getElementById('loginSelect');
+                storeSel.innerHTML = '<option value="">-- Pilih Lokasi --</option>';
+                advSel.innerHTML = '<option value="">Pilih Lokasi Dulu</option>';
+                
                 if (res.success) {
-                    res.advisors.forEach(a => {
+                    APP.allAdvisors = res.advisors;
+                    
+                    // Get unique stores
+                    const stores = [...new Set(res.advisors.map(a => a.store))].filter(Boolean).sort();
+                    stores.forEach(s => {
                         const opt = document.createElement('option');
-                        opt.value = a.name;
-                        opt.textContent = a.name + ' — ' + a.store;
-                        sel.appendChild(opt);
+                        opt.value = s;
+                        opt.textContent = s;
+                        storeSel.appendChild(opt);
                     });
                 } else {
                     APP.toast(res.message);
@@ -276,6 +289,30 @@ const APP = {
             })
             .withFailureHandler(err => APP.toast('Gagal memuat daftar: ' + err.message))
             .getAdvisorList();
+    },
+
+    // Filter advisor dropdown based on selected store
+    onStoreChange: () => {
+        const storeSel = document.getElementById('loginStore');
+        const advSel = document.getElementById('loginSelect');
+        const selectedStore = storeSel.value;
+        
+        advSel.innerHTML = '<option value="">-- Pilih Advisor --</option>';
+        
+        if (!selectedStore) {
+            advSel.disabled = true;
+            return;
+        }
+
+        const filtered = APP.allAdvisors.filter(a => a.store === selectedStore);
+        filtered.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a.name;
+            opt.textContent = a.name;
+            advSel.appendChild(opt);
+        });
+        
+        advSel.disabled = false;
     },
 
     // Login with name + PIN
@@ -319,7 +356,9 @@ const APP = {
         APP.perfData = null;
         document.getElementById('mainApp').classList.add('hidden');
         document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('loginStore').value = '';
         document.getElementById('loginSelect').value = '';
+        document.getElementById('loginSelect').disabled = true;
         document.getElementById('loginPin').value = '';
     },
 
