@@ -193,6 +193,22 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
     const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const storeLower = String(store || '').trim().toLowerCase();
 
+    // Get staff list for this store from login sheet (for manager)
+    let storeStaff = [];
+    if (isManager) {
+      try {
+        const loginSS = SpreadsheetApp.openById(ADVISOR_SS_ID);
+        const loginSheet = loginSS.getSheetByName(LOGIN_SHEET_NAME);
+        if (loginSheet) {
+          const loginData = loginSheet.getDataRange().getValues();
+          loginData.shift();
+          storeStaff = loginData
+            .filter(r => String(r[2]).trim().toLowerCase() === storeLower && String(r[4]).trim().toLowerCase() === 'active')
+            .map(r => String(r[0]).trim());
+        }
+      } catch(e) { /* ignore */ }
+    }
+
     let totalSales = 0, trxCount = 0, totalQty = 0;
     let monthlySales = Array(12).fill(0);
     const categoryMap = {};
@@ -202,10 +218,10 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
       const salesman = String(row[COL.SALESMAN]).trim();
       const location = String(row[COL.LOCATION]).trim();
 
-      // Filter: manager sees entire store, advisor sees only their data
+      // Filter: manager sees entire store staff, advisor sees only their data
       let match = false;
       if (isManager) {
-        match = location.toLowerCase() === storeLower;
+        match = storeStaff.some(s => s.toLowerCase() === salesman.toLowerCase());
       } else {
         match = salesman.toLowerCase() === advisorName.toLowerCase();
       }
@@ -256,22 +272,6 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
           });
 
           if (monthColIndex > -1) {
-            // Get staff list for this store from login sheet (for manager)
-            let storeStaff = [];
-            if (isManager) {
-              try {
-                const loginSS = SpreadsheetApp.openById(ADVISOR_SS_ID);
-                const loginSheet = loginSS.getSheetByName(LOGIN_SHEET_NAME);
-                if (loginSheet) {
-                  const loginData = loginSheet.getDataRange().getValues();
-                  loginData.shift();
-                  storeStaff = loginData
-                    .filter(r => String(r[2]).trim().toLowerCase() === storeLower && String(r[4]).trim().toLowerCase() === 'active')
-                    .map(r => String(r[0]).trim());
-                }
-              } catch(e) { /* ignore */ }
-            }
-
             for (let i = 1; i < advData.length; i++) {
               const r = advData[i];
               if (String(r[0]) != String(selectedYear)) continue;
@@ -385,6 +385,22 @@ function getAdvisorProspects(advisorName, month, year, role, store) {
     const mNames = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
     const storeLower = String(store || '').trim().toLowerCase();
 
+    // Get staff list for this store from login sheet (for manager)
+    let storeStaff = [];
+    if (isManager) {
+      try {
+        const loginSS = SpreadsheetApp.openById(ADVISOR_SS_ID);
+        const loginSheet = loginSS.getSheetByName(LOGIN_SHEET_NAME);
+        if (loginSheet) {
+          const loginData = loginSheet.getDataRange().getValues();
+          loginData.shift();
+          storeStaff = loginData
+            .filter(r => String(r[2]).trim().toLowerCase() === storeLower && String(r[4]).trim().toLowerCase() === 'active')
+            .map(r => String(r[0]).trim());
+        }
+      } catch(e) { /* ignore */ }
+    }
+
     const prospects = [];
     let walkIn = 0, followUp = 0, delivery = 0;
 
@@ -392,9 +408,9 @@ function getAdvisorProspects(advisorName, month, year, role, store) {
       const servedBy = String(row[TCOL.SERVED_BY] || '').trim();
       const location = String(row[TCOL.LOCATION] || '').trim();
 
-      // Filter: manager sees all store prospects, advisor sees only theirs
+      // Filter: manager sees all store staff prospects, advisor sees only theirs
       if (isManager) {
-        if (location.toLowerCase() !== storeLower) return;
+        if (!storeStaff.some(s => s.toLowerCase() === servedBy.toLowerCase())) return;
       } else {
         if (servedBy.toLowerCase() !== advisorName.toLowerCase()) return;
       }
