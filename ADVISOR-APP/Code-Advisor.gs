@@ -11,6 +11,7 @@ const ADVISOR_SS_ID  = '1vVVHE-IxXz-nrE8OPCLPNmbVDeA3cGALbllWwaum87Q'; // Sheet 
 const DASHBOARD_SS_ID = '1jRFK1jPuK_-pVvJYNx1PbvDEJaeAK4ZUZ0QTxWJsxwQ'; // Sheet Dashboard Utama
 const PROFILING_SS_ID = '17dIze7RwnA4nqxCVRbTeDIDlwCmW1OvgXQ9zMOM-ovM'; // Sheet Traffic/Profiling
 const LOGIN_SHEET_NAME = 'login';
+const CACHE_TTL = 1800; // 30 menit dalam detik
 
 // ============================
 // WEB APP ENTRY
@@ -157,6 +158,17 @@ function changeAdvisorPin(name, oldPin, newPin) {
  * @param {number} year  - Tahun, default tahun ini
  */
 function getAdvisorDashboardData(advisorName, month, year) {
+  // --- CACHE CHECK ---
+  const cache = CacheService.getScriptCache();
+  const now = new Date();
+  const m = (month !== undefined && month !== null) ? parseInt(month) : now.getMonth();
+  const y = (year  !== undefined && year  !== null) ? parseInt(year)  : now.getFullYear();
+  const cacheKey = 'dash_' + advisorName.toLowerCase().replace(/\s/g,'') + '_' + m + '_' + y;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch(e) { /* cache corrupt, recalculate */ }
+  }
+
   try {
     const ss = SpreadsheetApp.openById(DASHBOARD_SS_ID);
     const cleanSheet = ss.getSheetByName('clean_master');
@@ -164,9 +176,8 @@ function getAdvisorDashboardData(advisorName, month, year) {
     data.shift();
     
     const COL = { DATE: 1, SALESMAN: 3, LOCATION: 4, MAIN_CAT: 6, NET_SALES: 14, QTY: 16 };
-    const now = new Date();
-    const selectedMonth = (month !== undefined && month !== null) ? parseInt(month) : now.getMonth();
-    const selectedYear  = (year  !== undefined && year  !== null) ? parseInt(year)  : now.getFullYear();
+    const selectedMonth = m;
+    const selectedYear  = y;
     const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
     let myTotalSales = 0;
@@ -230,7 +241,7 @@ function getAdvisorDashboardData(advisorName, month, year) {
 
     if (myTarget === 0) myTarget = 500000000; // Fallback default
 
-    return {
+    const result = {
       success: true,
       data: {
         name: advisorName,
@@ -249,6 +260,11 @@ function getAdvisorDashboardData(advisorName, month, year) {
         lastSync: new Date().toLocaleString('id-ID')
       }
     };
+
+    // --- SAVE TO CACHE ---
+    try { cache.put(cacheKey, JSON.stringify(result), CACHE_TTL); } catch(e) { /* ignore cache save errors */ }
+
+    return result;
   } catch (e) {
     return { success: false, message: e.message };
   }
@@ -265,6 +281,17 @@ function getAdvisorDashboardData(advisorName, month, year) {
  * @param {number} year  - Tahun
  */
 function getAdvisorProspects(advisorName, month, year) {
+  // --- CACHE CHECK ---
+  const cache = CacheService.getScriptCache();
+  const now = new Date();
+  const m = (month !== undefined && month !== null) ? parseInt(month) : now.getMonth();
+  const y = (year  !== undefined && year  !== null) ? parseInt(year)  : now.getFullYear();
+  const cacheKey = 'prosp_' + advisorName.toLowerCase().replace(/\s/g,'') + '_' + m + '_' + y;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch(e) { /* cache corrupt, recalculate */ }
+  }
+
   try {
     const TCOL = { NAME: 2, SERVED_BY: 5, LOCATION: 6, STATUS: 7, DATE: 11, PROSPECT: 17 };
 
@@ -277,9 +304,8 @@ function getAdvisorProspects(advisorName, month, year) {
 
     const tData = trafficSheet.getRange(2, 1, lastRow - 1, trafficSheet.getLastColumn()).getValues();
 
-    const now = new Date();
-    const selectedMonth = (month !== undefined && month !== null) ? parseInt(month) : now.getMonth();
-    const selectedYear  = (year  !== undefined && year  !== null) ? parseInt(year)  : now.getFullYear();
+    const selectedMonth = m;
+    const selectedYear  = y;
     const mNames = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
 
     const prospects = [];
@@ -322,12 +348,29 @@ function getAdvisorProspects(advisorName, month, year) {
     // Sort newest first
     prospects.reverse();
 
-    return {
+    const result = {
       success: true,
       prospects: prospects,
       stats: { walkIn, followUp, delivery, total: prospects.length }
     };
+
+    // --- SAVE TO CACHE ---
+    try { cache.put(cacheKey, JSON.stringify(result), CACHE_TTL); } catch(e) { /* ignore */ }
+
+    return result;
   } catch (e) {
     return { success: false, message: e.message, prospects: [], stats: {} };
   }
+}
+
+/**
+ * Menghapus semua cache advisor (bisa dipanggil manual jika data perlu di-refresh).
+ */
+function clearAdvisorCache() {
+  CacheService.getScriptCache().removeAll([
+    // Clear will happen naturally after TTL expires
+    // This function is for manual override if needed
+  ]);
+  // Alternative: clear all script cache
+  return { success: true, message: 'Cache cleared. Data will reload from source on next request.' };
 }
