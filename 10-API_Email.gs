@@ -382,6 +382,13 @@ function sendCRMEmailReport(monthStr, yearStr) {
 
     const totalVisits = status.walkIn + status.followUp + status.delivery;
 
+    // 3. FOOTFALL DATA from footfall sheets
+    let footfall = { kpis: { totalPI: 0, totalPS: 0, combined: 0 }, demographicsPI: { menPct: 0, womenPct: 0 } };
+    try {
+      const ffData = getFootfallData(monthName, year);
+      if (ffData && !ffData.error) footfall = ffData;
+    } catch(e) { console.warn('CRM Email - Footfall error: ' + e.message); }
+
     // BUILD HTML EMAIL — Professional Light Template
     const thBg = '#e8f0fe';
     const thColor = '#1a3a5c';
@@ -414,6 +421,8 @@ function sendCRMEmailReport(monthStr, yearStr) {
           Tercatat <b>${loc.total}</b> total kunjungan dengan rincian 
           <b>${status.walkIn}</b> Walk-In, <b>${status.followUp}</b> Follow-Up, 
           dan <b>${status.delivery}</b> Delivery/Showing.
+          Total Footfall Counter: <b>${footfall.kpis.combined.toLocaleString('id-ID')}</b> 
+          (PI: ${footfall.kpis.totalPI.toLocaleString('id-ID')}, PS: ${footfall.kpis.totalPS.toLocaleString('id-ID')}).
         </p>
 
         <!-- 1. TRAFFIC & PROFILING FUNNEL -->
@@ -504,7 +513,51 @@ function sendCRMEmailReport(monthStr, yearStr) {
           </tr>
         </table>
 
-        <!-- 4. TOP ADVISORS -->
+        <!-- 4. STORE FOOTFALL (Counter) -->
+        <p style="${sectionTitle}">Store Footfall (Counter)</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <th style="${thStyle} text-align:left;">Store</th>
+            <th style="${thStyle} text-align:right;">Footfall</th>
+            <th style="${thStyle} text-align:right;">Share (%)</th>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Plaza Indonesia</td>
+            <td style="${cellBold}">${footfall.kpis.totalPI.toLocaleString('id-ID')}</td>
+            <td style="${cellRight}">${footfall.kpis.combined > 0 ? ((footfall.kpis.totalPI/footfall.kpis.combined)*100).toFixed(1) : '0.0'}%</td>
+          </tr>
+          <tr style="background:${zebraLight};">
+            <td style="${cellStyle}">Plaza Senayan</td>
+            <td style="${cellBold}">${footfall.kpis.totalPS.toLocaleString('id-ID')}</td>
+            <td style="${cellRight}">${footfall.kpis.combined > 0 ? ((footfall.kpis.totalPS/footfall.kpis.combined)*100).toFixed(1) : '0.0'}%</td>
+          </tr>
+          <tr style="background:#eef2ff; font-weight:600;">
+            <td style="${cellStyle}">Total</td>
+            <td style="${cellBold}">${footfall.kpis.combined.toLocaleString('id-ID')}</td>
+            <td style="${cellRight}">100.0%</td>
+          </tr>
+        </table>
+
+        <!-- 4b. DEMOGRAPHICS (PI Only) -->
+        ${footfall.demographicsPI.menPct > 0 || footfall.demographicsPI.womenPct > 0 ? `
+        <p style="${sectionTitle}">Visitor Demographics (Plaza Indonesia)</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <th style="${thStyle} text-align:left;">Gender</th>
+            <th style="${thStyle} text-align:right;">Percentage</th>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Men</td>
+            <td style="${cellBold}">${footfall.demographicsPI.menPct.toFixed(1)}%</td>
+          </tr>
+          <tr style="background:${zebraLight};">
+            <td style="${cellStyle}">Women</td>
+            <td style="${cellBold}">${footfall.demographicsPI.womenPct.toFixed(1)}%</td>
+          </tr>
+        </table>
+        ` : ''}
+
+        <!-- 5. TOP ADVISORS -->
         <p style="${sectionTitle}">Customer Advisors Performance</p>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
           <tr>
@@ -551,6 +604,18 @@ function sendCRMEmailReport(monthStr, yearStr) {
       </div>
     </div>`;
 
+    // BUILD DAILY FOOTFALL CSV ATTACHMENT
+    let csvContent = 'Day,Date,PI In,PI Out,PS In,PS Out,Total In\n';
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const trend = footfall.dailyTrend || [];
+    for (let i = 0; i < daysInMonth; i++) {
+      const d = trend[i] || { PI_In:0, PI_Out:0, PS_In:0, PS_Out:0 };
+      const dateStr = String(i + 1).padStart(2, '0') + '/' + String(monthIndex + 1).padStart(2, '0') + '/' + year;
+      const totalIn = d.PI_In + d.PS_In;
+      csvContent += `${i + 1},${dateStr},${d.PI_In},${d.PI_Out},${d.PS_In},${d.PS_Out},${totalIn}\n`;
+    }
+    const csvBlob = Utilities.newBlob(csvContent, 'text/csv', `Daily_Footfall_${monthName}_${year}.csv`);
+
     // SEND
     const recipients = CONFIG.EMAIL_RECIPIENTS;
     if (!recipients || recipients.length === 0) {
@@ -560,7 +625,8 @@ function sendCRMEmailReport(monthStr, yearStr) {
     MailApp.sendEmail({
       to: recipients.join(","),
       subject: `CRM Performance Report - ${monthName} ${year} | Bvlgari Indonesia`,
-      htmlBody: html
+      htmlBody: html,
+      attachments: [csvBlob]
     });
 
     return { success: true, message: "CRM Report sent to " + recipients.join(", ") };
