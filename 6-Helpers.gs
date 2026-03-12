@@ -692,7 +692,7 @@ function exportJoinedCustomerData() {
   debugSheet.clear();
 
   const headers = [
-    "Trans No", "Date", "System Name (SAP)", "System Phone", 
+    "Trans No", "Date", "System Name (SAP)", "Clean Name", "Salesman", "System Phone", 
     "Matched Name (Profile)", "Match Confidence / Reason", 
     "Profiling Store", "Profiling Job", "Profiling Age", "Net Sales"
   ];
@@ -715,6 +715,16 @@ function exportJoinedCustomerData() {
 
       const custName = String(row[CONFIG.CLEAN_COLS.CUSTOMER] || "").trim();
       if (!custName || custName.toLowerCase() === "customer") return; // Skip walk-ins
+
+      const salesman = String(row[CONFIG.CLEAN_COLS.SALESMAN] || "").trim();
+      
+      // Clean Name: remove titles (Mr, Mrs, Ms, Miss, Mdm, Madam, Ibu, Bpk, Bapak, Ny, Tn, Dr, Prof, H, Hj)
+      // and punctuation (., ,, !, etc)
+      const cleanName = custName
+        .replace(/\b(mr|mrs|ms|miss|mdm|madam|ibu|bpk|bapak|ny|tn|dr|prof|sir|lady|h|hj)\b[.\s]*/gi, '')
+        .replace(/[^a-zA-Z\s'-]/g, '')  // Keep letters, spaces, hyphens, apostrophes
+        .replace(/\s{2,}/g, ' ')        // Collapse multiple spaces
+        .trim();
 
       const phoneStr = String(row[CONFIG.CLEAN_COLS.PHONE] || "").trim();
       const net = Number(row[CONFIG.CLEAN_COLS.NET_SALES]) || 0;
@@ -771,7 +781,7 @@ function exportJoinedCustomerData() {
       }
 
       exportData.push([
-          transNo, dateStr, custName, `'${phoneStr}`,
+          transNo, dateStr, custName, cleanName, salesman, `'${phoneStr}`,
           matchedProfile ? matchedProfile.name : "-",
           matchType,
           matchedProfile ? matchedProfile.store : "-",
