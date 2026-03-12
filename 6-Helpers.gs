@@ -694,13 +694,37 @@ function exportJoinedCustomerData() {
   const headers = [
     "Trans No", "Date", "System Name (SAP)", "Clean Name", "Salesman", "System Phone", 
     "Matched Name (Profile)", "Match Confidence / Reason", 
-    "Profiling Store", "Profiling Job", "Profiling Age", "Net Sales"
+    "Profiling Store", "Profiling Job", "Profiling Age", "Net Sales",
+    "Traffic Status (CRM)"
   ];
   debugSheet.appendRow(headers);
 
   // Load Profiling Memory Hash
   const profilesMap = loadCustomerProfiles();
   if (!profilesMap.success) throw new Error("Gagal meload Profil Pelanggan: " + profilesMap.error);
+
+  // Load Traffic Data for CRM Status matching (Name -> { prospectLevel, status, date })
+  const trafficNameMap = new Map();
+  try {
+    const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+    const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+    if (trafficSheet && trafficSheet.getLastRow() > 1) {
+      const tData = trafficSheet.getRange(2, 1, trafficSheet.getLastRow() - 1, trafficSheet.getLastColumn()).getValues();
+      const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
+      tData.forEach(tRow => {
+        const tName = String(tRow[TCOL.NAME] || "").trim().toLowerCase();
+        if (!tName) return;
+        const prospect = String(tRow[TCOL.PROSPECT] || "").trim();
+        const tStatus = String(tRow[TCOL.STATUS] || "").trim();
+        // Keep the latest / most relevant entry (Penjualan Berhasil takes priority)
+        if (!trafficNameMap.has(tName) || prospect.toLowerCase().includes('berhasil')) {
+          trafficNameMap.set(tName, { prospect: prospect, status: tStatus });
+        }
+      });
+    }
+  } catch(e) {
+    console.error("Failed to load Traffic for CRM matching: " + e.message);
+  }
 
   const cleanData = cleanSheet.getDataRange().getValues();
   cleanData.shift(); // Remove headers
@@ -780,6 +804,10 @@ function exportJoinedCustomerData() {
           }
       }
 
+      // Look up Traffic CRM Status by customer name
+      const trafficEntry = trafficNameMap.get(custName.toLowerCase());
+      const trafficStatus = trafficEntry ? trafficEntry.prospect : "-";
+
       exportData.push([
           transNo, dateStr, custName, cleanName, salesman, `'${phoneStr}`,
           matchedProfile ? matchedProfile.name : "-",
@@ -787,7 +815,8 @@ function exportJoinedCustomerData() {
           matchedProfile ? matchedProfile.store : "-",
           matchedProfile ? matchedProfile.job : "-",
           matchedProfile ? matchedProfile.age : "-",
-          net
+          net,
+          trafficStatus
       ]);
   });
 
