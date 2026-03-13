@@ -1118,17 +1118,19 @@ function syncCleanNamesToProfiling() {
 }
 
 /**
- * CLEAN TITLES IN FORM PROFILING & TRAFFIC
- * =========================================
- * Removes titles (Mr, Mrs, Ms, Miss, Mdm, Ibu, Bpk, etc.)
+ * CLEAN TITLES IN ALL SHEETS (PROFILING, TRAFFIC, RAW, CLEAN)
+ * ==============================================================
+ * Removes titles (Mr, Mrs, Ms, Miss, Mdm, Ibu, Bpk, dll)
  * and adjacent punctuation directly from customer names in:
  *   1. Form Profiling → Column E (Name)
- *   2. Traffic → Column C (Name)
+ *   2. Traffic        → Column C (Name)
+ *   3. raw_system     → Column C (Customer)
+ *   4. clean_master   → Column C (Customer)
  *
  * SAFETY: Creates backup sheets before making any changes.
  * RUN: Execute manually from Apps Script editor.
  */
-function cleanTitlesInProfilingAndTraffic() {
+function cleanTitlesAllSheets() {
   
   // Reusable function to clean a single name
   function removeTitles(name) {
@@ -1141,13 +1143,15 @@ function cleanTitlesInProfilingAndTraffic() {
       .trim();
   }
 
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
 
   // ========== STEP 1: Clean Form Profiling (Column E = index 4) ==========
   let profilingCleaned = 0;
   const profilingSheet = extSS.getSheetByName(CONFIG.EXTERNAL.PROFILING_SHEET_NAME);
   if (profilingSheet && profilingSheet.getLastRow() > 1) {
-    const backupName = "BACKUP_CleanTitle_Profiling_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+    const backupName = "BACKUP_CleanTitle_Profiling_" + nowStr;
     profilingSheet.copyTo(extSS).setName(backupName);
     console.log("✅ Backup created: " + backupName);
 
@@ -1170,7 +1174,7 @@ function cleanTitlesInProfilingAndTraffic() {
   let trafficCleaned = 0;
   const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
   if (trafficSheet && trafficSheet.getLastRow() > 1) {
-    const backupName = "BACKUP_CleanTitle_Traffic_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+    const backupName = "BACKUP_CleanTitle_Traffic_" + nowStr;
     trafficSheet.copyTo(extSS).setName(backupName);
     console.log("✅ Backup created: " + backupName);
 
@@ -1189,10 +1193,58 @@ function cleanTitlesInProfilingAndTraffic() {
     }
   }
 
-  const summary = `✅ Clean Titles selesai!\n` +
+  // ========== STEP 3: Clean raw_system (Column C = index 2) ==========
+  let rawCleaned = 0;
+  const rawSheet = ss.getSheetByName(CONFIG.SHEETS.RAW);
+  if (rawSheet && rawSheet.getLastRow() > 1) {
+    const backupName = "BACKUP_CleanTitle_Raw_" + nowStr;
+    rawSheet.copyTo(ss).setName(backupName);
+    console.log("✅ Backup created: " + backupName);
+
+    const rawData = rawSheet.getDataRange().getValues();
+    const CUST_COL = CONFIG.RAW_COLS.CUSTOMER; // Index 2 = Column C
+
+    for (let i = 1; i < rawData.length; i++) {
+      const oldName = String(rawData[i][CUST_COL] || "").trim();
+      if (!oldName) continue;
+
+      const cleanedName = removeTitles(oldName);
+      if (cleanedName !== oldName && cleanedName.length > 0) {
+        rawSheet.getRange(i + 1, CUST_COL + 1).setValue(cleanedName);
+        rawCleaned++;
+      }
+    }
+  }
+
+  // ========== STEP 4: Clean clean_master (Column C = index 2) ==========
+  let cleanMasterCleaned = 0;
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  if (cleanSheet && cleanSheet.getLastRow() > 1) {
+    const backupName = "BACKUP_CleanTitle_CleanMaster_" + nowStr;
+    cleanSheet.copyTo(ss).setName(backupName);
+    console.log("✅ Backup created: " + backupName);
+
+    const cleanData = cleanSheet.getDataRange().getValues();
+    const CUST_COL = CONFIG.CLEAN_COLS.CUSTOMER; // Index 2 = Column C
+
+    for (let i = 1; i < cleanData.length; i++) {
+      const oldName = String(cleanData[i][CUST_COL] || "").trim();
+      if (!oldName) continue;
+
+      const cleanedName = removeTitles(oldName);
+      if (cleanedName !== oldName && cleanedName.length > 0) {
+        cleanSheet.getRange(i + 1, CUST_COL + 1).setValue(cleanedName);
+        cleanMasterCleaned++;
+      }
+    }
+  }
+
+  const summary = `✅ Clean Titles selesai untuk SEMUA Sheet!\n` +
     `🧹 Form Profiling: ${profilingCleaned} nama dibersihkan\n` +
-    `🧹 Traffic: ${trafficCleaned} nama dibersihkan\n` +
-    `💾 Backup sheet sudah dibuat otomatis.`;
+    `🧹 Traffic:        ${trafficCleaned} nama dibersihkan\n` +
+    `🧹 RAW System:     ${rawCleaned} nama dibersihkan\n` +
+    `🧹 Clean Master:   ${cleanMasterCleaned} nama dibersihkan\n` +
+    `💾 4 Backup sheet sudah dibuat otomatis.`;
 
   console.log(summary);
   return summary;
