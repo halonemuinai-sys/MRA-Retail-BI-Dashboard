@@ -827,11 +827,12 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; table-layout: fixed;">
           <tr>
             <th style="${thStyle} text-align:center; width:6%;">No</th>
-            <th style="${thStyle} text-align:left; width:24%;">Advisor</th>
-            <th style="${thStyle} text-align:left; width:18%;">Store</th>
+            <th style="${thStyle} text-align:left; width:28%;">Advisor</th>
+            <th style="${thStyle} text-align:left; width:8%;">Store</th>
             <th style="${thStyle} text-align:right; width:20%;">YTD Sales</th>
-            <th style="${thStyle} text-align:right; width:20%;">YTD Target</th>
-            <th style="${thStyle} text-align:right; width:12%;">Achv %</th>
+            <th style="${thStyle} text-align:right; width:18%;">YTD Target</th>
+            <th style="${thStyle} text-align:right; width:10%;">Achv %</th>
+            <th style="${thStyle} width:10%;"></th>
           </tr>`;
 
       filteredAnnual.forEach((adv, idx) => {
@@ -845,6 +846,7 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
             <td style="${cellBold}">${formatMoneyIdrEmail(adv.netSales)}</td>
             <td style="${cellRight}">${formatMoneyIdrEmail(adv.target)}</td>
             <td style="${cellRight} font-weight:600; color:${achvColor};">${adv.achievement.toFixed(1)}%</td>
+            <td style="${cellStyle}"></td>
           </tr>`;
       });
 
@@ -857,6 +859,7 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
             <td style="${cellBold} font-weight:700; color:#1a3a5c;">${formatMoneyIdrEmail(ytdTotalSales)}</td>
             <td style="${cellRight} font-weight:700;">${formatMoneyIdrEmail(ytdTotalTarget)}</td>
             <td style="${cellRight} font-weight:700; color:${ytdAchvColor};">${ytdAchv.toFixed(1)}%</td>
+            <td style="${cellStyle}"></td>
           </tr>`;
 
       html += `</table>`;
