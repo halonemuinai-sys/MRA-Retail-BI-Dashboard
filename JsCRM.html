@@ -231,7 +231,7 @@
             if (!tbody) return;
 
             if (data.rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-16 text-center text-slate-400 italic text-xs">Tidak ada data prospek untuk filter ini.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="py-16 text-center text-slate-400 italic text-xs">Tidak ada data prospek untuk filter ini.</td></tr>`;
                 return;
             }
 
@@ -255,6 +255,7 @@
                     <td class="py-2.5 px-4 text-slate-500">${row.servedBy}</td>
                     <td class="py-2.5 px-4 text-slate-500">${row.status}</td>
                     <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${pColor}">${row.prospectLevel}</span></td>
+                    <td class="py-2.5 px-4 text-right font-mono font-bold text-brand-dark">${HELPERS.formatIDR(row.netSales || 0)}</td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -273,7 +274,7 @@
 
             // BOM for Excel UTF-8 compatibility
             let csv = '\uFEFF';
-            csv += 'No,Tanggal,Nama Lengkap,Lokasi Store,Served By,Status Kedatangan,Prospek Level\n';
+            csv += 'No,Tanggal,Nama Lengkap,Lokasi Store,Served By,Status Kedatangan,Prospek Level,Net Sales (After Tax)\n';
 
             const rows = tbody.querySelectorAll('tr');
             rows.forEach((tr, idx) => {

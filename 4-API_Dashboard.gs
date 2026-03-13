@@ -1014,7 +1014,8 @@ function getTrafficProspectData(month, year, location, prospectLevel, status) {
         location: loc || '-',
         servedBy: String(row[TCOL.SERVED_BY] || '-').trim(),
         status: rowStatus || '-',
-        prospectLevel: prospect || '-'
+        prospectLevel: prospect || '-',
+        netSales: Number(row[TCOL.NET_SALES]) || 0
       });
     });
 

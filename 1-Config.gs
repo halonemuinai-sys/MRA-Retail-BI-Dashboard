@@ -46,7 +46,8 @@ const CONFIG = {
       LOCATION: 6,  // Index 6 = Kolom G (Lokasi Store)
       STATUS: 7,    // Index 7 = Kolom H (Status Kedatangan)
       DATE: 11,     // Index 11 = Kolom L (Tanggal Berkunjung)
-      PROSPECT: 17  // Index 17 = Kolom R (Prospek Level)
+      PROSPECT: 17, // Index 17 = Kolom R (Prospek Level)
+      NET_SALES: 35 // Index 35 = Kolom AJ (Net Sales After Tax)
     }
   },
   // Mapping Kolom Data Mentah (Source)
