@@ -582,17 +582,6 @@ function sendCRMEmailReport(monthStr, yearStr) {
     html += `
         </table>
 
-        <!-- DASHBOARD LINK -->
-        <p style="margin: 28px 0 8px 0; font-size: 13px; color: #374151;">
-          For detailed analysis, please access the full dashboard:
-        </p>
-        <p style="margin: 0 0 24px 0;">
-          <a href="https://script.google.com/macros/s/AKfycbze-dmRcWkRsbBx9qdnWe1c6DatoawhFS2cvrgG0el7AOy4BTfxLaVw91PcD4C9NrMS_w/exec" 
-             style="color: #2563EB; font-size: 13px; font-weight: 600; text-decoration: underline;">
-            Open Bvlgari BI Dashboard
-          </a>
-        </p>
-
         <!-- FOOTER -->
         <div style="border-top: 1px solid #e5e7eb; padding-top: 14px; margin-top: 8px;">
           <p style="font-size: 11px; color: #9ca3af; margin: 0; line-height: 1.5;">
