@@ -680,8 +680,11 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
     let annualData = [];
     try { annualData = getAnnualAdvisorData(parseInt(year)) || []; } catch(e) { console.warn("Annual data fetch failed: " + e.message); }
 
-    // 3. Filter: exclude advisors with target = 0 (MTD)
-    const filteredAdvisors = advisors.filter(adv => (adv.target || 0) > 0);
+    // 3. Filter: exclude advisors with target = 0 or no target (MTD)
+    const filteredAdvisors = advisors.filter(adv => {
+      const t = Number(adv.target);
+      return !isNaN(t) && t > 0;
+    });
 
     // Group by store
     const grouped = {};
@@ -809,7 +812,10 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
     }
 
     // ANNUAL (YTD) TABLE — exclude target = 0
-    const filteredAnnual = annualData.filter(adv => (adv.target || 0) > 0);
+    const filteredAnnual = annualData.filter(adv => {
+      const t = Number(adv.target);
+      return !isNaN(t) && t > 0;
+    });
     if (filteredAnnual.length > 0) {
       // YTD Grand Totals
       let ytdTotalSales = 0, ytdTotalTarget = 0;
