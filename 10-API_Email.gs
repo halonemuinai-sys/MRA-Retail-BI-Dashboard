@@ -769,15 +769,15 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
 
         html += `
         <p style="font-size:13px; font-weight:600; color:#374151; margin:18px 0 8px 0;">${storeName} <span style="color:#9ca3af; font-weight:400;">(${advList.length} advisors)</span></p>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; table-layout: fixed;">
           <tr>
-            <th style="${thStyle} text-align:center; width:30px;">No</th>
-            <th style="${thStyle} text-align:left;">Advisor</th>
-            <th style="${thStyle} text-align:right;">Trx</th>
-            <th style="${thStyle} text-align:right;">Net Sales</th>
-            <th style="${thStyle} text-align:right;">Target</th>
-            <th style="${thStyle} text-align:right;">Achv %</th>
-            <th style="${thStyle} text-align:right;">Contrib %</th>
+            <th style="${thStyle} text-align:center; width:6%;">No</th>
+            <th style="${thStyle} text-align:left; width:28%;">Advisor</th>
+            <th style="${thStyle} text-align:right; width:8%;">Trx</th>
+            <th style="${thStyle} text-align:right; width:20%;">Net Sales</th>
+            <th style="${thStyle} text-align:right; width:18%;">Target</th>
+            <th style="${thStyle} text-align:right; width:10%;">Achv %</th>
+            <th style="${thStyle} text-align:right; width:10%;">Contrib %</th>
           </tr>`;
 
         advList.forEach((adv, idx) => {
@@ -824,14 +824,14 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
 
       html += `
         <p style="${sectionTitle} margin-top:28px;">Year-To-Date (YTD) Performance ${year}</p>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; table-layout: fixed;">
           <tr>
-            <th style="${thStyle} text-align:center; width:30px;">No</th>
-            <th style="${thStyle} text-align:left;">Advisor</th>
-            <th style="${thStyle} text-align:left;">Store</th>
-            <th style="${thStyle} text-align:right;">YTD Sales</th>
-            <th style="${thStyle} text-align:right;">YTD Target</th>
-            <th style="${thStyle} text-align:right;">Achv %</th>
+            <th style="${thStyle} text-align:center; width:6%;">No</th>
+            <th style="${thStyle} text-align:left; width:24%;">Advisor</th>
+            <th style="${thStyle} text-align:left; width:18%;">Store</th>
+            <th style="${thStyle} text-align:right; width:20%;">YTD Sales</th>
+            <th style="${thStyle} text-align:right; width:20%;">YTD Target</th>
+            <th style="${thStyle} text-align:right; width:12%;">Achv %</th>
           </tr>`;
 
       filteredAnnual.forEach((adv, idx) => {
