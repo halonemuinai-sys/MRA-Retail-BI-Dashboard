@@ -656,3 +656,201 @@ function testMailPermission() {
   
   Logger.log("Test Email berhasil dikirim ke: " + recipients.join(","));
 }
+
+/**
+ * ======================================================================
+ * ADVISOR PERFORMANCE EMAIL REPORT
+ * ======================================================================
+ * Triggered from Dashboard UI button "Send Advisor Email".
+ * Builds and sends a professional email summarizing advisor performance
+ * for a given month/year, grouped by store.
+ */
+function triggerAdvisorEmailManual(monthStr, yearStr) {
+  try {
+    const now = new Date();
+    const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const month = monthStr || mNames[now.getMonth()];
+    const year = yearStr || String(now.getFullYear());
+
+    // 1. Get Monthly Advisor Data (reuse existing API)
+    const monthlyResult = getAdvisorReportData(month, year);
+    const advisors = monthlyResult.advisors || [];
+
+    // 2. Get Annual (YTD) Data
+    let annualData = [];
+    try { annualData = getAnnualAdvisorData(parseInt(year)) || []; } catch(e) { console.warn("Annual data fetch failed: " + e.message); }
+
+    // 3. Group advisors by store
+    const grouped = {};
+    advisors.forEach(adv => {
+      const loc = (adv.location || "Unknown").trim();
+      if (!grouped[loc]) grouped[loc] = [];
+      grouped[loc].push(adv);
+    });
+
+    // Sort each group by achievement desc
+    Object.keys(grouped).forEach(loc => {
+      grouped[loc].sort((a, b) => b.achievement - a.achievement);
+    });
+
+    const priorityStores = ["Plaza Indonesia", "Plaza Senayan", "Bali"];
+    const storeOrder = Object.keys(grouped).sort((a, b) => {
+      const idxA = priorityStores.indexOf(a);
+      const idxB = priorityStores.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    // 4. Build HTML Email
+    const thBg = '#e8f0fe';
+    const thColor = '#1a3a5c';
+    const borderColor = '#d6e4f0';
+    const zebraLight = '#f5f8fc';
+    const sectionTitle = 'font-size:14px; font-weight:600; color:#1a3a5c; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 12px 0;';
+    const cellStyle = `padding:8px 12px; border:1px solid ${borderColor}; font-size:12px;`;
+    const cellRight = `${cellStyle} text-align:right;`;
+    const cellBold = `${cellRight} font-weight:600;`;
+    const thStyle = `padding:8px 12px; border:1px solid ${borderColor}; color:${thColor}; background:${thBg}; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;`;
+
+    const getColor = (pct) => {
+      if (pct >= 100) return '#059669';
+      if (pct >= 80)  return '#2563eb';
+      if (pct >= 50)  return '#d97706';
+      return '#dc2626';
+    };
+
+    let html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; color: #333333; max-width: 700px; margin: 0 auto; background: #ffffff;">
+      
+      <!-- HEADER -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0f5fb; border-bottom: 3px solid #4a90d9;">
+        <tr>
+          <td style="padding: 24px 28px;">
+            <p style="color: #1a3a5c; font-size: 18px; font-weight: 700; margin: 0 0 2px 0;">Advisor Performance Report</p>
+            <p style="color: #6b8db5; font-size: 12px; margin: 0;">Period: ${month} ${year} &mdash; Bvlgari Indonesia</p>
+          </td>
+        </tr>
+      </table>
+
+      <div style="padding: 24px 28px;">
+
+        <p style="font-size: 13px; color: #374151; line-height: 1.6; margin: 0 0 24px 0;">
+          Dear All,<br><br>
+          Berikut ringkasan performa Advisor untuk periode <b>${month} ${year}</b>.
+          Total <b>${advisors.length}</b> advisors tercatat aktif pada periode ini.
+        </p>
+
+        <!-- MONTHLY PERFORMANCE BY STORE -->
+        <p style="${sectionTitle}">Monthly Advisor Performance</p>`;
+
+    if (storeOrder.length === 0) {
+      html += `<p style="color:#9ca3af; font-style:italic; font-size:13px;">No advisor data available for this period.</p>`;
+    } else {
+      storeOrder.forEach(storeName => {
+        const advList = grouped[storeName];
+        html += `
+        <p style="font-size:13px; font-weight:600; color:#374151; margin:18px 0 8px 0;">${storeName} <span style="color:#9ca3af; font-weight:400;">(${advList.length} advisors)</span></p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+          <tr>
+            <th style="${thStyle} text-align:center; width:30px;">No</th>
+            <th style="${thStyle} text-align:left;">Advisor</th>
+            <th style="${thStyle} text-align:right;">Trx</th>
+            <th style="${thStyle} text-align:right;">Net Sales</th>
+            <th style="${thStyle} text-align:right;">Target</th>
+            <th style="${thStyle} text-align:right;">Achv %</th>
+            <th style="${thStyle} text-align:right;">Contrib %</th>
+          </tr>`;
+
+        advList.forEach((adv, idx) => {
+          const bg = idx % 2 !== 0 ? `background:${zebraLight};` : '';
+          const achvColor = getColor(adv.achievement);
+          html += `
+          <tr style="${bg}">
+            <td style="${cellStyle} text-align:center; font-weight:600;">${idx + 1}</td>
+            <td style="${cellStyle}">${adv.name}</td>
+            <td style="${cellRight}">${adv.transCount || 0}</td>
+            <td style="${cellBold}">${formatMoneyIdrEmail(adv.netSales)}</td>
+            <td style="${cellRight}">${formatMoneyIdrEmail(adv.target)}</td>
+            <td style="${cellRight} font-weight:600; color:${achvColor};">${adv.achievement.toFixed(1)}%</td>
+            <td style="${cellRight}">${adv.contribution.toFixed(1)}%</td>
+          </tr>`;
+        });
+
+        html += `</table>`;
+      });
+    }
+
+    // ANNUAL (YTD) TABLE
+    if (annualData.length > 0) {
+      html += `
+        <p style="${sectionTitle} margin-top:28px;">Year-To-Date (YTD) Performance ${year}</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr>
+            <th style="${thStyle} text-align:center; width:30px;">No</th>
+            <th style="${thStyle} text-align:left;">Advisor</th>
+            <th style="${thStyle} text-align:left;">Store</th>
+            <th style="${thStyle} text-align:right;">YTD Sales</th>
+            <th style="${thStyle} text-align:right;">YTD Target</th>
+            <th style="${thStyle} text-align:right;">Achv %</th>
+          </tr>`;
+
+      annualData.forEach((adv, idx) => {
+        const bg = idx % 2 !== 0 ? `background:${zebraLight};` : '';
+        const achvColor = getColor(adv.achievement);
+        html += `
+          <tr style="${bg}">
+            <td style="${cellStyle} text-align:center; font-weight:600;">${idx + 1}</td>
+            <td style="${cellStyle}">${adv.name}</td>
+            <td style="${cellStyle}">${adv.location || '-'}</td>
+            <td style="${cellBold}">${formatMoneyIdrEmail(adv.netSales)}</td>
+            <td style="${cellRight}">${formatMoneyIdrEmail(adv.target)}</td>
+            <td style="${cellRight} font-weight:600; color:${achvColor};">${adv.achievement.toFixed(1)}%</td>
+          </tr>`;
+      });
+
+      html += `</table>`;
+    }
+
+    html += `
+        <!-- DASHBOARD LINK -->
+        <p style="margin: 28px 0 8px 0; font-size: 13px; color: #374151;">
+          For detailed analysis, please access the full dashboard:
+        </p>
+        <p style="margin: 0 0 24px 0;">
+          <a href="https://script.google.com/macros/s/AKfycbze-dmRcWkRsbBx9qdnWe1c6DatoawhFS2cvrgG0el7AOy4BTfxLaVw91PcD4C9NrMS_w/exec" 
+             style="color: #2563EB; font-size: 13px; font-weight: 600; text-decoration: underline;">
+            Open Bvlgari BI Dashboard
+          </a>
+        </p>
+
+        <!-- FOOTER -->
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 14px; margin-top: 8px;">
+          <p style="font-size: 11px; color: #9ca3af; margin: 0; line-height: 1.5;">
+            This report was automatically generated by the Bvlgari Intelligence Dashboard<br>
+            ${new Date().toLocaleString('id-ID')} &mdash; MRA Retail Indonesia
+          </p>
+        </div>
+
+      </div>
+    </div>`;
+
+    // 5. Send Email
+    const recipients = CONFIG.EMAIL_RECIPIENTS;
+    if (!recipients || recipients.length === 0) {
+      return { success: false, message: "No email recipients configured in Config." };
+    }
+
+    MailApp.sendEmail({
+      to: recipients.join(","),
+      subject: `Advisor Performance Report - ${month} ${year} | Bvlgari Indonesia`,
+      htmlBody: html
+    });
+
+    return { success: true, message: `Advisor Performance Report sent to ${recipients.join(", ")}` };
+
+  } catch(e) {
+    return { success: false, message: e.message };
+  }
+}
