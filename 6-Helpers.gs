@@ -1076,7 +1076,7 @@ function syncCleanNamesToProfiling() {
     }
   }
   
-  // ========== STEP 4: Update Traffic (by Original SAP Name) ==========
+  // ========== STEP 4: Update Traffic (by Phone, Column N = index 13) ==========
   let trafficUpdated = 0;
   const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
   if (trafficSheet && trafficSheet.getLastRow() > 1) {
@@ -1087,13 +1087,16 @@ function syncCleanNamesToProfiling() {
     
     const trafData = trafficSheet.getDataRange().getValues();
     const TRAF_NAME_COL = CONFIG.EXTERNAL.TRAFFIC_COLS.NAME; // Index 2 = Kolom C
+    const TRAF_PHONE_COL = 13; // Kolom N (0-based index)
     
     for (let i = 1; i < trafData.length; i++) { // Skip header
-      const oldName = String(trafData[i][TRAF_NAME_COL] || "").trim();
-      if (!oldName) continue;
+      const rawPhone = String(trafData[i][TRAF_PHONE_COL] || "").replace(/'/g, '').replace(/\D/g, '');
+      if (rawPhone.length < 8) continue;
       
-      if (sapNameToCleanName.has(oldName.toLowerCase())) {
-        const newName = sapNameToCleanName.get(oldName.toLowerCase());
+      const suffix = rawPhone.slice(-8);
+      if (phoneToCleanName.has(suffix)) {
+        const newName = phoneToCleanName.get(suffix);
+        const oldName = String(trafData[i][TRAF_NAME_COL] || "").trim();
         
         // Only update if name is actually different
         if (oldName.toLowerCase() !== newName.toLowerCase() && newName.length > 0) {
