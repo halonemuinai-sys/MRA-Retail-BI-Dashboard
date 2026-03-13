@@ -981,4 +981,135 @@ function exportTrafficSummary() {
   }
 
   return `Sukses! Berhasil merekap ${outputRows.length} baris data Traffic (2023-2026) ke dalam sheet Traffic_Summary.`;
-}
+}
+
+/**
+ * SYNC CLEAN NAMES TO PROFILING & TRAFFIC
+ * ========================================
+ * Reads "Phone Match (Akurat)" entries from Joined_Customer_Debug,
+ * then updates the customer name in:
+ *   1. Form Profiling (matched by phone, last 8 digits)
+ *   2. Traffic (matched by original SAP name, case-insensitive)
+ *
+ * SAFETY: Creates backup sheets before making any changes.
+ * RUN: Execute manually from Apps Script editor.
+ */
+function syncCleanNamesToProfiling() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // ========== STEP 1: Read Joined_Customer_Debug ==========
+  const debugSheet = ss.getSheetByName("Joined_Customer_Debug");
+  if (!debugSheet) throw new Error("Sheet Joined_Customer_Debug belum ada. Jalankan exportJoinedCustomerData() dulu.");
+  
+  const debugData = debugSheet.getDataRange().getValues();
+  if (debugData.length < 2) throw new Error("Joined_Customer_Debug kosong.");
+  debugData.shift(); // Remove headers
+  
+  // Column indices in Joined_Customer_Debug:
+  // 0: Trans No, 1: Date, 2: System Name (SAP), 3: Clean Name, 4: Salesman, 
+  // 5: System Phone, 6: Matched Name, 7: Match Confidence, ...
+  const DEBUG_COL = { SAP_NAME: 2, CLEAN_NAME: 3, PHONE: 5, CONFIDENCE: 7 };
+  
+  // Filter: only "Phone Match (Akurat)" rows with a valid Clean Name
+  const phoneMatchRows = debugData.filter(row => {
+    const confidence = String(row[DEBUG_COL.CONFIDENCE] || "");
+    const cleanName = String(row[DEBUG_COL.CLEAN_NAME] || "").trim();
+    return confidence.includes("Phone Match") && confidence.includes("Akurat") && cleanName.length > 0;
+  });
+  
+  if (phoneMatchRows.length === 0) {
+    return "Tidak ada data Phone Match (Akurat) yang ditemukan di Joined_Customer_Debug.";
+  }
+  
+  // Build lookup maps from debug data
+  // phoneToCleanName: phone suffix (8 digits) -> Clean Name
+  // sapNameToCleanName: original SAP name (lowercase) -> Clean Name
+  const phoneToCleanName = new Map();
+  const sapNameToCleanName = new Map();
+  
+  phoneMatchRows.forEach(row => {
+    const cleanName = String(row[DEBUG_COL.CLEAN_NAME]).trim();
+    const phone = String(row[DEBUG_COL.PHONE] || "").replace(/'/g, '').replace(/\D/g, '');
+    const sapName = String(row[DEBUG_COL.SAP_NAME] || "").trim();
+    
+    if (phone.length >= 8) {
+      phoneToCleanName.set(phone.slice(-8), cleanName);
+    }
+    if (sapName) {
+      sapNameToCleanName.set(sapName.toLowerCase(), cleanName);
+    }
+  });
+  
+  console.log(`📊 Found ${phoneMatchRows.length} Phone Match rows. Phone map: ${phoneToCleanName.size}, Name map: ${sapNameToCleanName.size}`);
+  
+  // ========== STEP 2: Open External Profiling Spreadsheet ==========
+  const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+  
+  // ========== STEP 3: Update Form Profiling (by Phone) ==========
+  let profilingUpdated = 0;
+  const profilingSheet = extSS.getSheetByName(CONFIG.EXTERNAL.PROFILING_SHEET_NAME);
+  if (profilingSheet && profilingSheet.getLastRow() > 1) {
+    // Create backup
+    const backupName = "BACKUP_FormProfiling_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+    profilingSheet.copyTo(extSS).setName(backupName);
+    console.log("✅ Backup created: " + backupName);
+    
+    const profData = profilingSheet.getDataRange().getValues();
+    const PROF_NAME_COL = CONFIG.EXTERNAL.COLS.NAME;      // Index 4 = Kolom E
+    const PROF_PHONE_COL = CONFIG.EXTERNAL.COLS.PHONE;    // Index 16 = Kolom Q
+    
+    for (let i = 1; i < profData.length; i++) { // Skip header
+      const rawPhone = String(profData[i][PROF_PHONE_COL] || "").replace(/\D/g, '');
+      if (rawPhone.length < 8) continue;
+      
+      const suffix = rawPhone.slice(-8);
+      if (phoneToCleanName.has(suffix)) {
+        const newName = phoneToCleanName.get(suffix);
+        const oldName = String(profData[i][PROF_NAME_COL] || "").trim();
+        
+        // Only update if name is actually different
+        if (oldName.toLowerCase() !== newName.toLowerCase() && newName.length > 0) {
+          profilingSheet.getRange(i + 1, PROF_NAME_COL + 1).setValue(newName); // +1 for 1-based index
+          profilingUpdated++;
+        }
+      }
+    }
+  }
+  
+  // ========== STEP 4: Update Traffic (by Original SAP Name) ==========
+  let trafficUpdated = 0;
+  const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+  if (trafficSheet && trafficSheet.getLastRow() > 1) {
+    // Create backup
+    const backupName = "BACKUP_Traffic_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+    trafficSheet.copyTo(extSS).setName(backupName);
+    console.log("✅ Backup created: " + backupName);
+    
+    const trafData = trafficSheet.getDataRange().getValues();
+    const TRAF_NAME_COL = CONFIG.EXTERNAL.TRAFFIC_COLS.NAME; // Index 2 = Kolom C
+    
+    for (let i = 1; i < trafData.length; i++) { // Skip header
+      const oldName = String(trafData[i][TRAF_NAME_COL] || "").trim();
+      if (!oldName) continue;
+      
+      if (sapNameToCleanName.has(oldName.toLowerCase())) {
+        const newName = sapNameToCleanName.get(oldName.toLowerCase());
+        
+        // Only update if name is actually different
+        if (oldName.toLowerCase() !== newName.toLowerCase() && newName.length > 0) {
+          trafficSheet.getRange(i + 1, TRAF_NAME_COL + 1).setValue(newName); // +1 for 1-based index
+          trafficUpdated++;
+        }
+      }
+    }
+  }
+  
+  const summary = `✅ Sync selesai!\n` +
+    `📋 Data Phone Match (Akurat): ${phoneMatchRows.length} baris\n` +
+    `🔄 Form Profiling diperbarui: ${profilingUpdated} nama\n` +
+    `🔄 Traffic diperbarui: ${trafficUpdated} nama\n` +
+    `💾 Backup sheet sudah dibuat otomatis.`;
+  
+  console.log(summary);
+  return summary;
+}
