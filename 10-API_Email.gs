@@ -680,9 +680,12 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
     let annualData = [];
     try { annualData = getAnnualAdvisorData(parseInt(year)) || []; } catch(e) { console.warn("Annual data fetch failed: " + e.message); }
 
-    // 3. Group advisors by store
+    // 3. Filter: exclude advisors with target = 0 (MTD)
+    const filteredAdvisors = advisors.filter(adv => (adv.target || 0) > 0);
+
+    // Group by store
     const grouped = {};
-    advisors.forEach(adv => {
+    filteredAdvisors.forEach(adv => {
       const loc = (adv.location || "Unknown").trim();
       if (!grouped[loc]) grouped[loc] = [];
       grouped[loc].push(adv);
@@ -739,7 +742,7 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
         <p style="font-size: 13px; color: #374151; line-height: 1.6; margin: 0 0 24px 0;">
           Dear All,<br><br>
           Berikut ringkasan performa Advisor untuk periode <b>${month} ${year}</b>.
-          Total <b>${advisors.length}</b> advisors tercatat aktif pada periode ini.
+          Total <b>${filteredAdvisors.length}</b> advisors tercatat aktif pada periode ini (exclude non-target).
         </p>
 
         <!-- MONTHLY PERFORMANCE BY STORE -->
@@ -750,6 +753,17 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
     } else {
       storeOrder.forEach(storeName => {
         const advList = grouped[storeName];
+
+        // Calculate store totals
+        let storeTotalSales = 0, storeTotalTarget = 0, storeTotalTrx = 0;
+        advList.forEach(adv => {
+          storeTotalSales += adv.netSales || 0;
+          storeTotalTarget += adv.target || 0;
+          storeTotalTrx += adv.transCount || 0;
+        });
+        const storeAchv = storeTotalTarget > 0 ? (storeTotalSales / storeTotalTarget) * 100 : 0;
+        const storeAchvColor = getColor(storeAchv);
+
         html += `
         <p style="font-size:13px; font-weight:600; color:#374151; margin:18px 0 8px 0;">${storeName} <span style="color:#9ca3af; font-weight:400;">(${advList.length} advisors)</span></p>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
@@ -778,12 +792,30 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
           </tr>`;
         });
 
+        // Store Total Row
+        html += `
+          <tr style="background:#eef2ff; font-weight:600;">
+            <td style="${cellStyle} text-align:center;"></td>
+            <td style="${cellStyle} font-weight:700; color:#1a3a5c;">Total ${storeName}</td>
+            <td style="${cellRight} font-weight:700;">${storeTotalTrx}</td>
+            <td style="${cellBold} font-weight:700; color:#1a3a5c;">${formatMoneyIdrEmail(storeTotalSales)}</td>
+            <td style="${cellRight} font-weight:700;">${formatMoneyIdrEmail(storeTotalTarget)}</td>
+            <td style="${cellRight} font-weight:700; color:${storeAchvColor};">${storeAchv.toFixed(1)}%</td>
+            <td style="${cellRight}"></td>
+          </tr>`;
+
         html += `</table>`;
       });
     }
 
-    // ANNUAL (YTD) TABLE
-    if (annualData.length > 0) {
+    // ANNUAL (YTD) TABLE — exclude target = 0
+    const filteredAnnual = annualData.filter(adv => (adv.target || 0) > 0);
+    if (filteredAnnual.length > 0) {
+      // YTD Grand Totals
+      let ytdTotalSales = 0, ytdTotalTarget = 0;
+      filteredAnnual.forEach(adv => { ytdTotalSales += adv.netSales || 0; ytdTotalTarget += adv.target || 0; });
+      const ytdAchv = ytdTotalTarget > 0 ? (ytdTotalSales / ytdTotalTarget) * 100 : 0;
+
       html += `
         <p style="${sectionTitle} margin-top:28px;">Year-To-Date (YTD) Performance ${year}</p>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
@@ -796,7 +828,7 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
             <th style="${thStyle} text-align:right;">Achv %</th>
           </tr>`;
 
-      annualData.forEach((adv, idx) => {
+      filteredAnnual.forEach((adv, idx) => {
         const bg = idx % 2 !== 0 ? `background:${zebraLight};` : '';
         const achvColor = getColor(adv.achievement);
         html += `
@@ -809,6 +841,17 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
             <td style="${cellRight} font-weight:600; color:${achvColor};">${adv.achievement.toFixed(1)}%</td>
           </tr>`;
       });
+
+      // YTD Grand Total Row
+      const ytdAchvColor = getColor(ytdAchv);
+      html += `
+          <tr style="background:#eef2ff; font-weight:600;">
+            <td style="${cellStyle} text-align:center;"></td>
+            <td style="${cellStyle} font-weight:700; color:#1a3a5c;" colspan="2">Grand Total YTD</td>
+            <td style="${cellBold} font-weight:700; color:#1a3a5c;">${formatMoneyIdrEmail(ytdTotalSales)}</td>
+            <td style="${cellRight} font-weight:700;">${formatMoneyIdrEmail(ytdTotalTarget)}</td>
+            <td style="${cellRight} font-weight:700; color:${ytdAchvColor};">${ytdAchv.toFixed(1)}%</td>
+          </tr>`;
 
       html += `</table>`;
     }
