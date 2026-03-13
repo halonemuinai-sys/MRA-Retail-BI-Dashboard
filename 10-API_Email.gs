@@ -795,18 +795,6 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
           </tr>`;
         });
 
-        // Store Total Row
-        html += `
-          <tr style="background:#eef2ff; font-weight:600;">
-            <td style="${cellStyle} text-align:center;"></td>
-            <td style="${cellStyle} font-weight:700; color:#1a3a5c;">Total ${storeName}</td>
-            <td style="${cellRight} font-weight:700;">${storeTotalTrx}</td>
-            <td style="${cellBold} font-weight:700; color:#1a3a5c;">${formatMoneyIdrEmail(storeTotalSales)}</td>
-            <td style="${cellRight} font-weight:700;">${formatMoneyIdrEmail(storeTotalTarget)}</td>
-            <td style="${cellRight} font-weight:700; color:${storeAchvColor};">${storeAchv.toFixed(1)}%</td>
-            <td style="${cellRight}"></td>
-          </tr>`;
-
         html += `</table>`;
       });
     }
@@ -817,10 +805,6 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
       return !isNaN(t) && t > 0;
     });
     if (filteredAnnual.length > 0) {
-      // YTD Grand Totals
-      let ytdTotalSales = 0, ytdTotalTarget = 0;
-      filteredAnnual.forEach(adv => { ytdTotalSales += adv.netSales || 0; ytdTotalTarget += adv.target || 0; });
-      const ytdAchv = ytdTotalTarget > 0 ? (ytdTotalSales / ytdTotalTarget) * 100 : 0;
 
       html += `
         <p style="${sectionTitle} margin-top:28px;">Year-To-Date (YTD) Performance ${year}</p>
@@ -845,17 +829,6 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
             <td style="${cellRight} font-weight:600; color:${achvColor};">${adv.achievement.toFixed(1)}%</td>
           </tr>`;
       });
-
-      // YTD Grand Total Row
-      const ytdAchvColor = getColor(ytdAchv);
-      html += `
-          <tr style="background:#eef2ff; font-weight:600;">
-            <td style="${cellStyle} text-align:center;"></td>
-            <td style="${cellStyle} font-weight:700; color:#1a3a5c;">Grand Total YTD</td>
-            <td style="${cellBold} font-weight:700; color:#1a3a5c;">${formatMoneyIdrEmail(ytdTotalSales)}</td>
-            <td style="${cellRight} font-weight:700;">${formatMoneyIdrEmail(ytdTotalTarget)}</td>
-            <td style="${cellRight} font-weight:700; color:${ytdAchvColor};">${ytdAchv.toFixed(1)}%</td>
-          </tr>`;
 
       html += `</table>`;
     }
