@@ -811,8 +811,7 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; table-layout: fixed;">
           <tr>
             <th style="${thStyle} text-align:center; width:6%;">No</th>
-            <th style="${thStyle} text-align:left; width:28%;">Advisor</th>
-            <th style="${thStyle} text-align:left; width:8%;">Store</th>
+            <th style="${thStyle} text-align:left; width:36%;">Advisor</th>
             <th style="${thStyle} text-align:right; width:20%;">YTD Sales</th>
             <th style="${thStyle} text-align:right; width:18%;">YTD Target</th>
             <th style="${thStyle} text-align:right; width:20%;">Achv %</th>
@@ -824,8 +823,7 @@ function triggerAdvisorEmailManual(monthStr, yearStr) {
         html += `
           <tr style="${bg}">
             <td style="${cellStyle} text-align:center; font-weight:600;">${idx + 1}</td>
-            <td style="${cellStyle}">${adv.name}</td>
-            <td style="${cellStyle} font-size:11px; color:#6b7280;">${adv.location || '-'}</td>
+            <td style="${cellStyle}"><span style="font-weight:500;">${adv.name}</span><br><span style="font-size:10px; color:#9ca3af;">${adv.location || '-'}</span></td>
             <td style="${cellBold}">${formatMoneyIdrEmail(adv.netSales)}</td>
             <td style="${cellRight}">${formatMoneyIdrEmail(adv.target)}</td>
             <td style="${cellRight} font-weight:600; color:${achvColor};">${adv.achievement.toFixed(1)}%</td>
