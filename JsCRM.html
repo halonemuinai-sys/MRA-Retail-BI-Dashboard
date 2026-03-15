@@ -307,13 +307,28 @@
         // Trigger Sales Sync from SAP (clean_master) mapped by Invoice
         syncSalesData: () => {
             Swal.fire({
-                title: 'Sync Sales (SAP)',
-                text: "Fitur ini akan mencari Nomor Invoice di Traffic (Kolom AP) ke data SAP, lalu menarik rincian belanja dan Net Sales-nya.",
-                icon: 'question',
+                title: 'Konfirmasi Sync Sales (SAP)',
+                html: `
+                    <p class="text-sm text-slate-600 mb-3">Sistem akan mencari keterikatan <b>Nomor Invoice di Traffic (Kolom AP)</b> dengan database SAP.</p>
+                    <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 text-left text-xs text-amber-800 mb-2">
+                        <p class="font-bold mb-1 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            PERINGATAN:
+                        </p>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li>Data <b>Nama, Item 1-10, Detail Item, & Angka Penjualan</b> pada baris tersebut <b>Akan Diubah/Tertimpa</b> otomatis.</li>
+                            <li>Hanya baris dengan Nomor Invoice (AP) yang terisi yang akan disinkron.</li>
+                            <li><i>Backup data Traffic sesaat sebelum diubah akan dibuat otomatis.</i></li>
+                        </ul>
+                    </div>
+                    <p class="text-xs font-bold text-slate-700 mt-2">Apakah Anda yakin ingin mengeksekusi sinkronisasi ini sekarang?</p>
+                `,
+                icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#F59E0B',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: 'Ya, Sinkronisasi!'
+                confirmButtonText: 'Ya, Lanjutkan Sync!',
+                cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
                     Swal.fire({
