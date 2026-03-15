@@ -11,14 +11,14 @@
             <p class="text-sm text-slate-500 mt-1">Monitoring Prospect Pipeline & Customer Relationship Management</p>
         </div>
         <div class="flex items-center gap-3">
-            <button onclick="CRM.sendEmailReport()" id="btnSendCrmEmail"
+            <button onclick="CRM.sendEmailReport()" id="btnSendCrmEmail" title="Kirim Laporan CRM via Email"
                 class="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-700 transition-all active:scale-95">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
                 Send Report
             </button>
-            <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 flex flex-col items-end">
+            <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 flex flex-col items-end" title="Status koneksi sinkronisasi ke Engine Backend API">
                  <span class="text-[10px] uppercase font-bold text-blue-400 tracking-widest">Database Status</span>
                  <span class="text-xs font-bold text-brand-blue flex items-center gap-1.5" id="crmSyncStatus">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Connection Active
@@ -118,19 +118,19 @@
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
-                    <button onclick="CRM.loadProspectTable()"
+                    <button onclick="CRM.loadProspectTable()" title="Tarik data prospek terbaru berdasarkan filter di atas"
                         class="bg-brand-blue text-white px-4 py-1.5 rounded-lg hover:bg-brand-blueDark transition-all shadow-sm shadow-blue-200 text-xs font-bold tracking-wide flex items-center gap-1.5 active:transform active:scale-95">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                         Load Data
                     </button>
-                    <button onclick="CRM.syncSalesData()" 
+                    <button onclick="CRM.syncSalesData()" title="Sinkronkan data Net Sales dan Item dari sistem SAP berdasarkan kesamaan Nomor Invoice"
                         class="bg-amber-500 text-white px-4 py-1.5 rounded-lg hover:bg-amber-600 transition-all shadow-sm shadow-amber-200 text-xs font-bold tracking-wide flex items-center gap-1.5 active:transform active:scale-95">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-7.618 3.016L4 8m0 0v5a11.015 11.015 0 002 6.5l6 3.5 6-3.5a11.015 11.015 0 002-6.5V8l-1.618-.984z"></path>
                         </svg>
                         Sync Sales (SAP)
                     </button>
-                    <button onclick="CRM.exportProspectCSV()"
+                    <button onclick="CRM.exportProspectCSV()" title="Download tabel data di bawah ini ke dalam format Excel (CSV)"
                         class="bg-white text-slate-600 px-4 py-1.5 rounded-lg hover:bg-slate-50 hover:text-emerald-600 hover:border-emerald-300 transition-all text-xs font-bold tracking-wide flex items-center gap-1.5 active:transform active:scale-95 border border-slate-200 shadow-sm">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         Excel
@@ -144,14 +144,14 @@
             <table class="w-full text-xs text-left">
                 <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100 sticky top-0 z-10">
                     <tr>
-                        <th class="py-3 px-4 text-center w-12">#</th>
-                        <th class="py-3 px-4">Tanggal</th>
-                        <th class="py-3 px-4">Nama Lengkap</th>
-                        <th class="py-3 px-4">Lokasi Store</th>
-                        <th class="py-3 px-4">Served By</th>
-                        <th class="py-3 px-4">Status Kedatangan</th>
-                        <th class="py-3 px-4">Prospek Level</th>
-                        <th class="py-3 px-4 text-right">Net Sales (After Tax)</th>
+                        <th class="py-3 px-4 text-center w-12" title="No. Urut Baris">#</th>
+                        <th class="py-3 px-4" title="Tanggal kedatangan tamu sesuai input di Traffic">Tanggal</th>
+                        <th class="py-3 px-4" title="Nama lengkap tamu">Nama Lengkap</th>
+                        <th class="py-3 px-4" title="Lokasi kedatangan tamu">Lokasi Store</th>
+                        <th class="py-3 px-4" title="Staf toko yang melayani">Served By</th>
+                        <th class="py-3 px-4" title="Status interaksi dengan tamu">Status Kedatangan</th>
+                        <th class="py-3 px-4" title="Tingkat ketertarikan tamu terhadap produk">Prospek Level</th>
+                        <th class="py-3 px-4 text-right" title="Total Nilai Belanja bersih dari pajak yang ditarik secara otomatis dari Sistem SAP">Net Sales (After Tax)</th>
                     </tr>
                 </thead>
                 <tbody id="crmProspectTableBody" class="divide-y divide-slate-50 bg-white">
