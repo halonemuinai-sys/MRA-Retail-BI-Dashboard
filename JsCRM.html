@@ -287,7 +287,8 @@
                         '"' + cells[3].innerText + '"',
                         '"' + cells[4].innerText + '"',
                         '"' + cells[5].innerText + '"',
-                        '"' + cells[6].innerText + '"'
+                        '"' + cells[6].innerText + '"',
+                        '"' + (cells[7] ? cells[7].innerText.replace(/,/g, '') : '0') + '"'
                     ];
                     csv += row.join(',') + '\n';
                 }
@@ -301,6 +302,48 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        },
+
+        // Trigger Sales Sync from SAP (clean_master) mapped by Invoice
+        syncSalesData: () => {
+            Swal.fire({
+                title: 'Sync Sales (SAP)',
+                text: "Fitur ini akan mencari Nomor Invoice di Traffic (Kolom AP) ke data SAP, lalu menarik rincian belanja dan Net Sales-nya.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#F59E0B',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Sinkronisasi!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Menyinkronkan...',
+                        text: 'Tunggu sebentar, sedang menarik data dari SAP.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    google.script.run
+                        .withSuccessHandler((response) => {
+                            Swal.fire({
+                                title: response.status === 'success' ? 'Sukses!' : 'Peringatan',
+                                text: response.message,
+                                icon: response.status === 'success' ? 'success' : 'warning',
+                                confirmButtonColor: '#3B82F6'
+                            }).then(() => {
+                                if (response.status === 'success') {
+                                    CRM.loadProspectTable(); // Reload to show updated prospects
+                                }
+                            });
+                        })
+                        .withFailureHandler((error) => {
+                            Swal.fire('Error', 'Gagal sinkronisasi data: ' + error.message, 'error');
+                        })
+                        .triggerSyncSalesToTraffic();
+                }
+            });
         }
     };
 </script>

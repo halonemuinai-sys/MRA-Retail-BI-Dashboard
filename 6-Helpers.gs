@@ -1200,3 +1200,120 @@ function cleanTitlesRawAndCleanMaster() {
   console.log(summary);
   return summary;
 }
+
+/**
+ * SYNC SALES TO TRAFFIC
+ * =====================
+ * Aggregates data from `clean_master` by Invoice Number (Trans No),
+ * and syncs it securely to the `Traffic` sheet based on the User input Invoice (Column AP).
+ * 
+ * Aggregates:
+ * - SAP Codes into Item 1-10 (Max 10)
+ * - Catalogue Codes into Detail Items
+ * - Gross, Val Disc, Net Sales (SUM)
+ * - Disc % (Average)
+ * Updates Prospect Level to 'Penjualan Berhasil'
+ */
+function syncSalesToTraffic() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  if (!cleanSheet) return "Error: Sheet clean_master tidak ditemukan.";
+
+  const cData = cleanSheet.getDataRange().getValues();
+  if (cData.length <= 1) return "Data clean_master kosong.";
+
+  // 1. Aggregation Phase
+  const salesMap = {};
+  const CCOL = CONFIG.CLEAN_COLS;
+
+  for (let i = 1; i < cData.length; i++) {
+    const row = cData[i];
+    const invoice = String(row[CCOL.TRANS_NO] || '').trim();
+    if (!invoice) continue;
+
+    if (!salesMap[invoice]) {
+      salesMap[invoice] = {
+        customerName: String(row[CCOL.CUSTOMER] || '').trim(),
+        sapCodes: [],
+        catalogueCodes: [],
+        grossSum: 0,
+        discPctSum: 0,
+        valDiscSum: 0,
+        netSalesSum: 0,
+        itemCount: 0
+      };
+    }
+
+    const data = salesMap[invoice];
+    const sap = String(row[CCOL.SAP] || '').trim();
+    if (sap) data.sapCodes.push(sap);
+    
+    const cat = String(row[CCOL.CATALOGUE] || '').trim();
+    if (cat && data.catalogueCodes.indexOf(cat) === -1) {
+       data.catalogueCodes.push(cat); // optional: preventing duplicate catalogues
+    } else if (cat) {
+       data.catalogueCodes.push(cat);
+    }
+
+    data.grossSum += Number(row[CCOL.GROSS]) || 0;
+    data.discPctSum += Number(row[CCOL.DISC_PCT]) || 0;
+    data.valDiscSum += Number(row[CCOL.VAL_DISC]) || 0;
+    data.netSalesSum += Number(row[CCOL.NET_SALES]) || 0;
+    data.itemCount++;
+  }
+
+  // 2. Sync to Traffic Phase
+  const extSS = SpreadsheetApp.openById(CONFIG.EXTERNAL.PROFILING_SHEET_ID);
+  const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
+  if (!trafficSheet) return "Error: Sheet Traffic tidak ditemukan.";
+
+  const tData = trafficSheet.getDataRange().getValues();
+  if (tData.length <= 1) return "Data Traffic kosong.";
+
+  // Create Backup
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+  const backupName = "BACKUP_SyncSales_Traffic_" + nowStr;
+  trafficSheet.copyTo(extSS).setName(backupName);
+  console.log("✅ Backup Traffic created: " + backupName);
+
+  const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
+  let syncCount = 0;
+
+  for (let i = 1; i < tData.length; i++) {
+    const row = tData[i];
+    const invoiceKey = String(row[TCOL.INVOICE] || '').trim();
+    if (!invoiceKey) continue;
+
+    const matchedSales = salesMap[invoiceKey];
+    if (matchedSales) {
+      // Name
+      if (matchedSales.customerName) trafficSheet.getRange(i + 1, TCOL.NAME + 1).setValue(matchedSales.customerName);
+      
+      // Items 1-10
+      for (let j = 0; j < 10; j++) {
+        trafficSheet.getRange(i + 1, TCOL.ITEM_1 + j + 1).setValue(matchedSales.sapCodes[j] || '-');
+      }
+
+      // Detail Items
+      trafficSheet.getRange(i + 1, TCOL.DETAIL_ITEMS + 1).setValue(matchedSales.catalogueCodes.join(', ') || '-');
+
+      // Financials
+      trafficSheet.getRange(i + 1, TCOL.GROSS + 1).setValue(matchedSales.grossSum);
+      
+      const avgDiscPct = matchedSales.itemCount > 0 ? (matchedSales.discPctSum / matchedSales.itemCount) : 0;
+      trafficSheet.getRange(i + 1, TCOL.DISC_PCT + 1).setValue(avgDiscPct);
+      
+      trafficSheet.getRange(i + 1, TCOL.VAL_DISC + 1).setValue(matchedSales.valDiscSum);
+      trafficSheet.getRange(i + 1, TCOL.NET_SALES + 1).setValue(matchedSales.netSalesSum);
+
+      // Prospect Level
+      trafficSheet.getRange(i + 1, TCOL.PROSPECT + 1).setValue("Penjualan Berhasil");
+
+      syncCount++;
+    }
+  }
+
+  const resultMsg = `Sinkronisasi Selesai! Berhasil mengupdate ${syncCount} data dari SAP ke Traffic.`;
+  console.log(resultMsg);
+  return { status: 'success', message: resultMsg, count: syncCount };
+}

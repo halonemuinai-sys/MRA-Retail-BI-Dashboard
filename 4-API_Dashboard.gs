@@ -1036,3 +1036,11 @@ function getTrafficProspectData(month, year, location, prospectLevel, status) {
     return { error: 'Gagal load data Traffic: ' + e.message, rows: [], locations: [], prospectLevels: [], statuses: [] };
   }
 }
+
+/**
+ * Trigger Sinkronisasi Sales (SAP) ke Traffic
+ * Dipanggil dari UI CRM Dashboard
+ */
+function triggerSyncSalesToTraffic() {
+  return syncSalesToTraffic();
+}

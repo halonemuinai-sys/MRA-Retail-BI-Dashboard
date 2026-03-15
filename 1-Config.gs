@@ -47,7 +47,14 @@ const CONFIG = {
       STATUS: 7,    // Index 7 = Kolom H (Status Kedatangan)
       DATE: 11,     // Index 11 = Kolom L (Tanggal Berkunjung)
       PROSPECT: 17, // Index 17 = Kolom R (Prospek Level)
-      NET_SALES: 35 // Index 35 = Kolom AJ (Net Sales After Tax)
+      // Sales Sync Data
+      ITEM_1: 21,   // Index 21 = Kolom V (Item 1)
+      DETAIL_ITEMS: 31, // Index 31 = Kolom AF (Detail Items)
+      GROSS: 32,    // Index 32 = Kolom AG (Total Gross Sales)
+      DISC_PCT: 33, // Index 33 = Kolom AH (Penawaran Discount)
+      VAL_DISC: 34, // Index 34 = Kolom AI (Discount Rp)
+      NET_SALES: 35, // Index 35 = Kolom AJ (Net Sales After Tax)
+      INVOICE: 41   // Index 41 = Kolom AP (No Invoice)
     }
   },
   // Mapping Kolom Data Mentah (Source)
