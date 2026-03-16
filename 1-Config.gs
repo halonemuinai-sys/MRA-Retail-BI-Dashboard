@@ -54,7 +54,12 @@ const CONFIG = {
       DISC_PCT: 33, // Index 33 = Kolom AH (Penawaran Discount)
       VAL_DISC: 34, // Index 34 = Kolom AI (Discount Rp)
       NET_SALES: 35, // Index 35 = Kolom AJ (Net Sales After Tax)
+      GROUP_SIZE: 38, // Index 38 = Kolom AM (Jumlah orang dalam group (kedatangan))
       INVOICE: 41   // Index 41 = Kolom AP (No Invoice)
+    },
+    FOOTFALL_COLS: {
+      DATE: 0,      // Default Kolom A (Tanggal)
+      COUNT: 1      // Default Kolom B (Jumlah Masuk / Footfall)
     }
   },
   // Mapping Kolom Data Mentah (Source)

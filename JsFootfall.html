@@ -1,0 +1,233 @@
+<script>
+    let footfallChartInstance = null;
+    let currentFootfallData = [];
+
+    const FOOTFALL = {
+        init: () => {
+            const mSelect = document.getElementById('footfallMonthSelect');
+            const ySelect = document.getElementById('footfallYearSelect');
+            
+            // Set default to current month/year if not set
+            if(!mSelect.dataset.initialized) {
+                const now = new Date();
+                const mths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                mSelect.value = mths[now.getMonth()];
+                ySelect.value = now.getFullYear().toString();
+                mSelect.dataset.initialized = 'true';
+            }
+            
+            FOOTFALL.loadData();
+        },
+
+        loadData: () => {
+            const m = document.getElementById('footfallMonthSelect').value;
+            const y = document.getElementById('footfallYearSelect').value;
+
+            // Show loading state
+            document.getElementById('footfallTableBody').innerHTML = `
+                <tr><td colspan="7" class="py-12 text-center text-slate-400">
+                    <svg class="animate-spin h-5 w-5 mx-auto text-emerald-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Menarik data Footfall vs CRM...
+                </td></tr>
+            `;
+
+            google.script.run
+                .withSuccessHandler(FOOTFALL.renderData)
+                .withFailureHandler((err) => {
+                    document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Gagal memuat data: ${err.message}</td></tr>`;
+                    Swal.fire('Error', 'Gagal memuat data Footfall: ' + err.message, 'error');
+                })
+                .getFootfallAnalytics(m, y);
+        },
+
+        renderData: (res) => {
+            if (res.status === 'error') {
+                Swal.fire('Error Dashboard', res.message, 'error');
+                return;
+            }
+
+            currentFootfallData = res.data || [];
+            if (currentFootfallData.length === 0) {
+                document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-slate-400 italic">Tidak ada data untuk periode terpilih.</td></tr>`;
+                FOOTFALL.renderChart([]);
+                return;
+            }
+
+            let html = '';
+            let sumFF_PI = 0, sumCRM_PI = 0;
+            let sumFF_PS = 0, sumCRM_PS = 0;
+
+            currentFootfallData.forEach(item => {
+                sumFF_PI += item.footfallPI;
+                sumCRM_PI += item.trafficPI;
+                sumFF_PS += item.footfallPS;
+                sumCRM_PS += item.trafficPS;
+
+                html += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="py-3 px-4 font-medium text-slate-700 whitespace-nowrap">${item.date}</td>
+                        
+                        <td class="py-3 px-4 text-center border-l border-slate-100">${item.footfallPI}</td>
+                        <td class="py-3 px-4 text-center text-indigo-600 font-bold">${item.trafficPI}</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.ratePI < 30 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">
+                                ${item.ratePI}%
+                            </span>
+                        </td>
+
+                        <td class="py-3 px-4 text-center border-l border-slate-100">${item.footfallPS}</td>
+                        <td class="py-3 px-4 text-center text-indigo-600 font-bold">${item.trafficPS}</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.ratePS < 30 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
+                                ${item.ratePS}%
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('footfallTableBody').innerHTML = html;
+
+            // Update KPI Cards
+            document.getElementById('ff_pi_total').innerText = sumFF_PI.toLocaleString('id-ID');
+            document.getElementById('ff_pi_crm').innerText = sumCRM_PI.toLocaleString('id-ID');
+            const ratePI = sumFF_PI > 0 ? ((sumCRM_PI / sumFF_PI) * 100).toFixed(1) : 0;
+            document.getElementById('ff_pi_rate').innerText = ratePI + '%';
+            document.getElementById('ff_pi_rate').className = `text-2xl font-bold ${ratePI < 30 ? 'text-red-500' : 'text-emerald-600'}`;
+
+            document.getElementById('ff_ps_total').innerText = sumFF_PS.toLocaleString('id-ID');
+            document.getElementById('ff_ps_crm').innerText = sumCRM_PS.toLocaleString('id-ID');
+            const ratePS = sumFF_PS > 0 ? ((sumCRM_PS / sumFF_PS) * 100).toFixed(1) : 0;
+            document.getElementById('ff_ps_rate').innerText = ratePS + '%';
+            document.getElementById('ff_ps_rate').className = `text-2xl font-bold ${ratePS < 30 ? 'text-red-500' : 'text-amber-600'}`;
+
+            FOOTFALL.renderChart(currentFootfallData);
+        },
+
+        renderChart: (data) => {
+            if (footfallChartInstance) {
+                footfallChartInstance.destroy();
+            }
+
+            if (!data || data.length === 0) return;
+
+            const dates = data.map(d => {
+                const parts = d.date.split('-');
+                return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d.date; // DD/MM format
+            });
+
+            const totalFootfall = data.map(d => d.footfallPI + d.footfallPS);
+            const totalCaptured = data.map(d => d.trafficPI + d.trafficPS);
+            const avgRate = data.map(d => {
+                const totalF = d.footfallPI + d.footfallPS;
+                const totalC = d.trafficPI + d.trafficPS;
+                return totalF > 0 ? parseFloat(((totalC / totalF) * 100).toFixed(1)) : 0;
+            });
+
+            const options = {
+                series: [{
+                    name: 'Total Footfall (Door)',
+                    type: 'column',
+                    data: totalFootfall
+                }, {
+                    name: 'Captured (CRM Traffic)',
+                    type: 'line',
+                    data: totalCaptured
+                }, {
+                    name: 'Avg Capture Rate (%)',
+                    type: 'line',
+                    data: avgRate
+                }],
+                chart: {
+                    height: 320,
+                    type: 'line',
+                    toolbar: { show: false },
+                    fontFamily: 'Inter, sans-serif',
+                },
+                stroke: {
+                    width: [0, 3, 3],
+                    curve: 'smooth',
+                    dashArray: [0, 0, 5]
+                },
+                colors: ['#cbd5e1', '#3b82f6', '#10b981'],
+                dataLabels: {
+                    enabled: false,
+                    enabledOnSeries: [2],
+                    formatter: function (val) {
+                      return val + "%";
+                    }
+                },
+                labels: dates,
+                xaxis: {
+                    type: 'category',
+                    labels: { style: { colors: '#64748b', fontSize: '11px' } },
+                    axisBorder: { show: false },
+                    axisTicks: { show: false }
+                },
+                yaxis: [{
+                    title: { text: 'Number of People', style: { color: '#64748b', fontSize: '11px', fontWeight: 600 } },
+                    labels: { style: { colors: '#64748b' } },
+                }, {
+                    show: false, // share the primary axis for Captured
+                }, {
+                    opposite: true,
+                    title: { text: 'Capture Rate (%)', style: { color: '#10b981', fontSize: '11px', fontWeight: 600 } },
+                    max: 100,
+                    labels: { 
+                        style: { colors: '#10b981' },
+                        formatter: (val) => { return val.toFixed(0) + '%' }
+                    }
+                }],
+                grid: {
+                    borderColor: '#f1f5f9',
+                    strokeDashArray: 4,
+                    yaxis: { lines: { show: true } }
+                },
+                legend: {
+                    position: 'top',
+                    horizontalAlign: 'right',
+                    markers: { radius: 12 },
+                    itemMargin: { horizontal: 10 }
+                },
+                tooltip: {
+                    shared: true,
+                    intersect: false,
+                    y: {
+                        formatter: function (y, { seriesIndex }) {
+                            if(typeof y !== "undefined") {
+                                return seriesIndex === 2 ? y + "%" : y + " People";
+                            }
+                            return y;
+                        }
+                    }
+                }
+            };
+
+            footfallChartInstance = new ApexCharts(document.querySelector("#chartFootfallRate"), options);
+            footfallChartInstance.render();
+        },
+
+        exportCSV: () => {
+             if (currentFootfallData.length === 0) {
+                 alert("Buka data terlebih dahulu sebelum melakukan ekspor.");
+                 return;
+             }
+
+             const m = document.getElementById('footfallMonthSelect').value;
+             const y = document.getElementById('footfallYearSelect').value;
+
+             let csv = '\\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%)\\n';
+             currentFootfallData.forEach(row => {
+                 csv += `${row.date},${row.footfallPI},${row.trafficPI},${row.ratePI},${row.footfallPS},${row.trafficPS},${row.ratePS}\\n`;
+             });
+
+             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+             const link = document.createElement('a');
+             link.href = URL.createObjectURL(blob);
+             link.download = `Footfall_CaptureRate_${m}_${y}.csv`;
+             document.body.appendChild(link);
+             link.click();
+             document.body.removeChild(link);
+        }
+    };
+</script>

@@ -232,7 +232,7 @@
                 'quarterlyStandard': { parent: 'quarterly', subAction: () => APP.switchQuarterlySubView('standard') },
                 'quarterlyBudget': { parent: 'quarterly', subAction: () => APP.switchQuarterlySubView('budget') },
                 'crossingSales': { parent: 'crossing', subAction: () => APP.switchCrossingSubView('crossing') },
-                'footfall': { parent: 'crossing', subAction: () => APP.switchCrossingSubView('footfall') },
+                'footfall': { parent: 'footfall', subAction: () => { setTimeout(() => { FOOTFALL.init(); }, 100); } },
                 'sapTop': { parent: 'sap', subAction: () => { STATE.sapSubView = 'topPerformers'; document.getElementById('sapTopPerformersView').classList.remove('hidden'); document.getElementById('sapProjectionView').classList.add('hidden'); } },
                 'sapProjection': { parent: 'sap', subAction: () => { STATE.sapSubView = 'projection'; document.getElementById('sapProjectionView').classList.remove('hidden'); document.getElementById('sapTopPerformersView').classList.add('hidden'); } }
             };
@@ -243,7 +243,7 @@
             // Update Sidebar Menu Classes
             // Update Sidebar Menu Classes
             const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall', 'tabCRM', 'tabStore'];
-            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing', 'viewCRM', 'viewStore'];
+            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing', 'viewCRM', 'viewFootfall', 'viewStore'];
             const pageTitles = {
                 'monthly': 'Monthly Overview',
                 'quarterlyStandard': 'Quarterly Standard',
@@ -291,7 +291,7 @@
             if (actualView === 'daily') {
                 if (dailyFilter) dailyFilter.classList.remove('hidden');
                 if (monthlyFilter) monthlyFilter.classList.remove('hidden');
-            } else if (actualView === 'customer' || actualView === 'quarterly') {
+            } else if (actualView === 'customer' || actualView === 'quarterly' || actualView === 'footfall') {
                 if (monthlyFilter) monthlyFilter.classList.add('hidden');
             } else {
                 if (monthlyFilter) monthlyFilter.classList.remove('hidden');
@@ -423,25 +423,10 @@
                 const y = document.getElementById('yearSelect').value;
                 google.script.run.withSuccessHandler(RENDER.viewStore).getDashboardData(m, y, isRefresh);
             } else if (currentMode === 'crossing') {
-                if (STATE.crossingSubView === 'footfall') {
-                    const m = document.getElementById('monthSelect').value;
-                    const y = document.getElementById('yearSelect').value;
-                    google.script.run
-                        .withFailureHandler((err) => {
-                            console.error("GAS Error:", err);
-                            UI.showToast("Error fetching footfall: " + err.message);
-                            UI.showLoader(false);
-                        })
-                        .withSuccessHandler((res) => {
-                            console.log("Footfall Data Response:", res);
-                            STATE.footfallData = res;
-                            UI.showLoader(false);
-                            CHARTS.renderCustomerFootfall(res);
-                        })
-                        .getFootfallData(m, y);
-                } else {
-                    APP.loadCrossingSales(isRefresh);
-                }
+                APP.loadCrossingSales(isRefresh);
+            } else if (currentMode === 'footfall') {
+                UI.showLoader(false); // Let FOOTFALL script handle its own loader string
+                FOOTFALL.loadData();
             }
         },
 

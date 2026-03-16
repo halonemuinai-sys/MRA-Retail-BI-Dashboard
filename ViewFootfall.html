@@ -1,0 +1,161 @@
+<div id="viewFootfall" class="hidden animate-fade-in relative h-full flex flex-col">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 px-2">
+        <div>
+            <h2 class="text-2xl font-display font-bold text-brand-dark tracking-tight flex items-center gap-3">
+                <svg class="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                </svg>
+                Footfall Analytics
+            </h2>
+            <p class="text-sm text-slate-500 mt-1">Capture Rate Analysis & Store Visitor Traffic</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="relative w-40">
+                <select id="footfallMonthSelect" onchange="FOOTFALL.loadData()" title="Select Month"
+                    class="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-bold cursor-pointer shadow-sm hover:border-slate-300 transition-colors">
+                    <option value="Januari">Januari</option>
+                    <option value="Februari">Februari</option>
+                    <option value="Maret">Maret</option>
+                    <option value="April">April</option>
+                    <option value="Mei">Mei</option>
+                    <option value="Juni">Juni</option>
+                    <option value="Juli">Juli</option>
+                    <option value="Agustus">Agustus</option>
+                    <option value="September">September</option>
+                    <option value="Oktober">Oktober</option>
+                    <option value="November">November</option>
+                    <option value="Desember">Desember</option>
+                    <option value="ALL">All Year</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="relative w-32">
+                <select id="footfallYearSelect" onchange="FOOTFALL.loadData()" title="Select Year"
+                    class="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-bold cursor-pointer shadow-sm hover:border-slate-300 transition-colors">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards (Store Performance) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 px-2">
+        <!-- Plaza Indonesia -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-full -z-0"></div>
+            <div class="flex items-center gap-3 mb-4 relative z-10">
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-display font-bold text-brand-dark text-lg">Plaza Indonesia</h3>
+                    <p class="text-xs text-slate-500 font-medium">Capture Rate Overview</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 relative z-10">
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 text-center">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Total Footfall</p>
+                    <p class="text-xl font-bold text-slate-700" id="ff_pi_total">0</p>
+                </div>
+                <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 text-center">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 mb-1">Captured (CRM)</p>
+                    <p class="text-xl font-bold text-indigo-700" id="ff_pi_crm">0</p>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-3 border border-emerald-100 text-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-emerald-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-emerald-600 mb-1">Capture Rate</p>
+                    <p class="text-2xl font-bold text-emerald-600" id="ff_pi_rate">0%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plaza Senayan -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full -z-0"></div>
+            <div class="flex items-center gap-3 mb-4 relative z-10">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-display font-bold text-brand-dark text-lg">Plaza Senayan</h3>
+                    <p class="text-xs text-slate-500 font-medium">Capture Rate Overview</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 relative z-10">
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 text-center">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Total Footfall</p>
+                    <p class="text-xl font-bold text-slate-700" id="ff_ps_total">0</p>
+                </div>
+                <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 text-center">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 mb-1">Captured (CRM)</p>
+                    <p class="text-xl font-bold text-indigo-700" id="ff_ps_crm">0</p>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-3 border border-amber-100 text-center relative overflow-hidden">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-amber-600 mb-1">Capture Rate</p>
+                    <p class="text-2xl font-bold text-amber-600" id="ff_ps_rate">0%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Area -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-8 px-2 mx-2">
+        <h3 class="font-display font-bold text-brand-dark mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+            Capture Rate Trends
+        </h3>
+        <div id="chartFootfallRate" class="w-full h-80 min-h-[320px]"></div>
+    </div>
+
+    <!-- Data Table Breakdown -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-grow flex flex-col relative z-10 mx-2 mb-6">
+        <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h3 class="font-display font-bold text-brand-dark text-sm">Daily Performance Breakdown</h3>
+            <button onclick="FOOTFALL.exportCSV()" title="Download to CSV" class="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 shadow-sm transition-all active:scale-95">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Export
+            </button>
+        </div>
+        <div class="flex-grow overflow-auto custom-scrollbar">
+            <table class="w-full text-xs text-left">
+                <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100 sticky top-0 z-10">
+                    <tr>
+                        <th class="py-3 px-4">Date</th>
+                        <th class="py-3 px-4 text-center border-l border-slate-200" colspan="3">Plaza Indonesia</th>
+                        <th class="py-3 px-4 text-center border-l border-x border-slate-200" colspan="3">Plaza Senayan</th>
+                    </tr>
+                    <tr class="text-[10px] uppercase tracking-wider bg-white">
+                        <th class="py-2 px-4 shadow-sm">Tanggal</th>
+                        <th class="py-2 px-4 shadow-sm border-l border-slate-200 text-center">Masuk</th>
+                        <th class="py-2 px-4 shadow-sm text-center">Captured</th>
+                        <th class="py-2 px-4 shadow-sm text-center">% Rate</th>
+                        <th class="py-2 px-4 shadow-sm border-l border-slate-200 text-center">Masuk</th>
+                        <th class="py-2 px-4 shadow-sm text-center">Captured</th>
+                        <th class="py-2 px-4 shadow-sm text-center">% Rate</th>
+                    </tr>
+                </thead>
+                <tbody id="footfallTableBody" class="divide-y divide-slate-50 bg-white">
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-slate-400 italic">Memuat data analitik...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
