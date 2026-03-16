@@ -25,6 +25,7 @@ function getFootfallAnalytics(month, year) {
     
     // Define a map for grouping by Date -> { footfallPI, footfallPS, trafficPI, trafficPS }
     const insightMap = {};
+    let debugLogs = { pi_rows: 0, ps_rows: 0, trf_rows: 0 };
     
     // helper to initialize date key
     const initMapKey = (dateStr) => {
@@ -52,12 +53,15 @@ function getFootfallAnalytics(month, year) {
         const dStr = row[0]; // Always Date in Col A
         if (!dStr) continue;
         
+        if (locType === 'PI') debugLogs.pi_rows++;
+        if (locType === 'PS') debugLogs.ps_rows++;
+
         let d = dStr;
         if (!(dStr instanceof Date)) {
            d = parseDateFix(dStr);
         }
 
-        if(!d || isNaN(d.getTime())) continue;
+        if (!d || isNaN(d.getMonth())) continue;
 
         const rm = d.getMonth();
         const ry = d.getFullYear();
@@ -88,11 +92,13 @@ function getFootfallAnalytics(month, year) {
             const dStr = row[TCOL.DATE];
             if (!dStr) continue;
             
+            debugLogs.trf_rows++;
+            
             let d = dStr;
             if (!(dStr instanceof Date)) {
                d = parseDateFix(dStr);
             }
-            if (!d || isNaN(d.getTime())) continue;
+            if (!d || isNaN(d.getMonth())) continue;
 
             const rm = d.getMonth();
             const ry = d.getFullYear();
@@ -131,7 +137,14 @@ function getFootfallAnalytics(month, year) {
 
     return {
         status: 'success',
-        data: chartData
+        data: chartData,
+        debug: {
+            targetM: targetMonth,
+            targetY: targetYear,
+            piRowsEvaluated: debugLogs.pi_rows || 0,
+            psRowsEvaluated: debugLogs.ps_rows || 0,
+            trfRowsEvaluated: debugLogs.trf_rows || 0
+        }
     };
 
   } catch (error) {

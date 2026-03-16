@@ -61,7 +61,15 @@
 
             currentFootfallData = res.data || [];
             if (currentFootfallData.length === 0) {
-                document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-slate-400 italic">Tidak ada data untuk periode terpilih.</td></tr>`;
+                const dbg = res.debug || {};
+                const dbgTxt = `(Trace: M=${dbg.targetM}, Y=${dbg.targetY} | Rows: PI=${dbg.piRowsEvaluated||0}, PS=${dbg.psRowsEvaluated||0}, TRF=${dbg.trfRowsEvaluated||0})`;
+                
+                document.getElementById('footfallTableBody').innerHTML = `
+                    <tr><td colspan="7" class="py-12 text-center text-slate-400 italic">
+                        Tidak ada data Footfall ditemukan untuk periode terpilih.<br>
+                        <span class="text-[10px] text-slate-300">${dbgTxt}</span>
+                    </td></tr>
+                `;
                 return;
             }
 
