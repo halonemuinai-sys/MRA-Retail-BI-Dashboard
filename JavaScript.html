@@ -445,7 +445,7 @@
                     APP.loadCrossingSales(isRefresh);
                 }
             } else if (currentMode === 'footfallCrm') {
-                UI.showLoader(false); // Let FOOTFALL script handle its own loader string
+                UI.showLoader(true, 'Menarik data Footfall & Capture Rate...');
                 FOOTFALL.loadData();
             }
         },
