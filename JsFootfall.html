@@ -41,10 +41,16 @@
         },
 
         renderData: (res) => {
-            if (res.status === 'error') {
-                Swal.fire('Error Dashboard', res.message, 'error');
-                return;
-            }
+            console.log("FOOTFALL Data Received:", res);
+            try {
+                if (!res) {
+                    throw new Error("Empty response from backend.");
+                }
+                if (res.status === 'error') {
+                    Swal.fire('Error Dashboard', res.message, 'error');
+                    document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Error: ${res.message}</td></tr>`;
+                    return;
+                }
 
             currentFootfallData = res.data || [];
             if (currentFootfallData.length === 0) {
@@ -102,6 +108,11 @@
             document.getElementById('ff_ps_rate').className = `text-2xl font-bold ${ratePS < 30 ? 'text-red-500' : 'text-amber-600'}`;
 
             FOOTFALL.renderChart(currentFootfallData);
+            } catch (err) {
+                console.error("FOOTFALL Render Error:", err);
+                document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Render Error: ${err.message}</td></tr>`;
+                Swal.fire('Error Render', 'Gagal memproses data Footfall: ' + err.message, 'error');
+            }
         },
 
         renderChart: (data) => {
