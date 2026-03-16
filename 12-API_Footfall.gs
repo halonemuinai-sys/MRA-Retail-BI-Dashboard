@@ -103,7 +103,7 @@ function getFootfallAnalytics(month, year) {
             initMapKey(dateKey);
             
             const loc = String(row[TCOL.LOCATION] || '').toUpperCase();
-            const groupSize = parseInt(row[TCOL.GROUP_SIZE]) || parseInt(row[14]) || 1; // Fallback to 1 if no size
+            const groupSize = parseInt(row[TCOL.GROUP_SIZE]) || 1; // Fallback to 1 if empty/NaN
             
             if (loc.indexOf('PLAZA INDONESIA') !== -1 || loc === 'PI') {
                 insightMap[dateKey].trafficPI += groupSize;
