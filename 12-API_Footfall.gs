@@ -56,12 +56,11 @@ function getFootfallAnalytics(month, year) {
         if (locType === 'PI') debugLogs.pi_rows++;
         if (locType === 'PS') debugLogs.ps_rows++;
 
-        let d = dStr;
-        if (!(dStr instanceof Date)) {
-           d = parseDateFix(dStr);
-        }
-
-        if (!d || isNaN(d.getMonth())) continue;
+        let d;
+        try {
+            d = new Date(dStr);
+            if (isNaN(d.getTime())) continue;
+        } catch (e) { continue; }
 
         const rm = d.getMonth();
         const ry = d.getFullYear();
@@ -94,11 +93,11 @@ function getFootfallAnalytics(month, year) {
             
             debugLogs.trf_rows++;
             
-            let d = dStr;
-            if (!(dStr instanceof Date)) {
-               d = parseDateFix(dStr);
-            }
-            if (!d || isNaN(d.getMonth())) continue;
+            let d;
+            try {
+                d = new Date(dStr);
+                if (isNaN(d.getTime())) continue;
+            } catch (e) { continue; }
 
             const rm = d.getMonth();
             const ry = d.getFullYear();
