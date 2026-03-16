@@ -6,7 +6,7 @@
 
 function getFootfallAnalytics(month, year) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSpreadsheet();
     const profilingId = CONFIG.EXTERNAL.PROFILING_SHEET_ID;
     const trafficSheetName = CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME;
     
@@ -49,20 +49,15 @@ function getFootfallAnalytics(month, year) {
       
       for (let i = 1; i < data.length; i++) {
         const row = data[i];
-        const dStr = row[FCOL.DATE];
+        const dStr = row[0]; // Always Date in Col A
         if (!dStr) continue;
         
-        let d;
-        if (dStr instanceof Date) {
-          d = dStr;
-        } else {
-           // Handle string dates cautiously
-           d = new Date(dStr);
-           if(isNaN(d.getTime())) {
-             // Try parsing 'dd/mm/yyyy' or similar if needed. For now assume valid dates.
-             continue;
-           }
+        let d = dStr;
+        if (!(dStr instanceof Date)) {
+           d = parseDateFix(dStr);
         }
+
+        if(!d || isNaN(d.getTime())) continue;
 
         const rm = d.getMonth();
         const ry = d.getFullYear();
@@ -72,7 +67,7 @@ function getFootfallAnalytics(month, year) {
         const dateKey = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
         initMapKey(dateKey);
         
-        const count = parseInt(row[FCOL.COUNT]) || 0;
+        const count = parseInt(row[2]) || 0; // Col C is Masuk
         if (locType === 'PI') insightMap[dateKey].footfallPI += count;
         if (locType === 'PS') insightMap[dateKey].footfallPS += count;
       }
@@ -93,13 +88,11 @@ function getFootfallAnalytics(month, year) {
             const dStr = row[TCOL.DATE];
             if (!dStr) continue;
             
-            let d;
-            if (dStr instanceof Date) {
-              d = dStr;
-            } else {
-               d = new Date(dStr);
-               if(isNaN(d.getTime())) continue;
+            let d = dStr;
+            if (!(dStr instanceof Date)) {
+               d = parseDateFix(dStr);
             }
+            if (!d || isNaN(d.getTime())) continue;
 
             const rm = d.getMonth();
             const ry = d.getFullYear();
