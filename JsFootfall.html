@@ -55,7 +55,6 @@
             currentFootfallData = res.data || [];
             if (currentFootfallData.length === 0) {
                 document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-slate-400 italic">Tidak ada data untuk periode terpilih.</td></tr>`;
-                FOOTFALL.renderChart([]);
                 return;
             }
 
@@ -107,115 +106,11 @@
             document.getElementById('ff_ps_rate').innerText = ratePS + '%';
             document.getElementById('ff_ps_rate').className = `text-2xl font-bold ${ratePS < 30 ? 'text-red-500' : 'text-amber-600'}`;
 
-            FOOTFALL.renderChart(currentFootfallData);
             } catch (err) {
                 console.error("FOOTFALL Render Error:", err);
                 document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Render Error: ${err.message}</td></tr>`;
                 Swal.fire('Error Render', 'Gagal memproses data Footfall: ' + err.message, 'error');
             }
-        },
-
-        renderChart: (data) => {
-            if (footfallChartInstance) {
-                footfallChartInstance.destroy();
-            }
-
-            if (!data || data.length === 0) return;
-
-            const dates = data.map(d => {
-                const parts = d.date.split('-');
-                return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d.date; // DD/MM format
-            });
-
-            const totalFootfall = data.map(d => d.footfallPI + d.footfallPS);
-            const totalCaptured = data.map(d => d.trafficPI + d.trafficPS);
-            const avgRate = data.map(d => {
-                const totalF = d.footfallPI + d.footfallPS;
-                const totalC = d.trafficPI + d.trafficPS;
-                return totalF > 0 ? parseFloat(((totalC / totalF) * 100).toFixed(1)) : 0;
-            });
-
-            const options = {
-                series: [{
-                    name: 'Total Footfall (Door)',
-                    type: 'column',
-                    data: totalFootfall
-                }, {
-                    name: 'Captured (CRM Traffic)',
-                    type: 'line',
-                    data: totalCaptured
-                }, {
-                    name: 'Avg Capture Rate (%)',
-                    type: 'line',
-                    data: avgRate
-                }],
-                chart: {
-                    height: 320,
-                    type: 'line',
-                    toolbar: { show: false },
-                    fontFamily: 'Inter, sans-serif',
-                },
-                stroke: {
-                    width: [0, 3, 3],
-                    curve: 'smooth',
-                    dashArray: [0, 0, 5]
-                },
-                colors: ['#cbd5e1', '#3b82f6', '#10b981'],
-                dataLabels: {
-                    enabled: false,
-                    enabledOnSeries: [2],
-                    formatter: function (val) {
-                      return val + "%";
-                    }
-                },
-                labels: dates,
-                xaxis: {
-                    type: 'category',
-                    labels: { style: { colors: '#64748b', fontSize: '11px' } },
-                    axisBorder: { show: false },
-                    axisTicks: { show: false }
-                },
-                yaxis: [{
-                    title: { text: 'Number of People', style: { color: '#64748b', fontSize: '11px', fontWeight: 600 } },
-                    labels: { style: { colors: '#64748b' } },
-                }, {
-                    show: false, // share the primary axis for Captured
-                }, {
-                    opposite: true,
-                    title: { text: 'Capture Rate (%)', style: { color: '#10b981', fontSize: '11px', fontWeight: 600 } },
-                    max: 100,
-                    labels: { 
-                        style: { colors: '#10b981' },
-                        formatter: (val) => { return val.toFixed(0) + '%' }
-                    }
-                }],
-                grid: {
-                    borderColor: '#f1f5f9',
-                    strokeDashArray: 4,
-                    yaxis: { lines: { show: true } }
-                },
-                legend: {
-                    position: 'top',
-                    horizontalAlign: 'right',
-                    markers: { radius: 12 },
-                    itemMargin: { horizontal: 10 }
-                },
-                tooltip: {
-                    shared: true,
-                    intersect: false,
-                    y: {
-                        formatter: function (y, { seriesIndex }) {
-                            if(typeof y !== "undefined") {
-                                return seriesIndex === 2 ? y + "%" : y + " People";
-                            }
-                            return y;
-                        }
-                    }
-                }
-            };
-
-            footfallChartInstance = new ApexCharts(document.querySelector("#chartFootfallRate"), options);
-            footfallChartInstance.render();
         },
 
         exportCSV: () => {
