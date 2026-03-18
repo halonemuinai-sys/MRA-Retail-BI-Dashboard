@@ -210,9 +210,10 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
     }
 
     let totalSales = 0, trxCount = 0, totalQty = 0;
+    let totalPrevSales = 0;
     let monthlySales = Array(12).fill(0);
     const categoryMap = {};
-    const staffMap = {}; // For manager: { salesmanName: { net, qty, count } }
+    const staffMap = {}; // For manager: { salesmanName: { net, qty, count, prevNet } }
 
     data.forEach(row => {
       const salesman = String(row[COL.SALESMAN]).trim();
@@ -235,27 +236,47 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
       const net = Number(row[COL.NET_SALES]) || 0;
       const qty = Number(row[COL.QTY]) || 0;
 
-      if (date.getFullYear() === selectedYear) {
-        monthlySales[date.getMonth()] += net;
-        if (date.getMonth() === selectedMonth) {
-          totalSales += net;
-          trxCount++;
-          totalQty += qty;
+      const rMonth = date.getMonth();
+      const rYear = date.getFullYear();
 
-          // Category breakdown
-          const cat = String(row[COL.MAIN_CAT] || 'Uncategorized').trim();
-          if (!categoryMap[cat]) categoryMap[cat] = { net: 0, qty: 0, count: 0 };
-          categoryMap[cat].net += net;
-          categoryMap[cat].qty += qty;
-          categoryMap[cat].count++;
+      let prevMonth = selectedMonth - 1;
+      let prevYear = selectedYear;
+      if (prevMonth < 0) {
+        prevMonth = 11;
+        prevYear = selectedYear - 1;
+      }
 
-          // Staff breakdown (manager only)
-          if (isManager) {
-            if (!staffMap[salesman]) staffMap[salesman] = { net: 0, qty: 0, count: 0 };
-            staffMap[salesman].net += net;
-            staffMap[salesman].qty += qty;
-            staffMap[salesman].count++;
-          }
+      const isCurrent = (rYear === selectedYear && rMonth === selectedMonth);
+      const isPrev = (rYear === prevYear && rMonth === prevMonth);
+
+      if (rYear === selectedYear) {
+        monthlySales[rMonth] += net;
+      }
+      
+      if (isCurrent) {
+        totalSales += net;
+        trxCount++;
+        totalQty += qty;
+
+        // Category breakdown
+        const cat = String(row[COL.MAIN_CAT] || 'Uncategorized').trim();
+        if (!categoryMap[cat]) categoryMap[cat] = { net: 0, qty: 0, count: 0 };
+        categoryMap[cat].net += net;
+        categoryMap[cat].qty += qty;
+        categoryMap[cat].count++;
+
+        // Staff breakdown (manager only)
+        if (isManager) {
+          if (!staffMap[salesman]) staffMap[salesman] = { net: 0, qty: 0, count: 0, prevNet: 0 };
+          staffMap[salesman].net += net;
+          staffMap[salesman].qty += qty;
+          staffMap[salesman].count++;
+        }
+      } else if (isPrev) {
+        totalPrevSales += net;
+        if (isManager) {
+          if (!staffMap[salesman]) staffMap[salesman] = { net: 0, qty: 0, count: 0, prevNet: 0 };
+          staffMap[salesman].prevNet = (staffMap[salesman].prevNet || 0) + net;
         }
       }
     });
@@ -308,7 +329,9 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
       staffBreakdown = Object.entries(staffMap)
         .map(([name, d]) => {
           const t = staffTargets[name] || 500000000;
-          return { name, netSales: d.net, qty: d.qty, count: d.count, target: t, achievement: t > 0 ? (d.net / t * 100) : 0 };
+          const prevN = d.prevNet || 0;
+          const growth = prevN > 0 ? ((d.net - prevN) / prevN) * 100 : (d.net > 0 ? 100 : 0);
+          return { name, netSales: d.net, qty: d.qty, count: d.count, target: t, achievement: t > 0 ? (d.net / t * 100) : 0, prevNet: prevN, growth: growth };
         })
         .sort((a, b) => b.netSales - a.netSales);
     }
@@ -320,6 +343,8 @@ function getAdvisorDashboardData(advisorName, month, year, role, store) {
         isManager: isManager,
         storeName: store || '',
         totalSales: totalSales,
+        totalPrevSales: totalPrevSales,
+        storeGrowth: totalPrevSales > 0 ? ((totalSales - totalPrevSales) / totalPrevSales) * 100 : (totalSales > 0 ? 100 : 0),
         totalTrx: trxCount,
         totalQty: totalQty,
         target: totalTarget,
@@ -366,7 +391,7 @@ function getAdvisorProspects(advisorName, month, year, role, store) {
   const m = (month !== undefined && month !== null) ? parseInt(month) : now.getMonth();
   const y = (year  !== undefined && year  !== null) ? parseInt(year)  : now.getFullYear();
   const prefix = isManager ? 'sprosp_' + String(store||'').toLowerCase().replace(/\s/g,'') : 'prosp_' + advisorName.toLowerCase().replace(/\s/g,'');
-  const cacheKey = prefix + '_' + m + '_' + y;
+  const cacheKey = prefix + '_' + m + '_' + y + '_v4';
   const cached = cache.get(cacheKey);
   if (cached) {
     try { return JSON.parse(cached); } catch(e) { /* cache corrupt, recalculate */ }
@@ -406,7 +431,7 @@ function getAdvisorProspects(advisorName, month, year, role, store) {
     }
 
     const prospects = [];
-    let walkIn = 0, followUp = 0, delivery = 0;
+    let walkIn = 0, followUp = 0, delivery = 0, newProfile = 0, service = 0, onlineOnly = 0;
 
     tData.forEach(row => {
       const servedBy = String(row[TCOL.SERVED_BY] || '').trim();
@@ -439,6 +464,11 @@ function getAdvisorProspects(advisorName, month, year, role, store) {
       if (sLower.includes('walk')) walkIn++;
       else if (sLower.includes('follow')) followUp++;
       else if (sLower.includes('delivery') || sLower.includes('showing')) delivery++;
+      else if (sLower.includes('repair') || sLower.includes('service')) service++;
+      else if (sLower.includes('online')) onlineOnly++;
+
+      const pLevel = String(row[TCOL.PROSPECT] || '').trim();
+      if (pLevel.toLowerCase().includes('baru') || pLevel.toLowerCase().includes('potensial')) newProfile++;
 
       prospects.push({
         date: dateFormatted,
@@ -453,10 +483,34 @@ function getAdvisorProspects(advisorName, month, year, role, store) {
     // Sort newest first
     prospects.reverse();
 
+    let profilingAdded = 0;
+    try {
+      const extSS = SpreadsheetApp.openById(PROFILING_SS_ID);
+      const pSheet = extSS.getSheetByName('Form Profiling');
+      if (pSheet && pSheet.getLastRow() > 1) {
+        const pData = pSheet.getRange(2, 1, pSheet.getLastRow() - 1, Math.max(pSheet.getLastColumn(), 15)).getValues();
+        pData.forEach(r => {
+          const pDate = new Date(r[0]);
+          if (isNaN(pDate.getTime())) return;
+          if (pDate.getFullYear() === y && pDate.getMonth() === m) {
+            const rowStr = r.join(' | ').toLowerCase();
+            if (isManager) {
+              const tgt = String(store || '').trim().toLowerCase();
+              if (tgt && tgt !== 'all' && rowStr.includes(tgt)) profilingAdded++;
+              else if (!tgt || tgt === 'all') profilingAdded++;
+            } else {
+              const adv = String(advisorName || '').trim().toLowerCase();
+              if (adv && rowStr.includes(adv)) profilingAdded++;
+            }
+          }
+        });
+      }
+    } catch(e) { Logger.log("Error Profiling count: " + e.message); }
+
     const result = {
       success: true,
       prospects: prospects,
-      stats: { walkIn, followUp, delivery, total: prospects.length }
+      stats: { walkIn, followUp, delivery, service, onlineOnly, total: prospects.length, profilingAdded, newProfile }
     };
 
     // --- SAVE TO CACHE ---

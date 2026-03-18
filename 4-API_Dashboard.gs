@@ -15,8 +15,8 @@ function runDataSync() {
     const masters = loadMasters(ss);
     buildCleanMaster(ss, masters);
     
-    // Update Traffic Data Mart
-    exportTrafficSummary();
+    // Traffic Data Mart update dipindahkan ke cron trigger (tidak lagi dipicu manual via Tombol Sync)
+    // agar sinkronisasi dashboard kembali ringan.
 
     return {
       success: true,
@@ -404,7 +404,7 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   overview.trafficFunnel = trafficFunnel;
 
   // 6. LOAD STATUS KEDATANGAN & LOCATION TRAFFIC FROM EXTERNAL TRAFFIC SHEET
-  const statusKedatangan = { walkIn: 0, followUp: 0, delivery: 0 };
+  const statusKedatangan = { walkIn: 0, followUp: 0, delivery: 0, service: 0, onlineOnly: 0 };
   const locationTraffic = { pi: 0, ps: 0, bali: 0, total: 0 };
   try {
       const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
@@ -426,6 +426,8 @@ function getDashboardData(monthName, year, forceRefresh = false) {
                   if (st.includes('walk in') || st.includes('walk-in') || st === 'walkin') statusKedatangan.walkIn++;
                   else if (st.includes('follow up') || st.includes('follow-up') || st === 'followup') statusKedatangan.followUp++;
                   else if (st.includes('delivery') || st.includes('showing')) statusKedatangan.delivery++;
+                  else if (st.includes('repair') || st.includes('service')) statusKedatangan.service++;
+                  else if (st.includes('online')) statusKedatangan.onlineOnly++;
 
                   // Location Traffic
                   const loc = String(row[TCOL.LOCATION] || '').trim().toLowerCase();

@@ -436,8 +436,10 @@ function buildCleanMaster(ss, masters) {
     const lastCleanTransNo = targetSheet.getRange(cleanLastRow, 1).getValue();
     
     // Scan raw_system from bottom to top to locate this Trans No
-    // Optimization: only fetching the Trans No column
-    const rawTransNos = rawSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    // Optimization: avoid full scan, just scan last 2000 rows max
+    const scanLimit = Math.min(lastRow - 1, 2000); 
+    const scanStartRow = lastRow - scanLimit + 1;
+    const rawTransNos = rawSheet.getRange(scanStartRow, 1, scanLimit, 1).getValues();
     
     let foundIdx = -1;
     for (let i = rawTransNos.length - 1; i >= 0; i--) {
@@ -448,13 +450,14 @@ function buildCleanMaster(ss, masters) {
     }
     
     if (foundIdx !== -1) {
-       // Offset: +2 for getRange array 0-index offset, +1 to start on the NEXT row
-       startRowRaw = foundIdx + 3; 
+       // Offset: +scanStartRow for relative position, +1 to start on the NEXT row
+       startRowRaw = scanStartRow + foundIdx + 1; 
        isIncremental = true;
     } else {
        // Transaction not found in raw_system. Maybe 'raw_system' was replaced/overwritten.
-       // Fallback to Full Sync: clear everything
-       targetSheet.getRange(2, 1, cleanLastRow - 1, targetSheet.getLastColumn()).clearContent();
+       // Safe Fallback: do NOT clear everything, instead just fetch the last 100 rows to prevent dashboard crash
+       // targetSheet.getRange(2, 1, cleanLastRow - 1, targetSheet.getLastColumn()).clearContent();
+       startRowRaw = Math.max(2, lastRow - 100); 
     }
   }
 
@@ -1050,9 +1053,9 @@ function syncCleanNamesToProfiling() {
   const profilingSheet = extSS.getSheetByName(CONFIG.EXTERNAL.PROFILING_SHEET_NAME);
   if (profilingSheet && profilingSheet.getLastRow() > 1) {
     // Create backup
-    const backupName = "BACKUP_FormProfiling_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
-    profilingSheet.copyTo(extSS).setName(backupName);
-    console.log("✅ Backup created: " + backupName);
+    // const backupName = "BACKUP_FormProfiling_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+    // profilingSheet.copyTo(extSS).setName(backupName);
+    // console.log("✅ Backup created: " + backupName);
     
     const profData = profilingSheet.getDataRange().getValues();
     const PROF_NAME_COL = CONFIG.EXTERNAL.COLS.NAME;      // Index 4 = Kolom E
@@ -1081,9 +1084,9 @@ function syncCleanNamesToProfiling() {
   const trafficSheet = extSS.getSheetByName(CONFIG.EXTERNAL.TRAFFIC_SHEET_NAME);
   if (trafficSheet && trafficSheet.getLastRow() > 1) {
     // Create backup
-    const backupName = "BACKUP_Traffic_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
-    trafficSheet.copyTo(extSS).setName(backupName);
-    console.log("✅ Backup created: " + backupName);
+    // const backupName = "BACKUP_Traffic_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+    // trafficSheet.copyTo(extSS).setName(backupName);
+    // console.log("✅ Backup created: " + backupName);
     
     const trafData = trafficSheet.getDataRange().getValues();
     const TRAF_NAME_COL = CONFIG.EXTERNAL.TRAFFIC_COLS.NAME; // Index 2 = Kolom C
@@ -1150,9 +1153,9 @@ function cleanTitlesRawAndCleanMaster() {
   let rawCleaned = 0;
   const rawSheet = ss.getSheetByName(CONFIG.SHEETS.RAW);
   if (rawSheet && rawSheet.getLastRow() > 1) {
-    const backupName = "BACKUP_CleanTitle_Raw_" + nowStr;
-    rawSheet.copyTo(ss).setName(backupName);
-    console.log("✅ Backup created: " + backupName);
+    // const backupName = "BACKUP_CleanTitle_Raw_" + nowStr;
+    // rawSheet.copyTo(ss).setName(backupName);
+    // console.log("✅ Backup created: " + backupName);
 
     const rawData = rawSheet.getDataRange().getValues();
     const CUST_COL = CONFIG.RAW_COLS.CUSTOMER; // Index 2 = Column C
@@ -1173,9 +1176,9 @@ function cleanTitlesRawAndCleanMaster() {
   let cleanMasterCleaned = 0;
   const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
   if (cleanSheet && cleanSheet.getLastRow() > 1) {
-    const backupName = "BACKUP_CleanTitle_CleanMaster_" + nowStr;
-    cleanSheet.copyTo(ss).setName(backupName);
-    console.log("✅ Backup created: " + backupName);
+    // const backupName = "BACKUP_CleanTitle_CleanMaster_" + nowStr;
+    // cleanSheet.copyTo(ss).setName(backupName);
+    // console.log("✅ Backup created: " + backupName);
 
     const cleanData = cleanSheet.getDataRange().getValues();
     const CUST_COL = CONFIG.CLEAN_COLS.CUSTOMER; // Index 2 = Column C
@@ -1271,10 +1274,10 @@ function syncSalesToTraffic() {
   if (tData.length <= 1) return "Data Traffic kosong.";
 
   // Create Backup
-  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
-  const backupName = "BACKUP_SyncSales_Traffic_" + nowStr;
-  trafficSheet.copyTo(extSS).setName(backupName);
-  console.log("✅ Backup Traffic created: " + backupName);
+  // const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+  // const backupName = "BACKUP_SyncSales_Traffic_" + nowStr;
+  // trafficSheet.copyTo(extSS).setName(backupName);
+  // console.log("✅ Backup Traffic created: " + backupName);
 
   const TCOL = CONFIG.EXTERNAL.TRAFFIC_COLS;
   let syncCount = 0;
