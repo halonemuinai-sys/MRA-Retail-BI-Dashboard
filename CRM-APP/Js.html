@@ -1,7 +1,9 @@
 <script>
     const CRM = {
         currentUser: null,
-        crmChartInstance: null,
+        dailyChartInstance: null,
+        donutChartInstance: null,
+        prospectChartInstance: null,
         trafficDataCache: [], // Store raw rows for searching
         profilingDataCache: { headers: [], rows: [] },
 
@@ -120,14 +122,18 @@
                     document.getElementById('dashLoader').classList.add('hidden');
                     if (res.success) {
                         const d = res.data;
-                        document.getElementById('dashTotalProfiling').textContent = d.totalProfiling.toLocaleString('id-ID');
-                        document.getElementById('dashTotalTraffic').textContent = d.totalTraffic.toLocaleString('id-ID');
+                        
+                        CRM.renderTopKpis(d.totalTraffic, d.storeTraffic, d.locations);
                         
                         let rate = 0;
                         if (d.totalTraffic > 0) rate = (d.totalProfiling / d.totalTraffic) * 100;
-                        document.getElementById('dashCollectionRate').textContent = rate.toFixed(1) + '%';
+                        document.getElementById('txtDonutRate').textContent = rate.toFixed(1) + '%';
                         
-                        CRM.renderChart(d.chartData, d.locations);
+                        const daysInMonth = new Date(selectedY, selectedM + 1, 0).getDate();
+                        CRM.renderDailyChart(d.dailyChartData, d.locations, daysInMonth);
+                        CRM.renderDonutChart(rate);
+                        CRM.renderProspectChart(d.prospectData);
+                        
                     } else {
                         CRM.showToast(res.message, true);
                     }
@@ -138,45 +144,182 @@
                 })
                 .getCrmDashboardOverview(selectedM, selectedY);
         },
+        
+        renderTopKpis: (totalTraffic, storeTraffic, locations) => {
+            const container = document.getElementById('topKpiContainer');
+            if(!container) return;
 
-        renderChart: (chartData, locations) => {
-            const ctx = document.getElementById('trafficMonthlyChart');
-            if (!ctx) return;
-            document.getElementById('chartFallbackLabel').classList.add('hidden');
+            // Generate first generic card for total
+            let html = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
+                    <div class="absolute right-4 top-4 text-slate-100 group-hover:scale-110 transition-transform">
+                        <iconify-icon icon="lucide:users" class="text-3xl"></iconify-icon>
+                    </div>
+                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Total Traffic</h3>
+                    <div class="flex items-baseline gap-2 relative z-10">
+                        <span class="text-4xl font-display font-bold tracking-tight text-slate-800">${totalTraffic.toLocaleString('id-ID')}</span>
+                    </div>
+                </div>
+            `;
 
-            if (CRM.crmChartInstance) CRM.crmChartInstance.destroy();
-
-            const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-            const colorPalette = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#0ea5e9', '#64748b'];
+            // Sort locations to render them consistently
+            const sortedLocs = locations.filter(x => x && x !== '-').sort();
             
-            const datasets = locations.map((loc, idx) => {
+            sortedLocs.forEach((loc, idx) => {
+                const count = storeTraffic[loc] || 0;
+                
+                // Variasikan icon atau warna biar lebih mirip screenshot user
+                const icons = ['lucide:store', 'lucide:building-2', 'lucide:plane', 'lucide:map-pin'];
+                const icn = icons[idx % icons.length];
+                const badgeCols = ['bg-slate-100 text-slate-500', 'bg-emerald-50 text-emerald-600', 'bg-rose-50 text-rose-500', 'bg-blue-50 text-brand-primary'];
+                const bCol = badgeCols[idx % badgeCols.length];
+                
+                html += `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
+                    <div class="absolute right-0 top-0 w-20 h-20 bg-slate-50 rounded-bl-[100px] -z-0"></div>
+                    <div class="absolute right-4 top-4 ${bCol} w-8 h-8 flex items-center justify-center rounded-full group-hover:scale-110 transition-transform">
+                        <iconify-icon icon="${icn}" class="text-sm"></iconify-icon>
+                    </div>
+                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10 truncate pr-6">${loc}</h3>
+                    <div class="flex items-baseline gap-2 relative z-10">
+                        <span class="text-4xl font-display font-bold tracking-tight text-slate-800">${count.toLocaleString('id-ID')}</span>
+                    </div>
+                </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        },
+
+        renderDailyChart: (dailyChartData, locations, daysInMonth) => {
+            const ctx = document.getElementById('dailyTrafficChart');
+            if (!ctx) return;
+            if (CRM.dailyChartInstance) CRM.dailyChartInstance.destroy();
+
+            const labels = [];
+            for(let i=1; i<=daysInMonth; i++) labels.push(i);
+
+            const colorPalette = [
+                { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
+                { border: '#f97316', bg: 'rgba(249, 115, 22, 0.1)' },
+                { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)' },
+                { border: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' },
+                { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' },
+                { border: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.1)' }
+            ];
+
+            const sortedLocs = locations.filter(x => x && x !== '-').sort();
+
+            const datasets = sortedLocs.map((loc, idx) => {
                 const dataArr = [];
-                for (let i = 0; i < 12; i++) {
-                    dataArr.push(chartData[i][loc] || 0);
+                for (let i = 0; i < daysInMonth; i++) {
+                    dataArr.push(dailyChartData[i][loc] || 0);
                 }
+                const p = colorPalette[idx % colorPalette.length];
                 return {
                     label: loc,
                     data: dataArr,
-                    backgroundColor: colorPalette[idx % colorPalette.length],
-                    borderRadius: 4,
-                    stack: 'Stack 0'
+                    borderColor: p.border,
+                    backgroundColor: p.bg,
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
                 };
             });
 
-            CRM.crmChartInstance = new Chart(ctx.getContext('2d'), {
-                type: 'bar',
-                data: { labels: months, datasets: datasets },
+            CRM.dailyChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { stacked: true, grid: { display: false } },
-                        y: { stacked: true, border: { display: false } }
+                        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                        y: { beginAtZero: true, border: { display: false }, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
                     },
                     plugins: {
-                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
-                        tooltip: { backgroundColor: '#1e293b', padding: 10, titleFont: { size: 13, weight: 'bold' } }
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 6, font: {size: 11} } },
+                        tooltip: { backgroundColor: '#1e293b', padding: 10, titleFont: { size: 13 } }
+                    }
+                }
+            });
+        },
+
+        renderDonutChart: (rate) => {
+            const ctx = document.getElementById('collectionRateChart');
+            if (!ctx) return;
+            if (CRM.donutChartInstance) CRM.donutChartInstance.destroy();
+
+            const remain = Math.max(0, 100 - rate);
+
+            CRM.donutChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Converted', 'Missed'],
+                    datasets: [{
+                        data: [rate, remain],
+                        backgroundColor: ['#2563eb', '#f1f5f9'],
+                        borderWidth: 0,
+                        hoverOffset: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+        },
+
+        renderProspectChart: (prospectData) => {
+            const ctx = document.getElementById('prospectLevelChart');
+            if (!ctx) return;
+            if (CRM.prospectChartInstance) CRM.prospectChartInstance.destroy();
+
+            let labels = Object.keys(prospectData).filter(p => p && p !== 'Undefined' && p !== 'Undetected Level');
+            if(labels.length === 0) {
+               // Fallback when no data
+               labels = ['Potensial','Negosiasi','Berhasil','Gagal'];
+               prospectData = {'Potensial':0,'Negosiasi':0,'Berhasil':0,'Gagal':0};
+            }
+            
+            const dataArr = labels.map(l => prospectData[l]);
+            
+            const colors = labels.map(lbl => {
+                const sl = String(lbl).toLowerCase();
+                if(sl.includes('hot') || sl.includes('berhasil') || sl.includes('won')) return '#10b981';
+                if(sl.includes('warm') || sl.includes('nego') || sl.includes('menunggu')) return '#f59e0b';
+                if(sl.includes('cold') || sl.includes('potensial')) return '#38bdf8';
+                if(sl.includes('gagal') || sl.includes('lost') || sl.includes('reject')) return '#ef4444';
+                return '#94a3b8';
+            });
+
+            CRM.prospectChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataArr,
+                        backgroundColor: colors,
+                        borderRadius: 4,
+                        barThickness: 'flex',
+                        maxBarThickness: 32
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94a3b8' } },
+                        y: { beginAtZero: true, border: { display: false }, grid: { color: '#f1f5f9' }, ticks: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: '#1e293b', padding: 8, titleFont: { size: 10 } }
                     }
                 }
             });

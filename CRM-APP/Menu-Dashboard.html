@@ -31,65 +31,55 @@
         </div>
     </div>
 
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-        
-        <!-- Card Traffic -->
-        <div class="bg-gradient-to-br from-blue-600 to-indigo-900 p-8 rounded-[2rem] shadow-xl border border-indigo-500/30 relative overflow-hidden group">
-            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                <iconify-icon icon="lucide:footprints" class="text-[120px] text-white"></iconify-icon>
-            </div>
-            <p class="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-2 relative z-10">Total Traffic Walk-In</p>
-            <div class="flex items-baseline gap-3 relative z-10">
-                <span id="dashTotalTraffic" class="text-5xl font-bold text-white tracking-tight">0</span>
-                <span class="text-xs text-blue-200 font-medium tracking-wide">Bulan Ini</span>
-            </div>
-        </div>
-
-        <!-- Card Profiling -->
-        <div class="bg-white p-8 rounded-[2rem] shadow-sm hover:shadow-md border border-slate-200 relative overflow-hidden group transition-all">
-            <div class="absolute right-0 top-0 w-32 h-32 bg-brand-accent/5 rounded-bl-[100px] -z-0"></div>
-            <div class="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
-                <iconify-icon icon="lucide:clipboard-list" class="text-[120px] text-brand-primary"></iconify-icon>
-            </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Data Form Profiling</p>
-            <div class="flex items-baseline gap-3 relative z-10">
-                <span id="dashTotalProfiling" class="text-5xl font-bold text-brand-primary tracking-tight">0</span>
-                <span class="text-xs text-slate-400 font-medium tracking-wide">Bulan Ini</span>
-            </div>
-        </div>
-
-        <!-- Collection Rate KPI -->
-        <div class="bg-white p-8 rounded-[2rem] shadow-sm hover:shadow-md border border-slate-200 relative overflow-hidden group md:col-span-2 lg:col-span-1 transition-all">
-            <div class="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
-            <div class="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
-                <iconify-icon icon="lucide:percent" class="text-[120px] text-emerald-600"></iconify-icon>
-            </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Collection Rate Ratio</p>
-            <div class="flex items-baseline gap-3 relative z-10">
-                <span id="dashCollectionRate" class="text-5xl font-bold text-emerald-600 tracking-tight">0%</span>
-                <span class="text-xs text-slate-400 font-medium tracking-wide">Bulan Ini</span>
-            </div>
-            <p class="text-xs text-slate-500 mt-2 font-medium relative z-10">Tingkat perekaman data klien (% dari Traffic).</p>
+    <!-- Stats Grid (Dynamic Top Cards) -->
+    <div id="topKpiContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Default Fallback Card -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Total Traffic</h3>
+            <div class="text-4xl font-bold tracking-tight text-brand-primary">...</div>
         </div>
     </div>
 
-    <!-- Chart Section -->
-    <div class="bg-white p-8 lg:p-10 rounded-[2rem] shadow-sm border border-slate-200 relative">
-        <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
-            <div>
-                <h3 class="font-bold text-2xl text-slate-800 flex items-center gap-3">
-                    <iconify-icon icon="lucide:bar-chart-2" class="text-brand-blue text-3xl"></iconify-icon>
-                    Store Traffic Distribution
-                </h3>
-                <p class="text-sm font-medium text-slate-500 mt-1">Laporan penyebaran pelanggan Walk-In bulanan per lokasi butik sepanjang tahun berjalan.</p>
+    <!-- Main Analytics Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        
+        <!-- Left: Daily Traffic Trend (Area Chart) -->
+        <div class="col-span-1 lg:col-span-2 bg-white p-6 lg:p-8 rounded-[2rem] shadow-sm border border-slate-200 relative flex flex-col min-h-[450px]">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+                <div>
+                    <h3 class="font-bold text-xl text-slate-800">Daily Traffic Trend</h3>
+                    <p class="text-[11px] font-medium text-slate-500 mt-1 uppercase tracking-wider">Visit volume analytics over time</p>
+                </div>
+            </div>
+            <div class="w-full relative grow">
+                <canvas id="dailyTrafficChart"></canvas>
             </div>
         </div>
-        <div class="w-full relative min-h-[400px]">
-            <canvas id="trafficMonthlyChart"></canvas>
-            <div id="chartFallbackLabel" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 font-bold tracking-widest uppercase text-xs">
-                <iconify-icon icon="lucide:pie-chart" class="text-4xl text-slate-200 mb-2"></iconify-icon>
-                Data Visualizer Standby
+
+        <!-- Right: Sales Intelligence -->
+        <div class="col-span-1 bg-white p-6 lg:p-8 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col relative min-h-[450px]">
+            <div class="mb-6">
+                <h3 class="font-bold text-xl text-slate-800">Sales Intelligence</h3>
+                <p class="text-[11px] font-medium text-slate-500 mt-1 uppercase tracking-wider">Conversion & Funnel Metrics</p>
+            </div>
+            
+            <!-- Conversion Donut -->
+            <div class="flex justify-center mb-6 relative">
+                <div class="w-44 h-44 relative">
+                    <canvas id="collectionRateChart"></canvas>
+                    <div class="absolute inset-0 flex flex-col justify-center items-center pointer-events-none">
+                        <span id="txtDonutRate" class="text-3xl font-bold text-slate-800 tracking-tight">0%</span>
+                        <span class="text-[8px] font-bold uppercase tracking-widest text-slate-400 mt-1">Conversion</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prospect Level Analysis -->
+            <div class="mt-auto pt-6 border-t border-slate-100">
+                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Prospek Level Analysis</h4>
+                <div class="w-full relative h-[140px]">
+                    <canvas id="prospectLevelChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
