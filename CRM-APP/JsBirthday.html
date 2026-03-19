@@ -1,0 +1,99 @@
+<script>
+    const CRMBirthday = {
+        dataCache: [],
+
+        load: () => {
+            const loader = document.getElementById('birthdayLoader');
+            const btn = document.getElementById('btnRefreshBday');
+            
+            if (loader) loader.classList.remove('hidden');
+            if (btn) btn.innerHTML = '<iconify-icon icon="svg-spinners:ring-resize"></iconify-icon> Loading...';
+
+            google.script.run
+                .withSuccessHandler(res => {
+                    if (loader) loader.classList.add('hidden');
+                    if (btn) btn.innerHTML = '<iconify-icon icon="lucide:refresh-cw"></iconify-icon> Refresh';
+
+                    if (res.success) {
+                        CRMBirthday.dataCache = res.data;
+                        CRMBirthday.renderTable(res.data);
+                        CRM.showToast(`Memuat ${res.data.length} jadwal ulang tahun.`);
+                    } else {
+                        CRM.showToast(res.message, true);
+                    }
+                })
+                .withFailureHandler(err => {
+                    if (loader) loader.classList.add('hidden');
+                    if (btn) btn.innerHTML = '<iconify-icon icon="lucide:refresh-cw"></iconify-icon> Refresh';
+                    CRM.showToast('Gagal memuat jadwal: ' + err.message, true);
+                })
+                .getCrmBirthdayData();
+        },
+
+        renderTable: (data) => {
+            const tbody = document.getElementById('tbBirthdayBody');
+            if (!tbody) return;
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-slate-400">Belum ada data ulang tahun valid ditemukan. Pastikan kolom (Tanggal Lahir) diisi di sumber GSheet.</td></tr>';
+                document.getElementById('valBirthdayCount').textContent = '0';
+                return;
+            }
+
+            let html = '';
+            data.forEach(m => {
+                let badgeClass = 'bg-slate-100 text-slate-600';
+                
+                if (m.status === 'HARI INI!') {
+                    badgeClass = 'bg-rose-100 text-rose-700 animate-pulse ring-1 ring-rose-300';
+                } else if (m.status.includes('H-')) {
+                    badgeClass = 'bg-amber-100 text-amber-700';
+                } else if (m.status === 'Bulan Ini') {
+                    badgeClass = 'bg-blue-50 text-blue-600';
+                }
+
+                html += `<tr class="hover:bg-slate-50/50 transition-colors">
+                    <td class="py-4 px-6 whitespace-nowrap hidden md:table-cell">
+                        <span class="px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${badgeClass}">${m.status}</span>
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap">
+                        <div class="font-bold text-slate-800">${m.name}</div>
+                        <div class="text-[10px] text-slate-400 font-mono mt-0.5">${m.dob}</div>
+                        <!-- Status Badge for Mobile -->
+                        <div class="md:hidden mt-2">
+                           <span class="px-2 py-1 rounded inline-block text-[9px] font-bold uppercase tracking-wider ${badgeClass}">${m.status}</span>
+                        </div>
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-sm font-mono text-slate-600">
+                        <a href="https://wa.me/${String(m.phone).replace(/^0/,'62').replace(/\D/g,'')}" target="_blank" class="hover:text-brand-accent hover:underline flex items-center gap-1.5">
+                           <iconify-icon icon="lucide:message-circle"></iconify-icon> ${m.phone}
+                        </a>
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-center text-lg font-display font-bold text-brand-primary">
+                        ${m.age}
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-xs font-semibold text-slate-500 text-right">
+                        ${m.location}
+                    </td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
+            document.getElementById('valBirthdayCount').textContent = data.length.toLocaleString('id-ID');
+        },
+
+        search: () => {
+            const query = document.getElementById('inpSearchBirthday').value.toLowerCase();
+            if (!query) {
+                CRMBirthday.renderTable(CRMBirthday.dataCache);
+                return;
+            }
+            const filtered = CRMBirthday.dataCache.filter(r => {
+                return (String(r.name).toLowerCase().includes(query) || 
+                        String(r.dob).toLowerCase().includes(query) ||
+                        String(r.status).toLowerCase().includes(query));
+            });
+            CRMBirthday.renderTable(filtered);
+        }
+    };
+</script>

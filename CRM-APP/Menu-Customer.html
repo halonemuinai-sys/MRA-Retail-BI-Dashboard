@@ -1,0 +1,107 @@
+<!-- Menu-Customer.html -->
+<div id="subview-customer" class="subview w-full hidden">
+<main class="flex-1 ml-64 h-screen flex flex-col bg-slate-50/50">
+    <div class="p-8 border-b border-slate-200 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative overflow-hidden z-10">
+        <!-- Glow effect -->
+        <div class="absolute -right-20 -top-20 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div>
+            <h1 class="text-2xl font-display font-black text-slate-800 tracking-tight flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-md">
+                    <iconify-icon icon="lucide:crown" class="text-xl"></iconify-icon>
+                </span>
+                Customer Master (Loyalty & Tiering)
+            </h1>
+            <p class="text-sm text-slate-500 mt-1.5 font-medium ml-1 flex items-center gap-2">
+                <iconify-icon icon="lucide:database" class="text-slate-400"></iconify-icon>
+                Database pelanggan terpadu (LTV & Tier) berdasarkan Clean Data.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3 relative z-10">
+            <button onclick="CUSTOMER.syncData()" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2 group">
+                <iconify-icon icon="lucide:refresh-cw" class="group-hover:rotate-180 transition-transform duration-500"></iconify-icon> Sync Database
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD AREA -->
+    <div class="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+        
+        <!-- KPI CARDS -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-blue-50 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-blue-100 transition-colors"></div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1 relative z-10">Total Database</p>
+                <h3 class="text-3xl font-display font-black text-slate-800 relative z-10" id="kfTotalCust">0</h3>
+            </div>
+            
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-amber-50 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-amber-100 transition-colors"></div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1 relative z-10 flex items-center gap-1"><iconify-icon icon="lucide:star" class="text-amber-500"></iconify-icon> Top Spender (VIP)</p>
+                <h3 class="text-3xl font-display font-black text-slate-800 relative z-10" id="kfTotalTop">0</h3>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-purple-50 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-purple-100 transition-colors"></div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1 relative z-10 flex items-center gap-1"><iconify-icon icon="lucide:gem" class="text-purple-500"></iconify-icon> Elite Customers</p>
+                <h3 class="text-3xl font-display font-black text-slate-800 relative z-10" id="kfTotalElite">0</h3>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-rose-50 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-rose-100 transition-colors"></div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1 relative z-10">Inactive (>2 Years)</p>
+                <h3 class="text-2xl lg:text-3xl font-display font-black text-rose-600 relative z-10" id="kfTotalInactive">0</h3>
+            </div>
+        </div>
+
+        <!-- TABLE SECTION -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[700px]">
+            <!-- Table Header Tools -->
+            <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/50 backdrop-blur-sm">
+                <div class="flex items-center gap-2">
+                    <h3 class="font-display font-bold text-slate-800 text-lg">Daftar Pelanggan</h3>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-lg border border-slate-200" id="lblCustomerCount">Loading...</span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <iconify-icon icon="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+                        <input type="text" id="custMasterSearch" onkeyup="CUSTOMER.search()" placeholder="Cari nama / nomor HP..." class="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs w-64 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium placeholder-slate-400 bg-slate-50 focus:bg-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-y-auto overflow-x-auto flex-grow custom-scrollbar">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider sticky top-0 z-10 border-b border-slate-200 shadow-sm">
+                        <tr>
+                            <th class="px-5 py-4 font-bold rounded-tl-xl whitespace-nowrap">Tier</th>
+                            <th class="px-5 py-4 font-bold">Nama Pelanggan</th>
+                            <th class="px-5 py-4 font-bold text-right cursor-pointer hover:bg-slate-100 transition-colors" onclick="CUSTOMER.sortBySpend()">Total Spend (LTV) <iconify-icon icon="lucide:arrow-up-down" class="inline align-middle"></iconify-icon></th>
+                            <th class="px-5 py-4 font-bold text-center">Freq</th>
+                            <th class="px-5 py-4 font-bold text-center">Qty</th>
+                            <th class="px-5 py-4 font-bold">Fav Collection</th>
+                            <th class="px-5 py-4 font-bold text-center">Main Advisor</th>
+                            <th class="px-5 py-4 font-bold rounded-tr-xl">Last Purchase</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblCustomerMaster" class="divide-y divide-slate-100 bg-white">
+                        <tr>
+                            <td colspan="8" class="px-5 py-16 text-center text-slate-500 font-medium">
+                                <iconify-icon icon="lucide:database" class="text-4xl text-slate-300 mb-4 block mx-auto"></iconify-icon>
+                                <div class="text-base mb-2 text-slate-800 font-bold">Database Belum Dimuat</div>
+                                <div class="text-xs text-slate-400 mb-6">Klik tombol di bawah ini untuk mengambil dan memuat data pelanggan.</div>
+                                <button onclick="CUSTOMER.loadData()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md transition-all active:scale-95 inline-flex items-center gap-2">
+                                    <iconify-icon icon="lucide:download-cloud" class="text-lg"></iconify-icon> Tampilkan Data
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+</div>

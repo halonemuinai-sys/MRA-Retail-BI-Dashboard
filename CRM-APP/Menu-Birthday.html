@@ -1,0 +1,55 @@
+<div id="subview-birthday" class="subview w-full hidden">
+<main class="flex-1 ml-64 p-8 lg:p-12 relative bg-slate-50 min-h-screen flex flex-col h-screen">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                <iconify-icon icon="lucide:gift" class="text-brand-primary"></iconify-icon> Client Birthdays
+            </h2>
+            <p class="text-sm text-slate-500 mt-1">Daftar ulang tahun klien berurut dari hari terdekat.</p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <iconify-icon icon="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+                <input type="text" id="inpSearchBirthday" placeholder="Cari klien atau status..." 
+                    class="pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all w-64"
+                    onkeyup="CRMBirthday.search()">
+            </div>
+            <button onclick="CRMBirthday.load()" class="btn-primary" id="btnRefreshBday">
+                <iconify-icon icon="lucide:refresh-cw"></iconify-icon> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden flex-1 flex flex-col relative">
+        <div class="overflow-x-auto flex-1 h-[500px]">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-sm shadow-sm">
+                    <tr>
+                        <th class="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden md:table-cell w-32">Target D-Day</th>
+                        <th class="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Client Name</th>
+                        <th class="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Phone</th>
+                        <th class="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-24">Age</th>
+                        <th class="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Location</th>
+                    </tr>
+                </thead>
+                <tbody id="tbBirthdayBody" class="divide-y divide-slate-100 relative z-0">
+                    <!-- Javascript Data -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Loader -->
+        <div id="birthdayLoader" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center hidden">
+            <iconify-icon icon="svg-spinners:ring-resize" class="text-4xl text-brand-primary mb-3"></iconify-icon>
+            <p class="text-sm font-medium text-slate-500 animate-pulse">Menghitung kalender spesifik...</p>
+        </div>
+
+        <div class="bg-slate-50 border-t border-slate-200 p-4 shrink-0 flex justify-between items-center text-xs text-slate-500">
+            <span>Menampilkan max 100 prospek ultah terdekat</span>
+            <span>Total Terekam: <strong id="valBirthdayCount" class="text-slate-800 font-bold">0</strong></span>
+        </div>
+    </div>
+</main>
+</div>

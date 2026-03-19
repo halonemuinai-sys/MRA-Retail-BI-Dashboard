@@ -40,8 +40,8 @@
             document.querySelectorAll('.subview').forEach(s => s.classList.add('hidden'));
             // Remove active style from nav buttons
             document.querySelectorAll('.navbtn').forEach(btn => {
-                btn.classList.remove('bg-slate-800/80', 'text-white', 'shadow-inner');
-                btn.classList.add('hover:bg-slate-800/50');
+                btn.classList.remove('is-active', 'bg-slate-800/80', 'text-white', 'shadow-inner');
+                btn.classList.add('hover:bg-slate-800/50', 'text-slate-400');
             });
             
             // Show target subview
@@ -51,8 +51,8 @@
             // Style active nav button
             const btn = document.getElementById('navbtn-' + tabId);
             if(btn) {
-                btn.classList.add('bg-slate-800/80', 'text-white', 'shadow-inner');
-                btn.classList.remove('hover:bg-slate-800/50');
+                btn.classList.add('is-active');
+                btn.classList.remove('hover:bg-slate-800/50', 'text-slate-400');
             }
 
             // Auto-load logic when entering a tab
@@ -60,6 +60,18 @@
                 CRM.loadTraffic();
             } else if (tabId === 'profiling' && CRM.profilingDataCache.rows.length === 0) {
                 CRM.loadProfiling();
+            } else if (tabId === 'customer' && (!CUSTOMER.rawData || CUSTOMER.rawData.length === 0)) {
+                CUSTOMER.init();
+            } else if (tabId === 'birthday' && window.CRMBirthday && CRMBirthday.dataCache.length === 0) {
+                CRMBirthday.load();
+            } else if (tabId === 'livetime' && window.CRMLive) {
+                const val = document.getElementById('valLiveTraffic');
+                if (val && val.textContent === '0') {
+                    CRMLive.load();
+                }
+            } else if (tabId === 'advisor' && window.CRMAdv && !CRMAdv.hasLoaded) {
+                CRMAdv.hasLoaded = true;
+                CRMAdv.fetchData();
             }
         },
 
@@ -82,6 +94,8 @@
 
                     if (res.success) {
                         CRM.currentUser = res.user;
+                        localStorage.setItem('crmUser', JSON.stringify(res.user));
+                        
                         document.getElementById('userNameLabel').textContent = res.user.name;
                         document.getElementById('userRoleLabel').textContent = res.user.role;
                         document.getElementById('userAvatar').textContent = res.user.name.charAt(0).toUpperCase();
@@ -104,6 +118,7 @@
 
         logout: () => {
             CRM.currentUser = null;
+            localStorage.removeItem('crmUser');
             document.getElementById('inpPassword').value = '';
             CRM.navigate('login');
             CRM.showToast('Berhasil Logout');
@@ -123,10 +138,14 @@
                     if (res.success) {
                         const d = res.data;
                         
-                        CRM.renderTopKpis(d.totalTraffic, d.storeTraffic, d.locations);
+                        document.getElementById('dashTotalProfiling').textContent = d.totalProfiling.toLocaleString('id-ID');
+                        document.getElementById('dashTotalTraffic').textContent = d.totalTraffic.toLocaleString('id-ID');
+                        
+                        CRM.renderTopKpis(d.storeTraffic, d.locations);
                         
                         let rate = 0;
                         if (d.totalTraffic > 0) rate = (d.totalProfiling / d.totalTraffic) * 100;
+                        document.getElementById('dashCollectionRate').textContent = rate.toFixed(1) + '%';
                         document.getElementById('txtDonutRate').textContent = rate.toFixed(1) + '%';
                         
                         const daysInMonth = new Date(selectedY, selectedM + 1, 0).getDate();
@@ -145,25 +164,14 @@
                 .getCrmDashboardOverview(selectedM, selectedY);
         },
         
-        renderTopKpis: (totalTraffic, storeTraffic, locations) => {
-            const container = document.getElementById('topKpiContainer');
+        renderTopKpis: (storeTraffic, locations) => {
+            const container = document.getElementById('storeKpiContainer');
             if(!container) return;
-
-            // Generate first generic card for total
-            let html = `
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
-                    <div class="absolute right-4 top-4 text-slate-100 group-hover:scale-110 transition-transform">
-                        <iconify-icon icon="lucide:users" class="text-3xl"></iconify-icon>
-                    </div>
-                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Total Traffic</h3>
-                    <div class="flex items-baseline gap-2 relative z-10">
-                        <span class="text-4xl font-display font-bold tracking-tight text-slate-800">${totalTraffic.toLocaleString('id-ID')}</span>
-                    </div>
-                </div>
-            `;
 
             // Sort locations to render them consistently
             const sortedLocs = locations.filter(x => x && x !== '-').sort();
+            let html = '';
+
             
             sortedLocs.forEach((loc, idx) => {
                 const count = storeTraffic[loc] || 0;
@@ -280,23 +288,57 @@
             if (!ctx) return;
             if (CRM.prospectChartInstance) CRM.prospectChartInstance.destroy();
 
-            let labels = Object.keys(prospectData).filter(p => p && p !== 'Undefined' && p !== 'Undetected Level');
-            if(labels.length === 0) {
-               // Fallback when no data
-               labels = ['Potensial','Negosiasi','Berhasil','Gagal'];
-               prospectData = {'Potensial':0,'Negosiasi':0,'Berhasil':0,'Gagal':0};
+            // Mapped buckets based on user's exact specification
+            const buckets = {
+                'Potensial': 0,
+                'Negosiasi': 0,
+                'Menunggu': 0,
+                'Berhasil': 0,
+                'Gagal': 0
+            };
+
+            for (const key in prospectData) {
+                const count = prospectData[key];
+                const sl = String(key).toLowerCase();
+                if (sl.includes('hot') || sl.includes('berhasil') || sl.includes('won')) {
+                    buckets['Berhasil'] += count;
+                } else if (sl.includes('nego') || sl.includes('warm') || sl.includes('warming')) {
+                    buckets['Negosiasi'] += count;
+                } else if (sl.includes('tunggu') || sl.includes('follow') || sl.includes('waiting') || sl.includes('menunggu')) {
+                    buckets['Menunggu'] += count;
+                } else if (sl.includes('gagal') || sl.includes('lost') || sl.includes('reject') || sl.includes('drop')) {
+                    buckets['Gagal'] += count;
+                } else {
+                    buckets['Potensial'] += count; // everything else mapped to Potensial
+                }
             }
             
-            const dataArr = labels.map(l => prospectData[l]);
-            
-            const colors = labels.map(lbl => {
-                const sl = String(lbl).toLowerCase();
-                if(sl.includes('hot') || sl.includes('berhasil') || sl.includes('won')) return '#10b981';
-                if(sl.includes('warm') || sl.includes('nego') || sl.includes('menunggu')) return '#f59e0b';
-                if(sl.includes('cold') || sl.includes('potensial')) return '#38bdf8';
-                if(sl.includes('gagal') || sl.includes('lost') || sl.includes('reject')) return '#ef4444';
-                return '#94a3b8';
-            });
+            const labels = Object.keys(buckets);
+            const dataArr = Object.values(buckets);
+            // Colors: Blue, Orange, Yellow, Green, Red
+            const colors = ['#38bdf8', '#fb923c', '#fbbf24', '#10b981', '#ef4444'];
+
+            // Custom plugin to draw numbers exactly above bars
+            const drawValuesPlugin = {
+                id: 'customDataLabels',
+                afterDatasetsDraw(chart, args, pluginOptions) {
+                    const { ctx } = chart;
+                    chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        if (!meta.hidden) {
+                            meta.data.forEach((element, index) => {
+                                ctx.fillStyle = '#64748b';
+                                ctx.font = 'bold 11px Inter, sans-serif';
+                                const dataString = dataset.data[index].toString();
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                const position = element.tooltipPosition();
+                                ctx.fillText(dataString, position.x, position.y - 4);
+                            });
+                        }
+                    });
+                }
+            };
 
             CRM.prospectChartInstance = new Chart(ctx.getContext('2d'), {
                 type: 'bar',
@@ -314,14 +356,33 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94a3b8' } },
-                        y: { beginAtZero: true, border: { display: false }, grid: { color: '#f1f5f9' }, ticks: { display: false } }
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { 
+                                font: { size: 10, weight: 'bold' }, 
+                                color: '#64748b',
+                                autoSkip: false,
+                                maxRotation: 0,
+                                minRotation: 0
+                            } 
+                        },
+                        y: { 
+                            beginAtZero: true, 
+                            border: { display: false }, 
+                            grid: { display: false }, 
+                            ticks: { display: false },
+                            grace: '20%' // Add headroom memory capacity for top text
+                        }
                     },
                     plugins: {
                         legend: { display: false },
                         tooltip: { backgroundColor: '#1e293b', padding: 8, titleFont: { size: 10 } }
+                    },
+                    layout: {
+                        padding: { top: 15, bottom: 5 }
                     }
-                }
+                },
+                plugins: [drawValuesPlugin] // Inject the custom plugin here
             });
         },
 
@@ -612,6 +673,28 @@
         const yObj = document.getElementById('crmFilterYear');
         if(mObj) mObj.value = d.getMonth();
         if(yObj) yObj.value = d.getFullYear();
+        
+        try {
+            const savedUser = localStorage.getItem('crmUser');
+            if (savedUser) {
+                const userObj = JSON.parse(savedUser);
+                CRM.currentUser = userObj;
+                
+                document.getElementById('userNameLabel').textContent = userObj.name;
+                document.getElementById('userRoleLabel').textContent = userObj.role;
+                document.getElementById('userAvatar').textContent = String(userObj.name).charAt(0).toUpperCase();
+
+                CRM.navigate('app-shell');
+                CRM.switchTab('dashboard');
+                CRM.loadDashboard(); // Load data dashboard otomatis
+                
+                CRM.showToast('Sesi dilanjutkan: ' + userObj.name);
+                return;
+            }
+        } catch(e) {
+            localStorage.removeItem('crmUser');
+        }
+
         CRM.navigate('login');
     };
 </script>

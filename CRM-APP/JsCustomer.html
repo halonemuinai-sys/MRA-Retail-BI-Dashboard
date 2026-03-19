@@ -1,0 +1,193 @@
+<!-- JsCustomer.html -->
+<script>
+const CUSTOMER = {
+    rawData: [],
+    
+    init: function() {
+        // Hanya kosongkan state, biarkan user klik Load Data
+        this.rawData = [];
+        this.renderCards(null);
+    },
+
+    loadData: function() {
+        // Show loading state
+        const tbody = document.getElementById('tblCustomerMaster');
+        if(tbody) {
+            tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-16 text-center text-slate-400 font-medium"><iconify-icon icon="svg-spinners:ring-resize" class="text-3xl text-blue-500 mb-3 block mx-auto"></iconify-icon><div>Sedang menarik database pelanggan dari server...</div></td></tr>`;
+        }
+
+        google.script.run.withSuccessHandler(res => {
+            if(res.success) {
+                CUSTOMER.rawData = res.data;
+                CUSTOMER.renderCards(res.stats);
+                CUSTOMER.renderTable(CUSTOMER.rawData);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Fetch Failed',
+                    text: res.message,
+                    confirmButtonColor: '#0f172a'
+                });
+                if(tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-rose-500 font-bold">${res.message}</td></tr>`;
+            }
+        }).withFailureHandler(err => {
+             Swal.fire('Error', String(err), 'error');
+        }).getCustomerMasterList();
+    },
+
+    syncData: function() {
+        Swal.fire({
+            title: 'Mulai Sinkronisasi?',
+            text: "Ini akan membaca seluruh data Clean Transaksi untuk menghitung ulang LTV dan memperbarui Tier. Lanjutkan?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3b82f6',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Sinkronisasi',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Memproses...',
+                    html: 'Sedang menghitung triliunan data transaksi \u23F3',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                google.script.run.withSuccessHandler(res => {
+                    if(res.success) {
+                        Swal.fire('Berhasil!', res.message + ` (${res.count} pelanggan diperbarui)`, 'success');
+                        CUSTOMER.loadData(); // Reload UI
+                    } else {
+                        Swal.fire('Gagal', res.message, 'error');
+                    }
+                }).withFailureHandler(err => {
+                    Swal.fire('Error', String(err), 'error');
+                }).syncCustomerMaster();
+            }
+        });
+    },
+
+    getTierBadge: function(tier) {
+        tier = String(tier).trim();
+        switch(tier) {
+            case 'Top Spender':
+                return `<span class="px-3 py-1 bg-gradient-to-r from-amber-200 to-yellow-400 text-yellow-900 border border-yellow-500/50 rounded-full text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(251,191,36,0.5)] flex items-center justify-center gap-1"><iconify-icon icon="lucide:crown"></iconify-icon> TOP</span>`;
+            case 'Elite':
+                return `<span class="px-3 py-1 bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-1 shadow-sm"><iconify-icon icon="lucide:gem"></iconify-icon> ELITE</span>`;
+            case 'High Potential':
+                return `<span class="px-3 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center shadow-sm">HIGH POT</span>`;
+            case 'Potential':
+                return `<span class="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center shadow-sm">POTENTIAL</span>`;
+            case 'Prospect':
+                return `<span class="px-3 py-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center shadow-sm">PROSPECT</span>`;
+            case 'Inactive':
+                return `<span class="px-3 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center shadow-sm">INACTIVE</span>`;
+            default:
+                return `<span class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase">${tier}</span>`;
+        }
+    },
+
+    renderCards: function(stats) {
+        if(!stats) {
+            document.getElementById('kfTotalCust').innerText = "0";
+            document.getElementById('kfTotalTop').innerText = "0";
+            document.getElementById('kfTotalElite').innerText = "0";
+            document.getElementById('kfTotalInactive').innerText = "0";
+            return;
+        }
+        document.getElementById('kfTotalCust').innerText = (stats.totalCustomers || 0).toLocaleString('id-ID');
+        document.getElementById('kfTotalTop').innerText = (stats.tiers['Top Spender'] || 0).toLocaleString('id-ID');
+        document.getElementById('kfTotalElite').innerText = (stats.tiers['Elite'] || 0).toLocaleString('id-ID');
+        document.getElementById('kfTotalInactive').innerText = (stats.tiers['Inactive'] || 0).toLocaleString('id-ID');
+        
+        const countLbl = document.getElementById('lblCustomerCount');
+        if(countLbl) countLbl.innerText = `${(stats.totalCustomers || 0).toLocaleString('id-ID')} Records`;
+    },
+
+    renderTable: function(dataArray) {
+        const tbody = document.getElementById('tblCustomerMaster');
+        if(!tbody) return;
+
+        if(!dataArray || dataArray.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-12 text-slate-400 font-medium">Data kosong. Silakan tekan tombol Sync.</td></tr>`;
+            return;
+        }
+
+        let html = '';
+        dataArray.forEach(row => {
+            const formatedSpend = new Intl.NumberFormat('id-ID').format(Math.round(row.spend));
+            
+            html += `
+            <tr class="hover:bg-slate-50/80 transition-colors group">
+                <td class="px-5 py-3 align-middle">${this.getTierBadge(row.tier)}</td>
+                <td class="px-5 py-3">
+                    <div class="font-bold text-slate-800 text-[13px] capitalize">${String(row.name).toLowerCase()}</div>
+                    <div class="text-[10px] text-slate-400 font-mono mt-0.5">${row.phone || '-'}</div>
+                </td>
+                <td class="px-5 py-3 text-right">
+                    <div class="font-mono font-bold text-slate-800 text-[13px]">Rp ${formatedSpend}</div>
+                </td>
+                <td class="px-5 py-3 text-center text-[12px] font-bold text-slate-600">${row.freq}</td>
+                <td class="px-5 py-3 text-center text-[12px] font-medium text-slate-500">${row.qty} pc</td>
+                <td class="px-5 py-3 text-[11px] font-medium text-slate-600 capitalize">${row.favColl.toLowerCase()}</td>
+                <td class="px-5 py-3 text-center">
+                    <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-wider border border-indigo-100/50">${row.advisor}</span>
+                </td>
+                <td class="px-5 py-3 text-[11px] text-slate-500 font-medium">${row.lastDate}</td>
+            </tr>`;
+        });
+        
+        tbody.innerHTML = html;
+        
+        // Update label count if filtering
+        const countLbl = document.getElementById('lblCustomerCount');
+        if(countLbl && dataArray.length !== CUSTOMER.rawData.length) {
+             countLbl.innerText = `Menampilkan ${dataArray.length.toLocaleString('id-ID')} dari ${CUSTOMER.rawData.length.toLocaleString('id-ID')} Records`;
+        } else if (countLbl) {
+             countLbl.innerText = `${CUSTOMER.rawData.length.toLocaleString('id-ID')} Records`;
+        }
+    },
+
+    search: function() {
+        const val = document.getElementById('custMasterSearch').value.toLowerCase().trim();
+        if(!val) {
+            this.renderTable(this.rawData);
+            return;
+        }
+
+        const filtered = this.rawData.filter(row => {
+            return String(row.name).toLowerCase().includes(val) || 
+                   String(row.phone).toLowerCase().includes(val) ||
+                   String(row.tier).toLowerCase().includes(val) ||
+                   String(row.advisor).toLowerCase().includes(val);
+        });
+
+        this.renderTable(filtered);
+    },
+    
+    _sortAsc: false,
+    sortBySpend: function() {
+        this._sortAsc = !this._sortAsc;
+        
+        // Buat copy array biar gak rusak kalau nge filter
+        let currentData = [...this.rawData]; 
+        
+        // Filter aktif cek input 
+        const val = document.getElementById('custMasterSearch').value.toLowerCase().trim();
+        if(val) {
+             currentData = currentData.filter(row => {
+                 return String(row.name).toLowerCase().includes(val) || 
+                        String(row.phone).toLowerCase().includes(val);
+             });
+        }
+        
+        currentData.sort((a,b) => {
+            if(this._sortAsc) return a.spend - b.spend;
+            return b.spend - a.spend;
+        });
+        
+        this.renderTable(currentData);
+    }
+};
+</script>

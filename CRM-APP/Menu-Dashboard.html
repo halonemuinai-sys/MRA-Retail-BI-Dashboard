@@ -31,13 +31,52 @@
         </div>
     </div>
 
-    <!-- Stats Grid (Dynamic Top Cards) -->
-    <div id="topKpiContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <!-- Default Fallback Card -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Total Traffic</h3>
-            <div class="text-4xl font-bold tracking-tight text-brand-primary">...</div>
+    <!-- Main KPIs -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        
+        <!-- Card Traffic -->
+        <div class="bg-gradient-to-br from-blue-600 to-indigo-900 p-8 rounded-[2rem] shadow-xl border border-indigo-500/30 relative overflow-hidden group">
+            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="lucide:footprints" class="text-[120px] text-white"></iconify-icon>
+            </div>
+            <p class="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-2 relative z-10">Total Traffic Walk-In</p>
+            <div class="flex items-baseline gap-3 relative z-10">
+                <span id="dashTotalTraffic" class="text-5xl font-bold text-white tracking-tight">0</span>
+                <span class="text-xs text-blue-200 font-medium tracking-wide">Bulan Ini</span>
+            </div>
         </div>
+
+        <!-- Card Profiling -->
+        <div class="bg-white p-8 rounded-[2rem] shadow-sm hover:shadow-md border border-slate-200 relative overflow-hidden group transition-all">
+            <div class="absolute right-0 top-0 w-32 h-32 bg-brand-accent/5 rounded-bl-[100px] -z-0"></div>
+            <div class="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="lucide:clipboard-list" class="text-[120px] text-brand-primary"></iconify-icon>
+            </div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Data Form Profiling</p>
+            <div class="flex items-baseline gap-3 relative z-10">
+                <span id="dashTotalProfiling" class="text-5xl font-bold text-brand-primary tracking-tight">0</span>
+                <span class="text-xs text-slate-400 font-medium tracking-wide">Bulan Ini</span>
+            </div>
+        </div>
+
+        <!-- Collection Rate KPI -->
+        <div class="bg-white p-8 rounded-[2rem] shadow-sm hover:shadow-md border border-slate-200 relative overflow-hidden group md:col-span-2 lg:col-span-1 transition-all">
+            <div class="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
+            <div class="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="lucide:percent" class="text-[120px] text-emerald-600"></iconify-icon>
+            </div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Collection Rate Ratio</p>
+            <div class="flex items-baseline gap-3 relative z-10">
+                <span id="dashCollectionRate" class="text-5xl font-bold text-emerald-600 tracking-tight">0%</span>
+                <span class="text-xs text-slate-400 font-medium tracking-wide">Bulan Ini</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-2 font-medium relative z-10">Tingkat perekaman data klien (% dari Traffic).</p>
+        </div>
+    </div>
+
+    <!-- Store Locations Dynamic KPIs -->
+    <div id="storeKpiContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <!-- Javascript akan me-render list toko disini -->
     </div>
 
     <!-- Main Analytics Layout -->
@@ -77,7 +116,7 @@
             <!-- Prospect Level Analysis -->
             <div class="mt-auto pt-6 border-t border-slate-100">
                 <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Prospek Level Analysis</h4>
-                <div class="w-full relative h-[140px]">
+                <div class="w-full relative h-[180px]">
                     <canvas id="prospectLevelChart"></canvas>
                 </div>
             </div>

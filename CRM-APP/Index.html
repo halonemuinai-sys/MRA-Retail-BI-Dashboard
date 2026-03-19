@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bvlgari CRM Portal</title>
+    <title>ARES CRM Portal</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Iconify -->
@@ -49,10 +49,20 @@
             <div id="subview-clean" class="subview w-full hidden">
                 <?!= include('Menu-Clean'); ?>
             </div>
+            
+            <?!= include('Menu-Birthday'); ?>
+            <?!= include('Menu-LiveTime'); ?>
+            <?!= include('Menu-Advisor'); ?>
+            <?!= include('Menu-Customer'); ?>
         </div>
 
     </div>
 
+    <!-- Core Logic -->
     <?!= include('Js'); ?>
+    <?!= include('JsBirthday'); ?>
+    <?!= include('JsLiveTime'); ?>
+    <?!= include('JsAdvisor'); ?>
+    <?!= include('JsCustomer'); ?>
 </body>
 </html>

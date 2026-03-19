@@ -128,7 +128,7 @@ function sendDailyEmailReport(targetDateStr) {
     let html = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto;">
       <p>Dear All,</p>
-      <p><b>Laporan Penjualan Harian Bulgari Indonesia : ${maxDate} ${monthName} ${targetYear}</b></p>
+      <p><b>Laporan Penjualan Harian Bvlgari Indonesia : ${maxDate} ${monthName} ${targetYear}</b></p>
       
       <table style="width: 100%; max-width: 600px; margin-bottom: 20px; font-size: 14px;">
         <tr>
@@ -243,7 +243,7 @@ function sendDailyEmailReport(targetDateStr) {
 
     html += `
       </table>
-      <p style="font-size: 11px; color: #888; margin-top: 30px;">This is an automatically generated email from the Bulgari Dashboard.</p>
+      <p style="font-size: 11px; color: #888; margin-top: 30px;">This is an automatically generated email from the Bvlgari Dashboard.</p>
     </div>
     `;
 
