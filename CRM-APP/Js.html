@@ -1,0 +1,474 @@
+<script>
+    const CRM = {
+        currentUser: null,
+        crmChartInstance: null,
+        trafficDataCache: [], // Store raw rows for searching
+        profilingDataCache: { headers: [], rows: [] },
+
+        showToast: (msg, isError = false) => {
+            const wrapper = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `toast-anim-in flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm font-medium ${isError ? 'bg-red-50 text-red-800 border-red-200' : 'bg-brand-primary text-white border-slate-700'}`;
+            el.innerHTML = isError 
+                ? '<iconify-icon icon="lucide:alert-circle" class="text-lg"></iconify-icon>' + msg 
+                : '<iconify-icon icon="lucide:check-circle-2" class="text-brand-accent text-lg"></iconify-icon>' + msg;
+            
+            wrapper.appendChild(el);
+            setTimeout(() => {
+                el.classList.replace('toast-anim-in', 'toast-anim-out');
+                setTimeout(() => el.remove(), 300);
+            }, 3000);
+        },
+
+        navigate: (viewId) => {
+            document.querySelectorAll('.view-module').forEach(v => {
+                v.classList.add('hidden');
+                v.classList.remove('opacity-100');
+            });
+            const target = document.getElementById('view-' + viewId);
+            if(target) {
+                target.classList.remove('hidden');
+                void target.offsetWidth;
+                target.classList.add('opacity-100');
+            }
+        },
+
+        switchTab: (tabId) => {
+            // Hide all subviews
+            document.querySelectorAll('.subview').forEach(s => s.classList.add('hidden'));
+            // Remove active style from nav buttons
+            document.querySelectorAll('.navbtn').forEach(btn => {
+                btn.classList.remove('bg-slate-800/80', 'text-white', 'shadow-inner');
+                btn.classList.add('hover:bg-slate-800/50');
+            });
+            
+            // Show target subview
+            const tgt = document.getElementById('subview-' + tabId);
+            if(tgt) tgt.classList.remove('hidden');
+
+            // Style active nav button
+            const btn = document.getElementById('navbtn-' + tabId);
+            if(btn) {
+                btn.classList.add('bg-slate-800/80', 'text-white', 'shadow-inner');
+                btn.classList.remove('hover:bg-slate-800/50');
+            }
+
+            // Auto-load logic when entering a tab
+            if (tabId === 'traffic' && CRM.trafficDataCache.length === 0) {
+                CRM.loadTraffic();
+            } else if (tabId === 'profiling' && CRM.profilingDataCache.rows.length === 0) {
+                CRM.loadProfiling();
+            }
+        },
+
+        login: () => {
+            const u = document.getElementById('inpUsername').value.trim();
+            const p = document.getElementById('inpPassword').value.trim();
+            if(!u || !p) {
+                CRM.showToast('Harap isi semua kolom', true);
+                return;
+            }
+
+            const btn = document.getElementById('btnLogin');
+            btn.innerHTML = '<iconify-icon icon="svg-spinners:ring-resize"></iconify-icon> Verifying...';
+            btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(res => {
+                    btn.innerHTML = '<iconify-icon icon="lucide:log-in"></iconify-icon> Sign In';
+                    btn.disabled = false;
+
+                    if (res.success) {
+                        CRM.currentUser = res.user;
+                        document.getElementById('userNameLabel').textContent = res.user.name;
+                        document.getElementById('userRoleLabel').textContent = res.user.role;
+                        document.getElementById('userAvatar').textContent = res.user.name.charAt(0).toUpperCase();
+
+                        CRM.navigate('app-shell');
+                        CRM.switchTab('dashboard');
+                        CRM.loadDashboard();
+                        CRM.showToast('Selamat datang, ' + res.user.name);
+                    } else {
+                        CRM.showToast(res.message, true);
+                    }
+                })
+                .withFailureHandler(err => {
+                    btn.innerHTML = '<iconify-icon icon="lucide:log-in"></iconify-icon> Sign In';
+                    btn.disabled = false;
+                    CRM.showToast('Server Timeout: ' + err.message, true);
+                })
+                .doCrmLogin(u, p);
+        },
+
+        logout: () => {
+            CRM.currentUser = null;
+            document.getElementById('inpPassword').value = '';
+            CRM.navigate('login');
+            CRM.showToast('Berhasil Logout');
+        },
+
+        loadDashboard: () => {
+             const mSel = document.getElementById('crmFilterMonth');
+             const ySel = document.getElementById('crmFilterYear');
+             const selectedM = mSel ? parseInt(mSel.value) : new Date().getMonth();
+             const selectedY = ySel ? parseInt(ySel.value) : new Date().getFullYear();
+
+            document.getElementById('dashLoader').classList.remove('hidden');
+            
+            google.script.run
+                .withSuccessHandler(res => {
+                    document.getElementById('dashLoader').classList.add('hidden');
+                    if (res.success) {
+                        const d = res.data;
+                        document.getElementById('dashTotalProfiling').textContent = d.totalProfiling.toLocaleString('id-ID');
+                        document.getElementById('dashTotalTraffic').textContent = d.totalTraffic.toLocaleString('id-ID');
+                        
+                        let rate = 0;
+                        if (d.totalTraffic > 0) rate = (d.totalProfiling / d.totalTraffic) * 100;
+                        document.getElementById('dashCollectionRate').textContent = rate.toFixed(1) + '%';
+                        
+                        CRM.renderChart(d.chartData, d.locations);
+                    } else {
+                        CRM.showToast(res.message, true);
+                    }
+                })
+                .withFailureHandler(err => {
+                    document.getElementById('dashLoader').classList.add('hidden');
+                    CRM.showToast('Kesalahan ambil data: ' + err.message, true);
+                })
+                .getCrmDashboardOverview(selectedM, selectedY);
+        },
+
+        renderChart: (chartData, locations) => {
+            const ctx = document.getElementById('trafficMonthlyChart');
+            if (!ctx) return;
+            document.getElementById('chartFallbackLabel').classList.add('hidden');
+
+            if (CRM.crmChartInstance) CRM.crmChartInstance.destroy();
+
+            const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+            const colorPalette = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#0ea5e9', '#64748b'];
+            
+            const datasets = locations.map((loc, idx) => {
+                const dataArr = [];
+                for (let i = 0; i < 12; i++) {
+                    dataArr.push(chartData[i][loc] || 0);
+                }
+                return {
+                    label: loc,
+                    data: dataArr,
+                    backgroundColor: colorPalette[idx % colorPalette.length],
+                    borderRadius: 4,
+                    stack: 'Stack 0'
+                };
+            });
+
+            CRM.crmChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: months, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, border: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: { backgroundColor: '#1e293b', padding: 10, titleFont: { size: 13, weight: 'bold' } }
+                    }
+                }
+            });
+        },
+
+        loadTraffic: () => {
+            document.getElementById('trafficLoader').classList.remove('hidden');
+            
+            google.script.run
+                .withSuccessHandler(res => {
+                    document.getElementById('trafficLoader').classList.add('hidden');
+                    if (res.success) {
+                        CRM.trafficDataCache = res.data;
+                        CRM.renderTrafficTable(res.data);
+                        CRM.showToast('Traffic data synchronized!');
+                    } else {
+                        CRM.showToast(res.message, true);
+                    }
+                })
+                .withFailureHandler(err => {
+                    document.getElementById('trafficLoader').classList.add('hidden');
+                    CRM.showToast('Fetch error: ' + err.message, true);
+                })
+                .getCrmTrafficData();
+        },
+
+        renderTrafficTable: (data) => {
+            const tbody = document.getElementById('tbTrafficBody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No records found.</td></tr>';
+                document.getElementById('valTrafficCount').textContent = 0;
+                return;
+            }
+
+            let html = '';
+            data.forEach(row => {
+                // Status Color Logic
+                let stColor = 'bg-slate-100 text-slate-600';
+                const st = String(row.status).toLowerCase();
+                if(st.includes('walk')) stColor = 'bg-cyan-100 text-cyan-700';
+                else if(st.includes('follow')) stColor = 'bg-amber-100 text-amber-700';
+                else if(st.includes('delivery')) stColor = 'bg-indigo-100 text-indigo-700';
+                else if(st.includes('online')) stColor = 'bg-purple-100 text-purple-700';
+                else if(st.includes('repair') || st.includes('service')) stColor = 'bg-rose-100 text-rose-700';
+
+                html += `<tr class="hover:bg-slate-50/50 transition-colors">
+                    <td class="py-4 px-6 whitespace-nowrap text-xs text-slate-500">${row.date}</td>
+                    <td class="py-4 px-6 whitespace-nowrap font-bold text-slate-800">${row.clientName || '-'}</td>
+                    <td class="py-4 px-6 whitespace-nowrap text-sm">${row.advisor || '-'}</td>
+                    <td class="py-4 px-6 whitespace-nowrap">
+                        <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${stColor}">${row.status || '-'}</span>
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-xs text-slate-600 font-semibold">${row.level || '-'}</td>
+                    <td class="py-4 px-6 whitespace-nowrap text-xs text-slate-500 text-right">${row.location || '-'}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+            document.getElementById('valTrafficCount').textContent = data.length.toLocaleString('id-ID');
+        },
+
+        searchTraffic: () => {
+            const query = document.getElementById('inpSearchTraffic').value.toLowerCase();
+            if (!query) {
+                CRM.renderTrafficTable(CRM.trafficDataCache);
+                return;
+            }
+            const filtered = CRM.trafficDataCache.filter(r => {
+                return (r.clientName.toLowerCase().includes(query) || 
+                        r.advisor.toLowerCase().includes(query) ||
+                        r.status.toLowerCase().includes(query));
+            });
+            CRM.renderTrafficTable(filtered);
+        },
+
+        // ==========================
+        // PROFILING LOGIC
+        // ==========================
+        loadProfiling: () => {
+            document.getElementById('profilingLoader').classList.remove('hidden');
+            
+            google.script.run
+                .withSuccessHandler(res => {
+                    document.getElementById('profilingLoader').classList.add('hidden');
+                    if (res.success) {
+                        CRM.profilingDataCache = { headers: res.headers, rows: res.rows };
+                        CRM.renderProfilingTable(res.headers, res.rows);
+                        CRM.showToast('Profiling data extracted successfully!');
+                    } else {
+                        CRM.showToast(res.message, true);
+                    }
+                })
+                .withFailureHandler(err => {
+                    document.getElementById('profilingLoader').classList.add('hidden');
+                    CRM.showToast('Fetch error: ' + err.message, true);
+                })
+                .getCrmProfilingData();
+        },
+
+        renderProfilingTable: (headers, rows) => {
+            const thead = document.getElementById('trProfilingHead');
+            const tbody = document.getElementById('tbProfilingBody');
+            
+            if (!headers || headers.length === 0) {
+                tbody.innerHTML = '<tr><td class="py-8 text-center text-slate-400">No layout found in source sheet.</td></tr>';
+                return;
+            }
+
+            // Draw Headers
+            let hHtml = '';
+            headers.forEach(h => {
+                hHtml += `<th class="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">${h}</th>`;
+            });
+            thead.innerHTML = hHtml;
+
+            // Draw Rows
+            if (!rows || rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${headers.length}" class="py-8 text-center text-slate-400">No record data found.</td></tr>`;
+                document.getElementById('valProfilingCount').textContent = 0;
+                document.getElementById('valProfilingCols').textContent = headers.length;
+                return;
+            }
+
+            let bHtml = '';
+            rows.forEach(r => {
+                bHtml += `<tr class="hover:bg-slate-50/50 transition-colors">`;
+                r.forEach((cell, idx) => {
+                    // First col is bolder (usually Date or Name)
+                    if (idx === 0) {
+                        bHtml += `<td class="py-4 px-6 whitespace-nowrap text-xs font-bold text-slate-600">${cell || '-'}</td>`;
+                    } else {
+                        // Truncate long notes if any, usually profiling has long text
+                        let displayTxt = cell || '-';
+                        if(displayTxt.length > 50) displayTxt = displayTxt.substring(0, 47) + '...';
+                        bHtml += `<td class="py-4 px-6 whitespace-nowrap text-xs text-slate-500" title="${cell}">${displayTxt}</td>`;
+                    }
+                });
+                bHtml += `</tr>`;
+            });
+            tbody.innerHTML = bHtml;
+            document.getElementById('valProfilingCount').textContent = rows.length.toLocaleString('id-ID');
+            document.getElementById('valProfilingCols').textContent = headers.length;
+        },
+
+        searchProfiling: () => {
+            const query = document.getElementById('inpSearchProfiling').value.toLowerCase();
+            const { headers, rows } = CRM.profilingDataCache;
+            
+            if (!query) {
+                CRM.renderProfilingTable(headers, rows);
+                return;
+            }
+            
+            const filtered = rows.filter(r => {
+                // Search across all columns in the row
+                return r.some(cell => String(cell).toLowerCase().includes(query));
+            });
+            CRM.renderProfilingTable(headers, filtered);
+        },
+
+        // ==========================
+        // CLEAN SYSTEM LOGIC
+        // ==========================
+        cleanPayloadCache: [],
+
+        logTerminal: (message, type="info") => {
+            const term = document.getElementById('terminalOutput');
+            const color = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-brand-accent' : 'text-emerald-400';
+            const timestamp = new Date().toLocaleTimeString('id-ID', { hour12: false });
+            term.innerHTML += `<div class="${color}">[${timestamp}] ${message}</div>`;
+            term.scrollTop = term.scrollHeight; // Auto scroll to bottom
+        },
+
+        analyzeCleanSystem: () => {
+            const btn = document.getElementById('btnRunClean');
+            btn.innerHTML = '<iconify-icon icon="svg-spinners:ring-resize" class="text-xl"></iconify-icon> Scanning...';
+            btn.classList.add('cursor-not-allowed', 'opacity-80');
+            btn.disabled = true;
+            
+            CRM.logTerminal('> Memulai pemindaian data (Dry Run)...', 'info');
+
+            google.script.run
+                .withSuccessHandler(res => {
+                    btn.innerHTML = '<iconify-icon icon="lucide:scan" class="text-xl"></iconify-icon> Scan Data Mismatch';
+                    btn.classList.remove('cursor-not-allowed', 'opacity-80');
+                    btn.disabled = false;
+
+                    if (res.success) {
+                         const rLen = res.readyToSync.length;
+                         const mLen = res.missingProfile.length;
+                         
+                         CRM.logTerminal(`> Pemindaian selesai! Mismatch: ${mLen} baris | Ready: ${rLen} baris.`, 'success');
+                         
+                         // Simpan raw array buat dikirim saat commit
+                         CRM.cleanPayloadCache = res.readyToSync.map(item => item.payload);
+                         
+                         // Tampilkan Container Previews
+                         document.getElementById('cleanPreviewModule').classList.remove('hidden');
+                         
+                         // Render Mismatch Table
+                         document.getElementById('badgeMismatch').textContent = mLen + ' Rows';
+                         const tbm = document.getElementById('tbMismatchBody');
+                         if(mLen === 0) {
+                             tbm.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-rose-300 font-medium">Bagus! Tidak ada kebocoran data.</td></tr>';
+                         } else {
+                             let mHtml = '';
+                             res.missingProfile.forEach(m => {
+                                 mHtml += `<tr class="hover:bg-rose-50/80 transition-colors">
+                                     <td class="py-3 px-6 text-xs text-rose-500">${m.date || '-'}</td>
+                                     <td class="py-3 px-6 text-xs font-bold text-slate-800">${m.name || '-'}</td>
+                                     <td class="py-3 px-6 text-xs text-rose-600">${m.advisor || '-'}</td>
+                                 </tr>`;
+                             });
+                             tbm.innerHTML = mHtml;
+                         }
+                         
+                         // Render Ready Table
+                         document.getElementById('badgeReady').textContent = rLen + ' Rows';
+                         const tbr = document.getElementById('tbReadyBody');
+                         if(rLen === 0) {
+                             tbr.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-emerald-300 font-medium">Tidak ada data baru yang siap disinkronisasi.</td></tr>';
+                             document.getElementById('btnCommitSync').classList.add('hidden');
+                         } else {
+                             let rHtml = '';
+                             res.readyToSync.forEach(r => {
+                                 rHtml += `<tr class="hover:bg-emerald-50/80 transition-colors">
+                                     <td class="py-3 px-6 text-xs font-bold text-slate-800">${r.name || '-'}</td>
+                                     <td class="py-3 px-6 text-xs font-mono text-slate-500">${r.phone || '-'}</td>
+                                     <td class="py-3 px-6 text-xs font-bold text-emerald-600">${r.netSales || '-'}</td>
+                                 </tr>`;
+                             });
+                             tbr.innerHTML = rHtml;
+                             document.getElementById('btnCommitSync').classList.remove('hidden');
+                         }
+                    } else {
+                         CRM.logTerminal(`> FAILED ERROR: ${res.message}`, 'error');
+                         CRM.showToast(res.message, true);
+                    }
+                })
+                .withFailureHandler(err => {
+                    btn.innerHTML = '<iconify-icon icon="lucide:scan" class="text-xl"></iconify-icon> Scan Data Mismatch';
+                    btn.classList.remove('cursor-not-allowed', 'opacity-80');
+                    btn.disabled = false;
+                    
+                    CRM.logTerminal(`> FATAL ERROR: ${err.message}`, 'error');
+                    CRM.showToast('Fetch error: ' + err.message, true);
+                })
+                .analyzeCleanData();
+        },
+
+        commitCleanSystem: () => {
+             if(CRM.cleanPayloadCache.length === 0) return;
+             
+             const btn = document.getElementById('btnCommitSync');
+             btn.innerHTML = '<iconify-icon icon="svg-spinners:ring-resize" class="text-xl"></iconify-icon> Committing...';
+             btn.classList.add('cursor-not-allowed', 'opacity-50');
+             btn.disabled = true;
+             
+             CRM.logTerminal(`> Menyuntikkan ${CRM.cleanPayloadCache.length} baris ke Clean Master...`, 'info');
+             
+             google.script.run
+                .withSuccessHandler(res => {
+                    if(res.success) {
+                        CRM.logTerminal(`> SUCCESS! ${res.count} baris tersimpan permanen.`, 'success');
+                        CRM.showToast(`Berhasil menyimpan ${res.count} data!`);
+                        btn.innerHTML = '<iconify-icon icon="lucide:check-circle" class="text-xl"></iconify-icon> Synced Successfully';
+                        CRM.cleanPayloadCache = [];
+                    } else {
+                        btn.innerHTML = '<iconify-icon icon="lucide:check-check" class="text-xl"></iconify-icon> Commit to Master Target';
+                        btn.classList.remove('cursor-not-allowed', 'opacity-50');
+                        btn.disabled = false;
+                        CRM.logTerminal(`> ERROR COMMIT: ${res.message}`, 'error');
+                        CRM.showToast(res.message, true);
+                    }
+                })
+                .withFailureHandler(err => {
+                    btn.innerHTML = '<iconify-icon icon="lucide:check-check" class="text-xl"></iconify-icon> Commit to Master Target';
+                    btn.classList.remove('cursor-not-allowed', 'opacity-50');
+                    btn.disabled = false;
+                    CRM.logTerminal(`> ERROR COMMIT: ${err.message}`, 'error');
+                    CRM.showToast('Commit error: ' + err.message, true);
+                })
+                .commitCleanData(CRM.cleanPayloadCache);
+        }
+    };
+
+    // Init
+    window.onload = () => {
+        const d = new Date();
+        const mObj = document.getElementById('crmFilterMonth');
+        const yObj = document.getElementById('crmFilterYear');
+        if(mObj) mObj.value = d.getMonth();
+        if(yObj) yObj.value = d.getFullYear();
+        CRM.navigate('login');
+    };
+</script>

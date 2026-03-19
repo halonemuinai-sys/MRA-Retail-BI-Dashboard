@@ -1,0 +1,34 @@
+<div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 w-full max-w-md p-10 border border-slate-100">
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-brand-primary mb-2 tracking-tight">Bvlgari</h1>
+        <div class="inline-block px-3 py-1 bg-brand-accent/10 text-brand-accent rounded-full text-[10px] font-bold uppercase tracking-widest mb-2">CRM Web Portal</div>
+        <p class="text-sm text-slate-500 mt-2">Sign in to access centralized data processing center</p>
+    </div>
+    <form id="frmLogin" onsubmit="event.preventDefault(); CRM.login();" class="flex flex-col gap-5">
+        <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1 relative">User ID
+                <span class="absolute right-0 text-slate-300 font-normal normal-case tracking-normal">Hint: crm_admin</span>
+            </label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pr-2 pointer-events-none text-slate-400">
+                    <iconify-icon icon="lucide:user"></iconify-icon>
+                </div>
+                <input type="text" id="inpUsername" class="w-full pl-10 pr-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent bg-slate-50/50 focus:bg-white transition-all text-sm font-semibold text-slate-800" placeholder="Enter your ID (e.g., crm_admin)" autocomplete="username">
+            </div>
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1 relative">Secret PIN
+                <span class="absolute right-0 text-slate-300 font-normal normal-case tracking-normal">Hint: admin123</span>
+            </label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <iconify-icon icon="lucide:lock"></iconify-icon>
+                </div>
+                <input type="password" id="inpPassword" class="w-full pl-10 pr-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent bg-slate-50/50 focus:bg-white transition-all text-sm font-bold tracking-widest" placeholder="••••••••">
+            </div>
+        </div>
+        <button type="submit" id="btnLogin" class="btn-primary mt-4 shadow-lg shadow-brand-primary/20 py-3.5 rounded-xl">
+            <iconify-icon icon="lucide:shield-check" class="text-lg text-brand-accent"></iconify-icon> Authenticate Security
+        </button>
+    </form>
+</div>

@@ -6,6 +6,7 @@
     <title>Bvlgari Advisor Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
@@ -39,11 +40,12 @@
         .delay-100 { animation-delay: 0.1s; }
         .delay-200 { animation-delay: 0.2s; }
         .delay-300 { animation-delay: 0.3s; }
-        .glass-card { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); }
+        .glass-card { background: rgba(255, 255, 255, 0.75); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); }
         .glass-input { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.8); color: #1e293b; transition: all 0.3s ease; }
         .glass-input:focus { background: rgba(255, 255, 255, 0.9); border-color: #3b82f6; outline: none; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
         /* Style select options to be readable */
         select option { background: #ffffff; color: #1e293b; }
+        .bg-login-radial { background: radial-gradient(circle at top right, #e0f2fe 0%, transparent 50%), radial-gradient(circle at bottom left, #f8fafc 0%, #eff6ff 100%); }
     </style>
 </head>
 <body class="text-slate-800 max-w-lg mx-auto relative min-h-screen">
@@ -54,7 +56,7 @@
     <!-- LOGIN SCREEN -->
     <div id="loginScreen" class="flex flex-col items-center justify-center min-h-screen p-6 relative overflow-hidden bg-slate-50">
         <!-- Modern Bright Background Gradient -->
-        <div class="absolute inset-0" style="background: radial-gradient(circle at top right, #e0f2fe 0%, transparent 50%), radial-gradient(circle at bottom left, #f8fafc 0%, #eff6ff 100%);"></div>
+        <div class="absolute inset-0 bg-login-radial"></div>
         
         <!-- Animated Orbs -->
         <div class="animate-float absolute top-[5%] left-[-10%] w-72 h-72 bg-blue-300/40 rounded-full blur-[80px]"></div>
@@ -150,7 +152,7 @@
                         <span class="font-bold text-brand-blue" id="pctVal">0%</span>
                     </div>
                     <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                        <div id="progressBar" class="bg-brand-blue h-full rounded-full transition-all duration-1000 ease-out" style="width:0%"></div>
+                        <div id="progressBar" class="bg-brand-blue h-full rounded-full transition-all duration-1000 ease-out w-0"></div>
                     </div>
                     <div class="flex justify-between mt-3">
                         <span class="text-[10px] text-slate-400">Target: <b id="targetVal">—</b></span>
@@ -529,6 +531,21 @@ const APP = {
                     
                     const pBar = document.getElementById('progressBar');
                     if(pBar) setTimeout(() => { pBar.style.width = pct + '%'; }, 100);
+                    
+                    // Gamification Confetti
+                    if (pct >= 100 && !sessionStorage.getItem('confettiFired_' + d.monthName + d.selectedYear)) {
+                        setTimeout(() => {
+                            try {
+                                confetti({
+                                    particleCount: 150,
+                                    spread: 70,
+                                    origin: { y: 0.6 },
+                                    colors: ['#d4af37', '#2563eb', '#1e293b', '#cbd5e1']
+                                });
+                                sessionStorage.setItem('confettiFired_' + d.monthName + d.selectedYear, 'true');
+                            } catch(e) {}
+                        }, 500);
+                    }
                     
                     // Render chart only if stats page is open
                     if (document.getElementById('page-stats').classList.contains('active')) {

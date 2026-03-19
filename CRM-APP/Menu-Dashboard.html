@@ -1,0 +1,96 @@
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 p-10 lg:p-14 relative bg-slate-50 min-h-screen pb-32">
+    <header class="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-10 pb-6 border-b border-slate-200">
+        <div>
+            <h1 class="text-3xl lg:text-4xl font-bold text-brand-primary mb-2 tracking-tight">System Global Overview</h1>
+            <p class="text-sm font-medium text-slate-500">Monitoring performa pengumpulan data audiens terpadu.</p>
+        </div>
+        <!-- Bulan & Tahun Filter -->
+        <div class="mt-4 sm:mt-0 flex gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
+            <select id="crmFilterMonth" title="Pilih Bulan" onchange="CRM.loadDashboard()" class="bg-slate-50 border-none px-4 py-2.5 rounded-xl font-bold text-slate-700 text-sm outline-none cursor-pointer hover:bg-slate-100 transition-colors">
+                <option value="0">Januari</option><option value="1">Februari</option>
+                <option value="2">Maret</option><option value="3">April</option>
+                <option value="4">Mei</option><option value="5">Juni</option>
+                <option value="6">Juli</option><option value="7">Agustus</option>
+                <option value="8">September</option><option value="9">Oktober</option>
+                <option value="10">November</option><option value="11">Desember</option>
+            </select>
+            <select id="crmFilterYear" title="Pilih Tahun" onchange="CRM.loadDashboard()" class="bg-slate-50 border-none px-4 py-2.5 rounded-xl font-bold text-slate-700 text-sm outline-none cursor-pointer hover:bg-slate-100 transition-colors">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Loading State -->
+    <div id="dashLoader" class="hidden absolute top-32 inset-x-0 bottom-0 bg-slate-50/80 backdrop-blur-[2px] z-50 flex flex-col items-center pt-20">
+        <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200 border border-slate-100 flex flex-col items-center">
+            <iconify-icon icon="svg-spinners:ring-resize" class="text-4xl text-brand-accent mb-4"></iconify-icon>
+            <span class="text-[11px] font-bold text-brand-primary uppercase tracking-widest">Querying Spreadsheets...</span>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+        
+        <!-- Card Traffic -->
+        <div class="bg-gradient-to-br from-blue-600 to-indigo-900 p-8 rounded-[2rem] shadow-xl border border-indigo-500/30 relative overflow-hidden group">
+            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="lucide:footprints" class="text-[120px] text-white"></iconify-icon>
+            </div>
+            <p class="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-2 relative z-10">Total Traffic Walk-In</p>
+            <div class="flex items-baseline gap-3 relative z-10">
+                <span id="dashTotalTraffic" class="text-5xl font-bold text-white tracking-tight">0</span>
+                <span class="text-xs text-blue-200 font-medium tracking-wide">Bulan Ini</span>
+            </div>
+        </div>
+
+        <!-- Card Profiling -->
+        <div class="bg-white p-8 rounded-[2rem] shadow-sm hover:shadow-md border border-slate-200 relative overflow-hidden group transition-all">
+            <div class="absolute right-0 top-0 w-32 h-32 bg-brand-accent/5 rounded-bl-[100px] -z-0"></div>
+            <div class="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="lucide:clipboard-list" class="text-[120px] text-brand-primary"></iconify-icon>
+            </div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Data Form Profiling</p>
+            <div class="flex items-baseline gap-3 relative z-10">
+                <span id="dashTotalProfiling" class="text-5xl font-bold text-brand-primary tracking-tight">0</span>
+                <span class="text-xs text-slate-400 font-medium tracking-wide">Bulan Ini</span>
+            </div>
+        </div>
+
+        <!-- Collection Rate KPI -->
+        <div class="bg-white p-8 rounded-[2rem] shadow-sm hover:shadow-md border border-slate-200 relative overflow-hidden group md:col-span-2 lg:col-span-1 transition-all">
+            <div class="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
+            <div class="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="lucide:percent" class="text-[120px] text-emerald-600"></iconify-icon>
+            </div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10">Collection Rate Ratio</p>
+            <div class="flex items-baseline gap-3 relative z-10">
+                <span id="dashCollectionRate" class="text-5xl font-bold text-emerald-600 tracking-tight">0%</span>
+                <span class="text-xs text-slate-400 font-medium tracking-wide">Bulan Ini</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-2 font-medium relative z-10">Tingkat perekaman data klien (% dari Traffic).</p>
+        </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="bg-white p-8 lg:p-10 rounded-[2rem] shadow-sm border border-slate-200 relative">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
+            <div>
+                <h3 class="font-bold text-2xl text-slate-800 flex items-center gap-3">
+                    <iconify-icon icon="lucide:bar-chart-2" class="text-brand-blue text-3xl"></iconify-icon>
+                    Store Traffic Distribution
+                </h3>
+                <p class="text-sm font-medium text-slate-500 mt-1">Laporan penyebaran pelanggan Walk-In bulanan per lokasi butik sepanjang tahun berjalan.</p>
+            </div>
+        </div>
+        <div class="w-full relative min-h-[400px]">
+            <canvas id="trafficMonthlyChart"></canvas>
+            <div id="chartFallbackLabel" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 font-bold tracking-widest uppercase text-xs">
+                <iconify-icon icon="lucide:pie-chart" class="text-4xl text-slate-200 mb-2"></iconify-icon>
+                Data Visualizer Standby
+            </div>
+        </div>
+    </div>
+</main>

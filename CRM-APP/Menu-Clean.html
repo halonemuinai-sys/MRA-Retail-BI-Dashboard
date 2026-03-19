@@ -1,0 +1,85 @@
+<!-- Main Content Area: CLEAN SYSTEM -->
+<main class="flex-1 ml-64 p-8 lg:p-12 relative bg-slate-50 min-h-screen flex flex-col h-screen">
+    <header class="flex flex-col mb-8 pb-4 border-b border-slate-200 shrink-0">
+        <h1 class="text-3xl lg:text-4xl font-bold text-brand-primary mb-2 tracking-tight">Data Processing Center</h1>
+        <p class="text-sm font-medium text-slate-500">Automated ETL (Extract, Transform, Load) for CRM Validation</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Dashboard / Info Card -->
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Pipeline Rules</h2>
+            <ul class="space-y-3">
+                <li class="flex items-start gap-3 text-sm text-slate-600 font-medium">
+                    <iconify-icon icon="lucide:check-circle" class="text-emerald-500 text-lg mt-0.5"></iconify-icon>
+                    Pencocokan Nama Klien dari form Traffic vs Profiling.
+                </li>
+                <li class="flex items-start gap-3 text-sm text-slate-600 font-medium">
+                    <iconify-icon icon="lucide:check-circle" class="text-emerald-500 text-lg mt-0.5"></iconify-icon>
+                    Abaikan profil yang tidak memiliki Nomor HP (Invalid).
+                </li>
+            </ul>
+        </div>
+
+        <!-- Action Card -->
+        <div class="bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700 relative overflow-hidden flex flex-col items-center justify-center text-center">
+            
+            <h2 class="text-white text-2xl font-bold mb-2">Deploy AI Sequence</h2>
+            <p class="text-slate-400 text-xs uppercase tracking-widest mb-8 font-semibold">Step 1: Pindai & Tampilkan Laporan</p>
+            
+            <button id="btnRunClean" onclick="CRM.analyzeCleanSystem()" class="w-full max-w-xs relative group flex items-center justify-center gap-3 bg-brand-accent hover:bg-yellow-500 text-slate-900 font-bold px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all active:scale-95">
+                <iconify-icon icon="lucide:scan" class="text-xl"></iconify-icon> 
+                Scan Data Mismatch
+            </button>
+        </div>
+    </div>
+
+    <!-- PREVIEW MODULE -->
+    <div id="cleanPreviewModule" class="hidden flex flex-col gap-6 mb-8">
+        
+        <!-- Tabel Mismatch (Missing in Profiling) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-rose-200 overflow-hidden">
+            <div class="bg-rose-50 px-6 py-4 border-b border-rose-200 flex justify-between items-center">
+                <h3 class="font-bold text-rose-800 uppercase tracking-widest text-xs">⚠️ Data Mismatch (Bocor di Profiling)</h3>
+                <span id="badgeMismatch" class="bg-rose-600 text-white text-[10px] px-2 py-1 rounded-md font-bold">0 Rows</span>
+            </div>
+            <div class="max-h-60 overflow-y-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-rose-50/50 sticky top-0">
+                        <tr>
+                            <th class="py-3 px-6 text-[10px] font-bold text-rose-400 uppercase tracking-widest">Tanggal</th>
+                            <th class="py-3 px-6 text-[10px] font-bold text-rose-400 uppercase tracking-widest">Nama Client (Traffic)</th>
+                            <th class="py-3 px-6 text-[10px] font-bold text-rose-400 uppercase tracking-widest">Advisor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbMismatchBody" class="divide-y divide-rose-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tabel Ready to Sync -->
+        <div class="bg-white rounded-2xl shadow-sm border border-emerald-200 overflow-hidden">
+            <div class="bg-emerald-50 px-6 py-4 border-b border-emerald-200 flex justify-between items-center">
+                <h3 class="font-bold text-emerald-800 uppercase tracking-widest text-xs">✅ Ready To Sync (Data Valid)</h3>
+                <span id="badgeReady" class="bg-emerald-600 text-white text-[10px] px-2 py-1 rounded-md font-bold">0 Rows</span>
+            </div>
+            <div class="max-h-60 overflow-y-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-emerald-50/50 sticky top-0">
+                        <tr>
+                            <th class="py-3 px-6 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Client</th>
+                            <th class="py-3 px-6 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Phone</th>
+                            <th class="py-3 px-6 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Net Sales</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbReadyBody" class="divide-y divide-emerald-100"></tbody>
+                </table>
+            </div>
+            <div class="p-6 bg-emerald-50/30 flex justify-end border-t border-emerald-100">
+                <button id="btnCommitSync" onclick="CRM.commitCleanSystem()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all flex items-center gap-2">
+                    <iconify-icon icon="lucide:check-check" class="text-xl"></iconify-icon> Commit to Master Target
+                </button>
+            </div>
+        </div>
+    </div>
+</main>
