@@ -117,20 +117,23 @@ const CUSTOMER = {
         let html = '';
         dataArray.forEach(row => {
             const formatedSpend = new Intl.NumberFormat('id-ID').format(Math.round(row.spend));
+            // Escape single quotes for the onclick handler
+            const safeName = String(row.name).replace(/'/g, "\\'");
+            const safePhone = String(row.phone).replace(/'/g, "\\'");
+            const safeTier = String(row.tier).replace(/'/g, "\\'");
+            const safeAdv = String(row.advisor).replace(/'/g, "\\'");
             
             html += `
-            <tr class="hover:bg-slate-50/80 transition-colors group">
+            <tr onclick="CUSTOMER.openClient360('${safeName}', '${safePhone}', '${safeTier}', '${safeAdv}', ${row.spend}, ${row.freq})" class="cursor-pointer hover:bg-blue-50/50 transition-colors group">
                 <td class="px-5 py-3 align-middle">${this.getTierBadge(row.tier)}</td>
                 <td class="px-5 py-3">
                     <div class="font-bold text-slate-800 text-[13px] capitalize">${String(row.name).toLowerCase()}</div>
                     <div class="text-[10px] text-slate-400 font-mono mt-0.5">${row.phone || '-'}</div>
                 </td>
                 <td class="px-5 py-3 text-right">
-                    <div class="font-mono font-bold text-slate-800 text-[13px]">Rp ${formatedSpend}</div>
+                    <div class="font-mono font-bold text-slate-800 text-[13px]">${formatedSpend}</div>
                 </td>
                 <td class="px-5 py-3 text-center text-[12px] font-bold text-slate-600">${row.freq}</td>
-                <td class="px-5 py-3 text-center text-[12px] font-medium text-slate-500">${row.qty} pc</td>
-                <td class="px-5 py-3 text-[11px] font-medium text-slate-600 capitalize">${row.favColl.toLowerCase()}</td>
                 <td class="px-5 py-3 text-center">
                     <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-wider border border-indigo-100/50">${row.advisor}</span>
                 </td>
@@ -188,6 +191,71 @@ const CUSTOMER = {
         });
         
         this.renderTable(currentData);
+    },
+
+    // -------------------------------------------------------------
+    // CLIENT 360 VAULT MODAL
+    // -------------------------------------------------------------
+    openClient360: function(name, phone, tier, advisor, spend, freq) {
+        // Populasikan UI Header
+        document.getElementById('c360Name').innerText = name;
+        document.getElementById('c360Phone').innerText = phone || '-';
+        document.getElementById('c360TierBadge').innerHTML = this.getTierBadge(tier);
+        document.getElementById('c360Avatar').innerText = String(name).charAt(0).toUpperCase();
+        document.getElementById('c360MainAdv').innerText = advisor || '-';
+        document.getElementById('c360Freq').innerText = freq || '0';
+        document.getElementById('c360TotalSpend').innerText = 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(spend));
+
+        const tbody = document.getElementById('tblClient360');
+        tbody.innerHTML = `<tr><td colspan="4" class="px-5 py-20 text-center text-slate-400 text-xs"><iconify-icon icon="svg-spinners:pulse-rings-multiple" class="text-3xl text-blue-500 mb-2 block mx-auto"></iconify-icon>Membuka brankas Supabase... (Historical Vault)</td></tr>`;
+
+        // Tampilkan Modal dengan Animasi Timbul (Fade-in)
+        const modal = document.getElementById('modalClient360');
+        const content = document.getElementById('modalClient360Content');
+        modal.classList.remove('hidden');
+        // Trigger reflow untuk animasi
+        void modal.offsetWidth; 
+        modal.classList.remove('opacity-0');
+        content.classList.remove('scale-95');
+
+        // Fetch data transactions
+        google.script.run.withSuccessHandler(res => {
+            if(res.success) {
+                if(res.data.length === 0) {
+                     tbody.innerHTML = `<tr><td colspan="4" class="py-12 text-center text-slate-400 italic">Tidak ada rekam jejak transaksi mentah ditemukan.</td></tr>`;
+                } else {
+                     let tHtml = '';
+                     res.data.forEach(tr => {
+                         const netFmt = new Intl.NumberFormat('id-ID').format(Math.round(tr.net));
+                         tHtml += `
+                         <tr class="hover:bg-slate-50 transition-colors">
+                             <td class="px-5 py-3 font-mono font-medium">${tr.date}</td>
+                             <td class="px-5 py-3"><span class="px-2 py-1 bg-slate-100 rounded text-[10px] uppercase font-bold text-slate-600">${tr.location}</span></td>
+                             <td class="px-5 py-3 text-right font-mono font-bold text-slate-800">Rp ${netFmt}</td>
+                             <td class="px-5 py-3 text-center font-medium capitalize">${tr.advisor}</td>
+                         </tr>
+                         `;
+                     });
+                     tbody.innerHTML = tHtml;
+                }
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-rose-500 font-bold">${res.message}</td></tr>`;
+            }
+        }).withFailureHandler(err => {
+            tbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-rose-500 font-bold">Koneksi Supabase terputus.</td></tr>`;
+        }).getClient360Data(name);
+    },
+
+    closeClient360: function() {
+        const modal = document.getElementById('modalClient360');
+        const content = document.getElementById('modalClient360Content');
+        
+        modal.classList.add('opacity-0');
+        content.classList.add('scale-95');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300); // 300ms transition time
     }
 };
 </script>

@@ -41,11 +41,15 @@ const CONFIG_CRM = {
       NAME: 0,
       PHONE: 1,
       TOTAL_SPEND: 2,
-      TOTAL_QTY: 3,
-      FREQ_INVOICE: 4,
-      TIER: 5,
-      LAST_PURCHASE: 6,
-      FAV_COLLECTION: 7,
-      ADVISOR: 8
+      FREQ_INVOICE: 3,
+      TIER: 4,
+      LAST_PURCHASE: 5,
+      ADVISOR: 6
+  },
+  
+  // Database Supabase Configuration Target
+  SUPABASE: {
+      URL: 'ISI_DENGAN_URL_SUPABASE_ANDA_DISINI',
+      KEY: 'ISI_DENGAN_ANON_KEY_SUPABASE_ANDA_DISINI'
   }
 };

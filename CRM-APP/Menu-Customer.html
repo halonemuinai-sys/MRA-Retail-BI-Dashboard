@@ -81,8 +81,6 @@
                             <th class="px-5 py-4 font-bold">Nama Pelanggan</th>
                             <th class="px-5 py-4 font-bold text-right cursor-pointer hover:bg-slate-100 transition-colors" onclick="CUSTOMER.sortBySpend()">Total Spend (LTV) <iconify-icon icon="lucide:arrow-up-down" class="inline align-middle"></iconify-icon></th>
                             <th class="px-5 py-4 font-bold text-center">Freq</th>
-                            <th class="px-5 py-4 font-bold text-center">Qty</th>
-                            <th class="px-5 py-4 font-bold">Fav Collection</th>
                             <th class="px-5 py-4 font-bold text-center">Main Advisor</th>
                             <th class="px-5 py-4 font-bold rounded-tr-xl">Last Purchase</th>
                         </tr>
@@ -103,5 +101,69 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL CLIENT 360 (Vault) -->
+    <div id="modalClient360" class="fixed inset-0 z-[100] hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl w-full max-w-4xl h-[85vh] shadow-2xl overflow-hidden flex flex-col transform scale-95 transition-transform duration-300" id="modalClient360Content">
+            
+            <!-- Header Modal -->
+            <div class="p-6 md:p-8 border-b border-slate-100 flex justify-between items-start bg-white relative overflow-hidden shrink-0">
+                <div class="absolute right-0 top-0 w-64 h-64 bg-amber-50 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                
+                <div class="relative z-10 flex gap-4 md:gap-6 items-center">
+                    <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white text-xl md:text-2xl font-bold font-display shadow-lg shrink-0" id="c360Avatar">
+                        ?
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-3 mb-1.5 flex-wrap">
+                            <h2 class="text-xl md:text-2xl font-display font-black text-slate-800" id="c360Name">---</h2>
+                            <span id="c360TierBadge" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider">---</span>
+                        </div>
+                        <p class="text-[11px] md:text-xs font-semibold text-slate-500 flex items-center gap-3 flex-wrap">
+                            <span class="flex items-center gap-1"><iconify-icon icon="lucide:phone" class="text-slate-400"></iconify-icon> <span id="c360Phone">---</span></span>
+                            <span class="text-slate-200">|</span>
+                            <span class="flex items-center gap-1"><iconify-icon icon="lucide:hash" class="text-slate-400"></iconify-icon> <span id="c360Freq" class="text-slate-700">0</span> Visit(s)</span>
+                            <span class="text-slate-200">|</span>
+                            <span class="flex items-center gap-1"><iconify-icon icon="lucide:user" class="text-slate-400"></iconify-icon> <span id="c360MainAdv" class="text-blue-600">---</span></span>
+                        </p>
+                    </div>
+                </div>
+                
+                <button aria-label="Tutup" title="Tutup" onclick="CUSTOMER.closeClient360()" class="relative z-10 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors shrink-0">
+                    <iconify-icon icon="lucide:x" class="text-2xl"></iconify-icon>
+                </button>
+            </div>
+            
+            <!-- Table Area (Scrollable) -->
+            <div class="flex-1 overflow-auto bg-slate-50/50 p-6 relative">
+                <h3 class="font-display font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <iconify-icon icon="lucide:library" class="text-blue-500"></iconify-icon> Historical Transaction Vault
+                </h3>
+                
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-white text-slate-400 text-[10px] uppercase tracking-widest border-b border-slate-100 sticky top-0 z-10">
+                            <tr>
+                                <th class="px-5 py-4 font-bold">Transaction Date</th>
+                                <th class="px-5 py-4 font-bold">Location</th>
+                                <th class="px-5 py-4 font-bold text-right">Net Sales</th>
+                                <th class="px-5 py-4 font-bold text-center">Served By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblClient360" class="divide-y divide-slate-100 text-[13px] text-slate-600">
+                            <!-- Rows injected dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Footer ModaL -->
+            <div class="p-5 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Lifetime Value</span>
+                <span class="font-display font-black text-slate-900 text-xl" id="c360TotalSpend">Rp 0</span>
+            </div>
+        </div>
+    </div>
+
 </main>
 </div>
