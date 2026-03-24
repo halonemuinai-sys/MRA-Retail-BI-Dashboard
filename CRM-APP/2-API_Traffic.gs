@@ -41,6 +41,15 @@ function syncTrafficToSupabase() {
           const name = String(row[COL.NAME] || '').trim();
           if (!name) continue;
           
+          let tBerkunjung = '';
+          if (idxTgl > -1 && row[idxTgl]) {
+              if (row[idxTgl] instanceof Date) {
+                  tBerkunjung = Utilities.formatDate(row[idxTgl], Session.getScriptTimeZone(), 'yyyy-MM-dd');
+              } else {
+                  tBerkunjung = String(row[idxTgl]).split(' ')[0]; // Ambil porsi tanggal jika string
+              }
+          }
+          
           payload.push({
               transaction_date: d.toISOString(),
               customer_name: name,
@@ -55,7 +64,7 @@ function syncTrafficToSupabase() {
               repair_charge: idxRepair > -1 ? String(row[idxRepair] || '') : '',
               siapa: idxSiapa > -1 ? String(row[idxSiapa] || '') : '',
               akses_masuk: idxAkses > -1 ? String(row[idxAkses] || '') : '',
-              tanggal_berkunjung: idxTgl > -1 ? String(row[idxTgl] || '') : '',
+              tanggal_berkunjung: tBerkunjung,
               rentang_waktu: idxRentang > -1 ? String(row[idxRentang] || '') : ''
           });
       }
