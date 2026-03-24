@@ -12,7 +12,7 @@
 
             google.script.run
                 .withSuccessHandler(res => {
-                    if(btn) btn.innerHTML = '<iconify-icon icon="lucide:database-zap"></iconify-icon> Force Live Extract';
+                    if(btn) btn.innerHTML = '<iconify-icon icon="lucide:refresh-ccw"></iconify-icon> Sync Serverless';
                     
                     if(res.success) {
                         CRMLive.bindData(res);
@@ -22,7 +22,7 @@
                     }
                 })
                 .withFailureHandler(err => {
-                    if(btn) btn.innerHTML = '<iconify-icon icon="lucide:database-zap"></iconify-icon> Force Live Extract';
+                    if(btn) btn.innerHTML = '<iconify-icon icon="lucide:refresh-ccw"></iconify-icon> Sync Serverless';
                     CRM.showToast('Error Server: ' + err.message, true);
                 })
                 .getLiveTimeDashboardData();
@@ -31,7 +31,7 @@
         triggerExtraction: () => {
             const btn = document.getElementById('btnForceExtract');
             if(btn) {
-                btn.innerHTML = '<iconify-icon icon="svg-spinners:pulse"></iconify-icon> Extracting Data...';
+                btn.innerHTML = '<iconify-icon icon="svg-spinners:pulse"></iconify-icon> Fetching Nodes...';
                 btn.classList.add('opacity-70', 'cursor-not-allowed');
                 btn.disabled = true;
             }
@@ -39,27 +39,27 @@
             google.script.run
                 .withSuccessHandler(res => {
                     if(btn) {
-                        btn.innerHTML = '<iconify-icon icon="lucide:database-zap"></iconify-icon> Force Live Extract';
+                        btn.innerHTML = '<iconify-icon icon="lucide:refresh-ccw"></iconify-icon> Sync Serverless';
                         btn.classList.remove('opacity-70', 'cursor-not-allowed');
                         btn.disabled = false;
                     }
                     
                     if(res.success) {
                         CRMLive.bindData(res);
-                        CRM.showToast('Ekstraksi Sheet Selesai! Sinkronisasi Lifetime diperbarui.', false);
+                        CRM.showToast('Memuat matriks real-time dari Supabase Selesai!', false);
                     } else {
-                        CRM.showToast('Gagal ekstraksi: ' + res.message, true);
+                        CRM.showToast('Gagal sinkronisasi: ' + res.message, true);
                     }
                 })
                 .withFailureHandler(err => {
                     if(btn) {
-                        btn.innerHTML = '<iconify-icon icon="lucide:database-zap"></iconify-icon> Force Live Extract';
+                        btn.innerHTML = '<iconify-icon icon="lucide:refresh-ccw"></iconify-icon> Sync Serverless';
                         btn.classList.remove('opacity-70', 'cursor-not-allowed');
                         btn.disabled = false;
                     }
                     CRM.showToast('Fatal Error: ' + err.message, true);
                 })
-                .buildLiveTimeExtraction(); // the heavy recalculation function
+                .getLiveTimeDashboardData();
         },
 
         bindData: (res) => {
