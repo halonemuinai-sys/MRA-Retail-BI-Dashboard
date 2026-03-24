@@ -58,6 +58,9 @@ function syncProfilingToSupabase() {
       const payload = [];
       const headers = pData[0].map(h => String(h).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, ''));
       
+      // DEBUG: Log header names supaya kita tahu nama kolom apa saja yang dikirim
+      Logger.log('Generated headers: ' + JSON.stringify(headers));
+      
       for (let i = 1; i < pData.length; i++) {
           const row = pData[i];
           const rowObj = {};
@@ -66,13 +69,14 @@ function syncProfilingToSupabase() {
           for (let j = 0; j < headers.length; j++) {
               if (headers[j]) {
                   let val = row[j];
-                  if (val !== '' && val !== null) {
+                  if (val !== '' && val !== null && val !== undefined) {
                       isEmptyLine = false;
-                      // Handle JS Dates to IsoString for Postgres
                       if (val instanceof Date) {
                           val = val.toISOString();
                       }
-                      rowObj[headers[j]] = val;
+                      rowObj[headers[j]] = String(val);
+                  } else {
+                      rowObj[headers[j]] = ''; // Kirim string kosong, jangan skip
                   }
               }
           }
@@ -82,16 +86,36 @@ function syncProfilingToSupabase() {
           }
       }
       
-      if (payload.length > 0) {
-          Supabase.del('mirror_profiling', '?nama_lengkap=not.is.null'); // Delete existing mirror based on new PK
+      if (payload.length === 0) {
+          return { success: false, message: 'Tidak ada data yang ditemukan di Sheet.' };
+      }
+      
+      // Step 1: Hapus data lama
+      const delRes = Supabase.del('mirror_profiling', '?nama_lengkap=neq.XXXXXXXXX_IMPOSSIBLE');
+      Logger.log('Delete result: ' + JSON.stringify(delRes));
+      
+      // Step 2: Insert per batch, TANGKAP dan LAPORKAN error jika ada
+      const BATCH_SIZE = 500;
+      let totalInserted = 0;
+      const errors = [];
+      
+      for (let b = 0; b < payload.length; b += BATCH_SIZE) {
+          const batch = payload.slice(b, b + BATCH_SIZE);
+          const res = Supabase.upsert('mirror_profiling', batch);
           
-          const BATCH_SIZE = 1000;
-          for (let b = 0; b < payload.length; b += BATCH_SIZE) {
-              Supabase.insert('mirror_profiling', payload.slice(b, b + BATCH_SIZE));
+          if (res.success) {
+              totalInserted += batch.length;
+          } else {
+              Logger.log('Batch error at index ' + b + ': ' + JSON.stringify(res));
+              errors.push('Batch ' + (b / BATCH_SIZE + 1) + ': ' + res.message);
           }
       }
       
-      return { success: true, count: payload.length, message: "Profiling data successfully mirrored to Supabase!" };
+      if (errors.length > 0) {
+          return { success: false, message: 'Beberapa batch gagal: ' + errors.join(' | ') };
+      }
+      
+      return { success: true, count: totalInserted, message: totalInserted + " baris Profiling berhasil dikirim ke Supabase!" };
       
   } catch (e) {
       return { success: false, message: e.message };
