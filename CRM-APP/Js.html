@@ -456,6 +456,38 @@
                 .getCrmTrafficData();
         },
 
+        pushTrafficToSupabase: () => {
+            Swal.fire({
+                title: 'Konfirmasi Mirroring',
+                text: "Sinkronisasi ini akan mencerminkan seluruh baris dari Sheet Traffic ke ruang Database Supabase Anda secara real-time. Lanjutkan?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#059669',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Push Data'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Memproses...',
+                        html: 'Membaca Ribuan Matrix Traffic \u23F3',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                    
+                    google.script.run.withSuccessHandler(res => {
+                        if (res.success) {
+                            Swal.fire('Sukses Terhubung!', res.message, 'success');
+                            CRM.loadTraffic();
+                        } else {
+                            Swal.fire('Gagal Menghubungkan', res.message, 'error');
+                        }
+                    }).withFailureHandler(err => {
+                        Swal.fire('Error Kritis Server', String(err), 'error');
+                    }).syncTrafficToSupabase();
+                }
+            });
+        },
+
         renderTrafficTable: (data) => {
             const tbody = document.getElementById('tbTrafficBody');
             if (!data || data.length === 0) {
