@@ -16,6 +16,18 @@ function syncTrafficToSupabase() {
       const COL = CONFIG_CRM.COLS.T;
       
       const payload = [];
+      const headers = trfData[0] || [];
+      
+      // Dinamis pencarian indeks kolom tanpa perlu hardcode di Config
+      let idxRepair = -1, idxSiapa = -1, idxAkses = -1, idxTgl = -1, idxRentang = -1;
+      for (let j = 0; j < headers.length; j++) {
+          const h = String(headers[j]).trim().toLowerCase();
+          if (h.includes('repair charge')) idxRepair = j;
+          else if (h === 'siapa' || h.includes('siapa')) idxSiapa = j;
+          else if (h.includes('akses masuk')) idxAkses = j;
+          else if (h.includes('tanggal berkunjung')) idxTgl = j;
+          else if (h.includes('rentang waktu')) idxRentang = j;
+      }
       
       for (let i = 1; i < trfData.length; i++) {
           const row = trfData[i];
@@ -39,7 +51,12 @@ function syncTrafficToSupabase() {
               gross_sales: Number(row[COL.GROSS]) || 0,
               disc_pct: Number(row[COL.DISC_PCT]) || 0,
               val_disc: Number(row[COL.VAL_DISC]) || 0,
-              net_sales: Number(row[COL.NET_SALES]) || 0
+              net_sales: Number(row[COL.NET_SALES]) || 0,
+              repair_charge: idxRepair > -1 ? String(row[idxRepair] || '') : '',
+              siapa: idxSiapa > -1 ? String(row[idxSiapa] || '') : '',
+              akses_masuk: idxAkses > -1 ? String(row[idxAkses] || '') : '',
+              tanggal_berkunjung: idxTgl > -1 ? String(row[idxTgl] || '') : '',
+              rentang_waktu: idxRentang > -1 ? String(row[idxRentang] || '') : ''
           });
       }
       
