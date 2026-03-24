@@ -4,72 +4,55 @@
  */
 function getCrmDashboardOverview(selectedMonth, selectedYear) {
   try {
-    const extSS = SpreadsheetApp.openById(CONFIG_CRM.PROFILING_SS_ID);
-    
-    // 1. Process Traffic Data
-    const trfSheet = extSS.getSheetByName(CONFIG_CRM.T_SHEET_NAME);
-    const trfData = trfSheet ? trfSheet.getDataRange().getValues() : [];
+    // Jalankan 2 Fetch ke Supabase 
+    // Data yang ditarik HANYA kolom yang dibutuhkan agar memory tidak jebol
+    const trfRes = Supabase.get('mirror_traffic', '?select=transaction_date,location,prospect_item&limit=100000');
+    const proRes = Supabase.get('mirror_profiling', '?select=tanggal_input&limit=100000');
     
     let monthlyTraffic = 0;
-    
     const locationSet = new Set();
     const storeTraffic = {};
-    
-    // array of 31 days for Daily Area Chart
     const dailyData = Array.from({length: 31}, () => ({}));
     const prospectSet = {};
     
-    for (let index = 1; index < trfData.length; index++) {
-        const row = trfData[index];
-        const dateVal = row[CONFIG_CRM.COLS.T.DATE];
-        const loc = String(row[CONFIG_CRM.COLS.T.LOCATION] || '').trim();
-        const prospect = String(row[CONFIG_CRM.COLS.T.PROSPECT] || '').trim() || 'Undetected Level';
-        
-        if (!dateVal) continue;
-        
-        let d = new Date(dateVal);
-        if (isNaN(d.getTime())) continue; // invalid date
-        
-        const m = d.getMonth();
-        const y = d.getFullYear();
-        const day = d.getDate(); // 1..31
-        
-        if (loc && loc !== '-') locationSet.add(loc);
-        
-        if (m === selectedMonth && y === selectedYear) {
-            monthlyTraffic++;
+    if (trfRes.success && trfRes.data) {
+        trfRes.data.forEach(row => {
+            if (!row.transaction_date) return;
+            const d = new Date(row.transaction_date);
+            if (isNaN(d.getTime())) return; // invalid date
             
-            // Store specific stats
-            if (loc) storeTraffic[loc] = (storeTraffic[loc] || 0) + 1;
+            const m = d.getMonth();
+            const y = d.getFullYear();
+            const day = d.getDate(); // 1..31
+            const loc = String(row.location || '').trim();
+            const prospect = String(row.prospect_item || '').trim() || 'Undetected Level';
             
-            // Daily Chart Data (0-indexed)
-            const dayIdx = day - 1;
-            dailyData[dayIdx][loc] = (dailyData[dayIdx][loc] || 0) + 1;
+            if (loc && loc !== '-') locationSet.add(loc);
             
-            // Funnel Stats
-            prospectSet[prospect] = (prospectSet[prospect] || 0) + 1;
-        }
+            if (m === selectedMonth && y === selectedYear) {
+                monthlyTraffic++;
+                
+                if (loc) storeTraffic[loc] = (storeTraffic[loc] || 0) + 1;
+                
+                const dayIdx = day - 1;
+                dailyData[dayIdx][loc] = (dailyData[dayIdx][loc] || 0) + 1;
+                
+                prospectSet[prospect] = (prospectSet[prospect] || 0) + 1;
+            }
+        });
     }
-    
-    // 2. Process Profiling Data
-    const pSheet = extSS.getSheetByName(CONFIG_CRM.P_SHEET_NAME);
-    const pData = pSheet ? pSheet.getDataRange().getValues() : [];
-    
+
     let monthlyProfiling = 0;
-    for (let index = 1; index < pData.length; index++) {
-        const row = pData[index];
-        let dateVal = row[CONFIG_CRM.COLS.P.DATE];
-        if (!dateVal) dateVal = row[0]; // fallback to timestamp
-        if (!dateVal) continue;
-        
-        let d = new Date(dateVal);
-        if (isNaN(d.getTime())) continue; // invalid date
-        
-        const m = d.getMonth();
-        const y = d.getFullYear();
-        if (m === selectedMonth && y === selectedYear) {
-            monthlyProfiling++;
-        }
+    if (proRes.success && proRes.data) {
+        proRes.data.forEach(row => {
+            if (!row.tanggal_input) return;
+            const d = new Date(row.tanggal_input);
+            if (isNaN(d.getTime())) return;
+            
+            if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) {
+                monthlyProfiling++;
+            }
+        });
     }
 
     return {
