@@ -58,7 +58,6 @@ function syncProfilingToSupabase() {
       const payload = [];
       const headers = pData[0].map(h => String(h).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, ''));
       
-      // DEBUG: Log header names supaya kita tahu nama kolom apa saja yang dikirim
       Logger.log('Generated headers: ' + JSON.stringify(headers));
       
       for (let i = 1; i < pData.length; i++) {
@@ -76,7 +75,7 @@ function syncProfilingToSupabase() {
                       }
                       rowObj[headers[j]] = String(val);
                   } else {
-                      rowObj[headers[j]] = ''; // Kirim string kosong, jangan skip
+                      rowObj[headers[j]] = '';
                   }
               }
           }
@@ -90,18 +89,17 @@ function syncProfilingToSupabase() {
           return { success: false, message: 'Tidak ada data yang ditemukan di Sheet.' };
       }
       
-      // Step 1: Hapus data lama
-      const delRes = Supabase.del('mirror_profiling', '?nama_lengkap=neq.XXXXXXXXX_IMPOSSIBLE');
-      Logger.log('Delete result: ' + JSON.stringify(delRes));
+      // Step 1: Hapus SEMUA data lama (select all rows where nama_lengkap exists or empty)
+      Supabase.del('mirror_profiling', '?or=(nama_lengkap.neq.XXXXXXXXX_IMPOSSIBLE,nama_lengkap.is.null)');
       
-      // Step 2: Insert per batch, TANGKAP dan LAPORKAN error jika ada
+      // Step 2: Insert per batch
       const BATCH_SIZE = 500;
       let totalInserted = 0;
       const errors = [];
       
       for (let b = 0; b < payload.length; b += BATCH_SIZE) {
           const batch = payload.slice(b, b + BATCH_SIZE);
-          const res = Supabase.upsert('mirror_profiling', batch);
+          const res = Supabase.insert('mirror_profiling', batch);
           
           if (res.success) {
               totalInserted += batch.length;
