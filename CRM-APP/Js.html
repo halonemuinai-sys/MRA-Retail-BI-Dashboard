@@ -591,6 +591,40 @@
                 }
             });
         },
+        
+        syncGlobalSupabase: () => {
+            Swal.fire({
+                title: 'Global Sync Database',
+                text: "Operasi ini akan menarik 100% data Traffic dan Profiling secara total dan beruntun dari Google Sheet ke dalam Supabase. Apakah Anda ingin melanjutkan?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#059669',
+                confirmButtonText: 'Mulai Sinkronisasi',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Sinkronisasi Master Berjalan...',
+                        html: 'Memompa seluruh data Traffic dan Profiling secara serentak ke dalam Database 🚀<br><br><span class="text-xs text-slate-500">Proses memakan waktu 5-10 detik.</span>',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    google.script.run.withSuccessHandler(res => {
+                        if (res.success) {
+                            Swal.fire('Sinkronisasi Global Selesai!', res.message, 'success');
+                            CRM.loadDashboard(); // Refresh angka dan timestamp
+                        } else {
+                            Swal.fire('Gagal Menghubungkan', res.message, 'error');
+                        }
+                    }).withFailureHandler(err => {
+                        Swal.fire('Error Network Kritis', String(err), 'error');
+                    }).triggerGlobalSupabaseSync();
+                }
+            });
+        },
 
         renderProfilingTable: (headers, rows) => {
             const thead = document.getElementById('trProfilingHead');

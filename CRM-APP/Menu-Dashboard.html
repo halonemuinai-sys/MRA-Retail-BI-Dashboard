@@ -3,23 +3,33 @@
     <header class="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-10 pb-6 border-b border-slate-200">
         <div>
             <h1 class="text-3xl lg:text-4xl font-bold text-brand-primary mb-2 tracking-tight">System Global Overview</h1>
-            <p class="text-sm font-medium text-slate-500">Monitoring performa pengumpulan data audiens terpadu.</p>
+            <p class="text-sm font-medium text-slate-500 flex flex-wrap items-center gap-3">
+                Monitoring performa pengumpulan data audiens terpadu.
+                <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 border border-emerald-200">
+                    <iconify-icon icon="lucide:clock"></iconify-icon> Sync: <span id="lblLastSync">...</span>
+                </span>
+            </p>
         </div>
         <!-- Bulan & Tahun Filter -->
-        <div class="mt-4 sm:mt-0 flex gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
-            <select id="crmFilterMonth" title="Pilih Bulan" onchange="CRM.loadDashboard()" class="bg-slate-50 border-none px-4 py-2.5 rounded-xl font-bold text-slate-700 text-sm outline-none cursor-pointer hover:bg-slate-100 transition-colors">
-                <option value="0">Januari</option><option value="1">Februari</option>
-                <option value="2">Maret</option><option value="3">April</option>
-                <option value="4">Mei</option><option value="5">Juni</option>
-                <option value="6">Juli</option><option value="7">Agustus</option>
-                <option value="8">September</option><option value="9">Oktober</option>
-                <option value="10">November</option><option value="11">Desember</option>
-            </select>
-            <select id="crmFilterYear" title="Pilih Tahun" onchange="CRM.loadDashboard()" class="bg-slate-50 border-none px-4 py-2.5 rounded-xl font-bold text-slate-700 text-sm outline-none cursor-pointer hover:bg-slate-100 transition-colors">
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-            </select>
+        <div class="mt-4 sm:mt-0 flex gap-3 items-center">
+            <button onclick="CRM.syncGlobalSupabase()" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 border border-emerald-700 shadow-md rounded-xl text-[9px] sm:text-[11px] font-bold uppercase tracking-widest text-white hover:bg-emerald-700 active:scale-95 transition-all" title="Tarik data terbaru seluruh sistem dari Google Sheet ke Supabase">
+                <iconify-icon icon="lucide:server-cog"></iconify-icon> Global Sync
+            </button>
+            <div class="flex gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
+                <select id="crmFilterMonth" title="Pilih Bulan" onchange="CRM.loadDashboard()" class="bg-slate-50 border-none px-2 sm:px-4 py-2.5 rounded-xl font-bold text-slate-700 text-xs sm:text-sm outline-none cursor-pointer hover:bg-slate-100 transition-colors">
+                    <option value="0">Januari</option><option value="1">Februari</option>
+                    <option value="2">Maret</option><option value="3">April</option>
+                    <option value="4">Mei</option><option value="5">Juni</option>
+                    <option value="6">Juli</option><option value="7">Agustus</option>
+                    <option value="8">September</option><option value="9">Oktober</option>
+                    <option value="10">November</option><option value="11">Desember</option>
+                </select>
+                <select id="crmFilterYear" title="Pilih Tahun" onchange="CRM.loadDashboard()" class="bg-slate-50 border-none px-2 sm:px-4 py-2.5 rounded-xl font-bold text-slate-700 text-xs sm:text-sm outline-none cursor-pointer hover:bg-slate-100 transition-colors">
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+            </div>
         </div>
     </header>
 

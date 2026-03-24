@@ -55,6 +55,8 @@ function getCrmDashboardOverview(selectedMonth, selectedYear) {
         });
     }
 
+    const lastSyncStr = PropertiesService.getScriptProperties().getProperty('LAST_SUPABASE_SYNC') || 'Belum Pernah Sync';
+
     return {
       success: true,
       data: {
@@ -63,10 +65,36 @@ function getCrmDashboardOverview(selectedMonth, selectedYear) {
         dailyChartData: dailyData,
         storeTraffic: storeTraffic,
         prospectData: prospectSet,
-        locations: Array.from(locationSet).sort()
+        locations: Array.from(locationSet).sort(),
+        lastSync: lastSyncStr
       }
     };
   } catch (e) {
     return { success: false, message: e.message };
   }
+}
+
+/**
+ * Triggers both Traffic & Profiling Sync to Supabase consecutively
+ * and registers the timestamp in ScriptProperties.
+ */
+function triggerGlobalSupabaseSync() {
+    try {
+        const trafficRes = syncTrafficToSupabase();
+        const profilingRes = syncProfilingToSupabase();
+        
+        if (!trafficRes.success) throw new Error("Traffic Error: " + trafficRes.message);
+        if (!profilingRes.success) throw new Error("Profiling Error: " + profilingRes.message);
+        
+        const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd MMM yyyy HH:mm:ss");
+        PropertiesService.getScriptProperties().setProperty('LAST_SUPABASE_SYNC', timestamp);
+        
+        return { 
+            success: true, 
+            message: `Berhasil tarik ${trafficRes.count} Traffic dan ${profilingRes.count} Profiling!`,
+            lastSync: timestamp
+        };
+    } catch(e) {
+        return { success: false, message: e.message };
+    }
 }
