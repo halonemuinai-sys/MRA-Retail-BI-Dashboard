@@ -56,7 +56,7 @@ function syncProfilingToSupabase() {
       
       const pData = pSheet.getDataRange().getValues();
       const payload = [];
-      const headers = pData[0].map(h => String(h).trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, ''));
+      const headers = pData[0].map(h => String(h).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, ''));
       
       for (let i = 1; i < pData.length; i++) {
           const row = pData[i];
