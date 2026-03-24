@@ -83,7 +83,7 @@ function syncProfilingToSupabase() {
       }
       
       if (payload.length > 0) {
-          Supabase.del('mirror_profiling', '?id=not.is.null'); // Delete existing mirror
+          Supabase.del('mirror_profiling', '?nama_lengkap=not.is.null'); // Delete existing mirror based on new PK
           
           const BATCH_SIZE = 1000;
           for (let b = 0; b < payload.length; b += BATCH_SIZE) {
