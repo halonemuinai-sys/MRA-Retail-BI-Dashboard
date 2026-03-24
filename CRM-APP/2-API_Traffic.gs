@@ -16,30 +16,31 @@ function syncTrafficToSupabase() {
       const COL = CONFIG_CRM.COLS.T;
       
       const payload = [];
-      const headers = trfData[0].map(h => String(h).trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, ''));
       
       for (let i = 1; i < trfData.length; i++) {
           const row = trfData[i];
-          const rowObj = {};
-          let isEmptyLine = true;
           
-          for (let j = 0; j < headers.length; j++) {
-              if (headers[j]) {
-                  let val = row[j];
-                  if (val !== '' && val !== null) {
-                      isEmptyLine = false;
-                      // Handle JS Dates to IsoString for Postgres
-                      if (val instanceof Date) {
-                          val = val.toISOString();
-                      }
-                      rowObj[headers[j]] = val;
-                  }
-              }
-          }
+          let dateVal = row[COL.DATE];
+          if (!dateVal) continue;
           
-          if (!isEmptyLine) {
-              payload.push(rowObj);
-          }
+          let d = new Date(dateVal);
+          if (isNaN(d.getTime())) continue;
+          
+          const name = String(row[COL.NAME] || '').trim();
+          if (!name) continue;
+          
+          payload.push({
+              transaction_date: d.toISOString(),
+              customer_name: name,
+              served_by: String(row[COL.SERVED_BY] || ''),
+              location: String(row[COL.LOCATION] || ''),
+              status: String(row[COL.STATUS] || ''),
+              prospect_item: String(row[COL.PROSPECT] || ''),
+              gross_sales: Number(row[COL.GROSS]) || 0,
+              disc_pct: Number(row[COL.DISC_PCT]) || 0,
+              val_disc: Number(row[COL.VAL_DISC]) || 0,
+              net_sales: Number(row[COL.NET_SALES]) || 0
+          });
       }
       
       if (payload.length > 0) {
