@@ -268,9 +268,9 @@
               let d = new Date(dateStr);
               if (isNaN(d.getTime())) d = new Date(0); // fallback
 
-              // Prioritaskan Key berdasarkan Phone (jika ada) agar nama mirip yang punya HP sama bergabung
-              // Jika phone tidak ada, fallback pakai lowerCase name
-              const key = phone.length > 5 ? phone : rawName.toLowerCase();
+              // Validasi dan Perbaiki Deduplikasi: 
+              // Gunakan murni Nama Pelanggan sebagai Key utama pemersatu histori transaksi
+              const key = rawName.toLowerCase();
               
               if (!custMap[key]) {
                   custMap[key] = {
@@ -281,6 +281,12 @@
                       lastDate: d,
                       advisorFreq: {} // Untuk cari The Main Advisor
                   };
+              } else {
+                  // Jika customer sudah eksis tapi nomor HP nya kosong (length < 5)
+                  // namun di transaksi *ini* dia memberikan nomor HP (length > 5), kita UPDATE profilnya!
+                  if (phone.length > 5 && (!custMap[key].phone || custMap[key].phone.length < 5)) {
+                      custMap[key].phone = phone;
+                  }
               }
               
               const cp = custMap[key];
