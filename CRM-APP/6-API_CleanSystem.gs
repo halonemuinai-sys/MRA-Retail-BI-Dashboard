@@ -412,7 +412,7 @@
   */
   function getCustomerMasterList() {
       try {
-          const response = Supabase.get('crm_customers', '?select=*&order=total_spend.desc');
+          const response = Supabase.get('crm_customers', '?select=*&order=total_spend.desc&limit=10000');
           if (!response.success) {
                return { success: false, message: "Koneksi Supabase Gagal: " + response.message };
           }
