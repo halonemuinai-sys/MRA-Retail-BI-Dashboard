@@ -560,6 +560,38 @@
                 .getCrmProfilingData();
         },
 
+        pushProfilingToSupabase: () => {
+            Swal.fire({
+                title: 'Konfirmasi Mirroring Profiling',
+                text: "Sinkronisasi ini akan mencerminkan seluruh baris dari Sheet Form Profiling ke ruang Database Supabase Anda secara real-time. Lanjutkan?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#059669',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Push Data'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Memproses...',
+                        html: 'Membaca Ribuan Profil Canggih \u23F3',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                    
+                    google.script.run.withSuccessHandler(res => {
+                        if (res.success) {
+                            Swal.fire('Sukses Terhubung!', res.message, 'success');
+                            CRM.loadProfiling();
+                        } else {
+                            Swal.fire('Gagal Menghubungkan', res.message, 'error');
+                        }
+                    }).withFailureHandler(err => {
+                        Swal.fire('Error Kritis Server', String(err), 'error');
+                    }).syncProfilingToSupabase();
+                }
+            });
+        },
+
         renderProfilingTable: (headers, rows) => {
             const thead = document.getElementById('trProfilingHead');
             const tbody = document.getElementById('tbProfilingBody');

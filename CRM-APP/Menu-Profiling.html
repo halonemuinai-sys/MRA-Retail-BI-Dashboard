@@ -12,8 +12,11 @@
                 </div>
                 <input type="text" id="inpSearchProfiling" onkeyup="CRM.searchProfiling()" class="w-64 pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 bg-white transition-all text-xs font-semibold text-slate-800 placeholder:text-slate-400" placeholder="Search any column...">
             </div>
-            <button onclick="CRM.loadProfiling()" class="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-[11px] font-bold uppercase tracking-widest text-purple-600 hover:bg-purple-50 hover:border-purple-200 active:scale-95 transition-all">
-                <iconify-icon icon="lucide:refresh-cw"></iconify-icon> Sync
+            <button onclick="CRM.loadProfiling()" class="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-[11px] font-bold uppercase tracking-widest text-purple-600 hover:bg-purple-50 hover:border-purple-200 active:scale-95 transition-all" title="Refresh Tabel">
+                <iconify-icon icon="lucide:refresh-cw"></iconify-icon> Refresh
+            </button>
+            <button onclick="CRM.pushProfilingToSupabase()" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 border border-emerald-700 shadow-md rounded-xl text-[11px] font-bold uppercase tracking-widest text-white hover:bg-emerald-700 active:scale-95 transition-all" title="Cerminkan data Profiling ini ke Supabase">
+                <iconify-icon icon="lucide:server"></iconify-icon> Push to Supabase
             </button>
         </div>
     </header>

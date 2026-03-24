@@ -44,3 +44,56 @@ function getCrmProfilingData() {
     return { success: false, message: 'Gagal tarik data Profiling: ' + e.message };
   }
 }
+
+/**
+ * Pushes raw Profiling data from Google Sheets directly to Supabase mirror_profiling table
+ */
+function syncProfilingToSupabase() {
+  try {
+      const extSS = SpreadsheetApp.openById(CONFIG_CRM.PROFILING_SS_ID);
+      const pSheet = extSS.getSheetByName(CONFIG_CRM.P_SHEET_NAME);
+      if (!pSheet) throw new Error("Sheet Form Profiling not found.");
+      
+      const pData = pSheet.getDataRange().getValues();
+      const payload = [];
+      const headers = pData[0].map(h => String(h).trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, ''));
+      
+      for (let i = 1; i < pData.length; i++) {
+          const row = pData[i];
+          const rowObj = {};
+          let isEmptyLine = true;
+          
+          for (let j = 0; j < headers.length; j++) {
+              if (headers[j]) {
+                  let val = row[j];
+                  if (val !== '' && val !== null) {
+                      isEmptyLine = false;
+                      // Handle JS Dates to IsoString for Postgres
+                      if (val instanceof Date) {
+                          val = val.toISOString();
+                      }
+                      rowObj[headers[j]] = val;
+                  }
+              }
+          }
+          
+          if (!isEmptyLine) {
+              payload.push(rowObj);
+          }
+      }
+      
+      if (payload.length > 0) {
+          Supabase.del('mirror_profiling', '?id=not.is.null'); // Delete existing mirror
+          
+          const BATCH_SIZE = 1000;
+          for (let b = 0; b < payload.length; b += BATCH_SIZE) {
+              Supabase.insert('mirror_profiling', payload.slice(b, b + BATCH_SIZE));
+          }
+      }
+      
+      return { success: true, count: payload.length, message: "Profiling data successfully mirrored to Supabase!" };
+      
+  } catch (e) {
+      return { success: false, message: e.message };
+  }
+}
