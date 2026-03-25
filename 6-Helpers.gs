@@ -589,7 +589,7 @@ function fetchSupabaseCleanMasterAs2DArray(year, month) {
     }
 
     // 2. Build precise query with tight date filter
-    let query = "?select=trans_no,transaction_date,customer,salesman,location,sap_code,main_category,collection,gross_sales,disc_pct,val_disc,net_price,comm,cost,net_sales,type,qty,catalogue_code,home_location,phone";
+    let query = "?select=*";
 
     if (year && month) {
         const y = Number(year);
