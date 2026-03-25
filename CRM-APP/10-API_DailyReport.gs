@@ -52,70 +52,89 @@ function getDailyReportData(filterLocation, filterMonth, filterYear) {
           else if (h === 'notes' || h === 'catatan') colIndices["Notes"] = j;
       }
       
+      // Explicit mappings as requested
+      colIndices["Discount (RP)"] = 34; // Column AI
+      colIndices["Descriptions"] = 40; // Column AO
+      
       let out = [];
+      let trafficCounts = {
+          "Walk In": 0, "Follow Up": 0, "Delivery & Showing": 0, "Online Only": 0,
+          "Repair Order": 0, "Repair Cancel": 0, "Repair Finish": 0, "Lainnya": 0
+      };
+      let advisorCounts = {};
+      let totalHandling = 0;
+      
+      let locIdx = colIndices["Lokasi Store"];
+      let tglIdx = colIndices["Tanggal Berkunjung"];
+      let stIdx = colIndices["Status Kedatangan"];
+      let advIdx = colIndices["Customer Advisor"];
       
       for (let i = 1; i < data.length; i++) {
           const row = data[i];
           
+          // 1. Fast Filter Check
+          let match = true;
+          
+          if (filterLocation && filterLocation !== 'All') {
+              let rowLoc = locIdx !== undefined ? String(row[locIdx] || '').trim().toLowerCase() : '';
+              if (rowLoc !== filterLocation.toLowerCase()) {
+                  match = false;
+              }
+          }
+          if (!match) continue;
+          
+          let rawTgl = tglIdx !== undefined ? row[tglIdx] : '';
+          let m = -1, y = -1;
+          
+          if (rawTgl) {
+             if (rawTgl instanceof Date) {
+                 m = rawTgl.getMonth() + 1;
+                 y = rawTgl.getFullYear();
+             } else {
+                 let d = new Date(rawTgl);
+                 if (!isNaN(d.getTime())) {
+                     m = d.getMonth() + 1;
+                     y = d.getFullYear();
+                 }
+             }
+          }
+          
+          if (filterMonth && filterMonth !== 'All') {
+              if (m === -1 || m.toString() !== filterMonth.toString()) match = false;
+          }
+          if (match && filterYear && filterYear !== 'All') {
+              if (y === -1 || y.toString() !== filterYear.toString()) match = false;
+          }
+          if (!match) continue;
+          
+          // 2. Build rowData only for matched rows
           let rowData = {};
           let isEmptyRow = true;
           targetCols.forEach(col => {
               let val = colIndices[col] !== undefined ? row[colIndices[col]] : '';
-              if(val !== '' && val !== null && val !== undefined) isEmptyRow = false;
+              if (val !== '' && val !== null && val !== undefined) isEmptyRow = false;
               
               if (val instanceof Date) {
+                  let yy = val.getFullYear();
+                  let mm = String(val.getMonth() + 1).padStart(2, '0');
+                  let dd = String(val.getDate()).padStart(2, '0');
                   if (col === "Tanggal Berkunjung") {
-                      val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+                      val = `${yy}-${mm}-${dd}`;
                   } else {
-                     val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+                      let hh = String(val.getHours()).padStart(2, '0');
+                      let min = String(val.getMinutes()).padStart(2, '0');
+                      let ss = String(val.getSeconds()).padStart(2, '0');
+                      val = `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
                   }
               }
               rowData[col] = String(val !== undefined && val !== null ? val : '');
           });
           
-          if(isEmptyRow) continue;
+          if (isEmptyRow) continue;
+          out.push(rowData);
           
-          // Apply Filters
-          let match = true;
-          
-          if (filterLocation && filterLocation !== 'All') {
-              if (rowData["Lokasi Store"] && rowData["Lokasi Store"].toLowerCase() !== filterLocation.toLowerCase()) {
-                  match = false;
-              }
-          }
-          
-          if (filterMonth && filterMonth !== 'All' && rowData["Tanggal Berkunjung"]) {
-              let monthStr = rowData["Tanggal Berkunjung"].split('-')[1]; // yyyy-MM-dd
-              if (monthStr && parseInt(monthStr, 10).toString() !== parseInt(filterMonth, 10).toString()) {
-                  match = false;
-              }
-          }
-          
-          if (filterYear && filterYear !== 'All' && rowData["Tanggal Berkunjung"]) {
-               let yearStr = rowData["Tanggal Berkunjung"].split('-')[0];
-               if (yearStr !== filterYear.toString()) {
-                   match = false;
-               }
-          }
-          
-          if (match) {
-              out.push(rowData);
-          }
-      }
-      
-      out.sort((a, b) => new Date(b["Tanggal Berkunjung"]) - new Date(a["Tanggal Berkunjung"]));
-      
-      // Compute Summaries
-      let trafficCounts = {
-          "Walk In": 0, "Follow Up": 0, "Delivery & Showing": 0, "Online Only": 0,
-          "Repair Order": 0, "Repair Cancel": 0, "Repair Finish": 0, "Lainnya": 0
-      };
-      
-      let advisorCounts = {};
-      
-      out.forEach(row => {
-          // Traffic Status
-          let st = String(row["Status Kedatangan"]).trim().toLowerCase();
+          // 3. Increment Summaries
+          let st = stIdx !== undefined ? String(row[stIdx] || '').trim().toLowerCase() : '';
           if (st.includes('walk')) trafficCounts["Walk In"]++;
           else if (st.includes('follow')) trafficCounts["Follow Up"]++;
           else if (st.includes('delivery')) trafficCounts["Delivery & Showing"]++;
@@ -125,11 +144,11 @@ function getDailyReportData(filterLocation, filterMonth, filterYear) {
           else if (st.includes('finish') || st.includes('selesai')) trafficCounts["Repair Finish"]++;
           else trafficCounts["Lainnya"]++;
           
-          // Advisor
-          let adv = String(row["Customer Advisor"] || "-").trim();
+          let adv = advIdx !== undefined ? String(row[advIdx] || '-').trim() : '-';
           if (!advisorCounts[adv]) advisorCounts[adv] = 0;
           advisorCounts[adv]++;
-      });
+          totalHandling++;
+      }
       
       let totalSalesTraffic = trafficCounts["Walk In"] + trafficCounts["Follow Up"] + trafficCounts["Delivery & Showing"] + trafficCounts["Online Only"];
       let totalRepairTraffic = trafficCounts["Repair Order"] + trafficCounts["Repair Cancel"] + trafficCounts["Repair Finish"];
@@ -141,7 +160,7 @@ function getDailyReportData(filterLocation, filterMonth, filterYear) {
       
       // Formatting Advisor Summary
       let advSummary = [];
-      let totalHandling = out.length;
+      totalHandling = out.length;
       Object.keys(advisorCounts).forEach(key => {
           let pct = totalHandling > 0 ? ((advisorCounts[key] / totalHandling) * 100).toFixed(2) : 0;
           advSummary.push({

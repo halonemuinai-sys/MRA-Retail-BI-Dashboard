@@ -14,34 +14,36 @@
         const loc = document.getElementById('dr-filter-location').value;
         const month = document.getElementById('dr-filter-month').value;
         const year = document.getElementById('dr-filter-year').value;
-        
+
         const tBody = document.getElementById('dr-table-body');
         const tHead = document.getElementById('dr-table-head');
-        
+
         tBody.innerHTML = `<tr><td class="px-4 py-8 text-center text-slate-500" colspan="100%"><iconify-icon icon="eos-icons:loading" class="text-xl animate-spin align-middle mr-2"></iconify-icon>Fetching data... This may take a moment.</td></tr>`;
         tHead.innerHTML = ``;
-        
-        google.script.run.withSuccessHandler(function(res) {
-            if(res.success) {
+        const sumContainer = document.getElementById('dr-summary-container');
+        if (sumContainer) sumContainer.classList.add('hidden');
+
+        google.script.run.withSuccessHandler(function (res) {
+            if (res.success) {
                 currentDailyReportData = res.data;
                 currentDailyReportColumns = res.columns;
                 currentDailyReportSummary = res.summary;
-                
+
                 // Show summary block
                 const sumContainer = document.getElementById('dr-summary-container');
-                if(sumContainer) sumContainer.classList.remove('hidden');
-                
+                if (sumContainer) sumContainer.classList.remove('hidden');
+
                 // Traffic Summary UI
                 const sumTr = res.summary.traffic;
                 const tbTraffic = document.getElementById('tb-summary-traffic');
                 const tTypes = ["Walk In", "Follow Up", "Delivery & Showing", "Online Only", "Repair Order", "Repair Cancel", "Repair Finish", "Total Traffic", "Sales Traffic", "Repair Traffic", "Total Customer"];
                 let trHtml = '';
                 tTypes.forEach(t => {
-                   let bold = (t.includes('Total') || t.includes('Traffic')) ? 'font-bold text-slate-800 bg-slate-50' : '';
-                   trHtml += `<tr class="hover:bg-slate-50 transition ${bold}"><td class="px-4 py-2 border-b border-slate-100">${t}</td><td class="px-4 py-2 border-b border-slate-100 text-right">${sumTr[t] || 0}</td></tr>`;
+                    let bold = (t.includes('Total') || t.includes('Traffic')) ? 'font-bold text-slate-800 bg-slate-50' : '';
+                    trHtml += `<tr class="hover:bg-slate-50 transition ${bold}"><td class="px-4 py-2 border-b border-slate-100">${t}</td><td class="px-4 py-2 border-b border-slate-100 text-right">${sumTr[t] || 0}</td></tr>`;
                 });
-                if(tbTraffic) tbTraffic.innerHTML = trHtml;
-                
+                if (tbTraffic) tbTraffic.innerHTML = trHtml;
+
                 // Advisor Summary UI
                 const sumAdv = res.summary.advisors;
                 const tbAdv = document.getElementById('tb-summary-advisor');
@@ -50,14 +52,14 @@
                     advHtml += `<tr class="hover:bg-slate-50 transition"><td class="px-4 py-2 border-b border-slate-100">${a.advisor}</td><td class="px-4 py-2 border-b border-slate-100 text-right font-medium">${a.total}</td><td class="px-4 py-2 border-b border-slate-100 text-right">${a.percentage}</td></tr>`;
                 });
                 advHtml += `<tr class="bg-slate-100 font-bold text-slate-800"><td class="px-4 py-2 border-b border-slate-200">Total</td><td class="px-4 py-2 border-b border-slate-200 text-right">${res.summary.totalHandling}</td><td class="px-4 py-2 border-b border-slate-200 text-right">100.00%</td></tr>`;
-                if(tbAdv) tbAdv.innerHTML = advHtml;
-                
+                if (tbAdv) tbAdv.innerHTML = advHtml;
+
                 // Draw Headers
                 tHead.innerHTML = res.columns.map(col => `<th class="px-4 py-3 font-semibold text-slate-600 tracking-wider">${col}</th>`).join('');
-                
+
                 // Draw Rows
-                if(res.data.length === 0) {
-                     tBody.innerHTML = `<tr><td class="px-4 py-8 text-center text-slate-500" colspan="100%">No data found for selected filters.</td></tr>`;
+                if (res.data.length === 0) {
+                    tBody.innerHTML = `<tr><td class="px-4 py-8 text-center text-slate-500" colspan="100%">No data found for selected filters.</td></tr>`;
                 } else {
                     tBody.innerHTML = res.data.map(row => {
                         let tr = `<tr class="hover:bg-slate-50 transition cursor-pointer">`;
@@ -68,30 +70,30 @@
                         return tr;
                     }).join('');
                 }
-                
-                if(typeof showToast === 'function') {
+
+                if (typeof showToast === 'function') {
                     showToast("Data retrieved successfully", "success");
                 }
             } else {
                 Swal.fire('Error', res.message, 'error');
                 tBody.innerHTML = `<tr><td class="px-4 py-8 text-center text-red-500" colspan="100%">Error loading data.</td></tr>`;
             }
-        }).withFailureHandler(function(err) {
+        }).withFailureHandler(function (err) {
             Swal.fire('Error', err.message, 'error');
             tBody.innerHTML = `<tr><td class="px-4 py-8 text-center text-red-500" colspan="100%">Error connecting to server.</td></tr>`;
         }).getDailyReportData(loc, month, year);
     }
 
     function exportDailyReportExcel() {
-        if(currentDailyReportData.length === 0) {
+        if (currentDailyReportData.length === 0) {
             Swal.fire('Info', 'No data to export. Please filter first.', 'info');
             return;
         }
-        
+
         // Convert Main Data to Worksheet
-        const wsData = XLSX.utils.json_to_sheet(currentDailyReportData, {header: currentDailyReportColumns});
+        const wsData = XLSX.utils.json_to_sheet(currentDailyReportData, { header: currentDailyReportColumns });
         const wb = XLSX.utils.book_new();
-        
+
         // Build Summary Sheet
         const loc = document.getElementById('dr-filter-location').value;
         const sumData = [];
@@ -100,55 +102,55 @@
         sumData.push(["Type", "Total"]);
         const tTypes = ["Walk In", "Follow Up", "Delivery & Showing", "Online Only", "Repair Order", "Repair Cancel", "Repair Finish", "Total Traffic", "Sales Traffic", "Repair Traffic", "Total Customer"];
         tTypes.forEach(t => sumData.push([t, currentDailyReportSummary.traffic[t] || 0]));
-        
+
         sumData.push([]);
         sumData.push(["Customer Advisor Summary", ""]);
         sumData.push(["Customer Advisor", "Total Handling", "% Total"]);
         currentDailyReportSummary.advisors.forEach(a => {
-             sumData.push([a.advisor, a.total, a.percentage]);
+            sumData.push([a.advisor, a.total, a.percentage]);
         });
         sumData.push(["Total", currentDailyReportSummary.totalHandling, "100.00%"]);
-        
+
         const wsSummary = XLSX.utils.aoa_to_sheet(sumData);
-        
+
         XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
         XLSX.utils.book_append_sheet(wb, wsData, "Raw Data");
-        
+
         // Export file
         const m = document.getElementById('dr-filter-month').value;
         const y = document.getElementById('dr-filter-year').value;
         const dStr = new Date().toISOString().split('T')[0];
-        
+
         XLSX.writeFile(wb, `Daily_Report_${loc}_${m}_${y}_${dStr}.xlsx`);
     }
 
     function sendDailyReportEmailPrompt() {
-         Swal.fire({
+        Swal.fire({
             title: 'Send Daily Report',
-            text: 'Enter the recipient email address:',
-            input: 'email',
-            inputPlaceholder: 'example@domain.com',
+            text: 'Send the current Daily Report to aris@mraretail.co.id?',
+            icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Send',
+            confirmButtonText: 'Yes, Send Now',
             confirmButtonColor: '#2563eb',
             showLoaderOnConfirm: true,
-            preConfirm: (email) => {
+            preConfirm: () => {
                 const loc = document.getElementById('dr-filter-location').value;
                 const month = document.getElementById('dr-filter-month').value;
                 const year = document.getElementById('dr-filter-year').value;
-                
+                const email = 'aris@mraretail.co.id';
+
                 return new Promise((resolve, reject) => {
-                     google.script.run.withSuccessHandler(function(res) {
-                         if(res.success) {
-                             resolve(res);
-                         } else {
-                             Swal.showValidationMessage(res.message);
-                             resolve(); // resolve to prevent hanging, Swal will show validation message
-                         }
-                     }).withFailureHandler(function(err) {
-                         Swal.showValidationMessage(err.message);
-                         resolve();
-                     }).sendDailyReportEmail(loc, month, year, email);
+                    google.script.run.withSuccessHandler(function (res) {
+                        if (res.success) {
+                            resolve(res);
+                        } else {
+                            Swal.showValidationMessage(res.message);
+                            resolve(); // resolve to prevent hanging, Swal will show validation message
+                        }
+                    }).withFailureHandler(function (err) {
+                        Swal.showValidationMessage(err.message);
+                        resolve();
+                    }).sendDailyReportEmail(loc, month, year, email);
                 });
             },
             allowOutsideClick: () => !Swal.isLoading()
@@ -156,7 +158,7 @@
             if (result.isConfirmed) {
                 Swal.fire({
                     title: 'Sent!',
-                    text: 'The email has been successfully sent.',
+                    text: 'The email has been successfully sent to aris@mraretail.co.id',
                     icon: 'success'
                 });
             }
