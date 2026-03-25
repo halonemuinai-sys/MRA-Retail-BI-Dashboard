@@ -14,9 +14,10 @@ function getSapPerformance(monthName, year, forceRefresh = false) {
   }
 
   const ss = getSpreadsheet();
-  // ⚡ SERVERLESS: Fetch from Supabase
-  const data = fetchSupabaseCleanMasterAs2DArray(year);
-  if (!data || data.length === 0) return { error: "Data not found in Supabase." };
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  if (!cleanSheet) return { error: "Data not found." };
+  const data = cleanSheet.getDataRange().getValues();
+  data.shift(); 
   const COL = CONFIG.CLEAN_COLS;
   const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
   const filteredData = data.filter(row => {
@@ -70,9 +71,11 @@ function getCategoryTrendData(monthName, year, category, forceRefresh = false) {
   }
 
   const ss = getSpreadsheet();
-  // ⚡ SERVERLESS: Fetch ALL years for multi-year trend analysis
-  const data = fetchSupabaseCleanMasterAs2DArray();
-  if (!data || data.length === 0) return { error: "Data not found in Supabase." };
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  if (!cleanSheet) return { error: "Data not found." };
+  
+  const data = cleanSheet.getDataRange().getValues();
+  data.shift();
   const COL = CONFIG.CLEAN_COLS;
   
   // Create shell for multi-year stat
@@ -156,9 +159,9 @@ function getCategoryTrendData(monthName, year, category, forceRefresh = false) {
 // --- C. Daily Report ---
 function getDetailedDailyData(dateStr) {
   const ss = getSpreadsheet();
-  // ⚡ SERVERLESS: Fetch from Supabase
-  const data = fetchSupabaseCleanMasterAs2DArray();
-  if (data.length > 0) { /* already shifted by facade */ }
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  const data = cleanSheet ? cleanSheet.getDataRange().getValues() : [];
+  if (data.length > 1) data.shift();
 
   // Get Store List Logic
   const targetSheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_TARGET_STORE);
@@ -302,10 +305,10 @@ function downloadDailyReportPDF_Old(dateStr) {
 // --- D. Advisor Report ---
 function getAdvisorReportData(monthName, year) {
   const ss = getSpreadsheet();
-  // ⚡ SERVERLESS: Fetch from Supabase
-  const data = fetchSupabaseCleanMasterAs2DArray(year);
-  if (!data || data.length === 0) return { advisors: [], month: monthName, year: year };
-  const COL = CONFIG.CLEAN_COLS;
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  const data = cleanSheet ? cleanSheet.getDataRange().getValues() : [];
+  if (data.length > 1) data.shift();
+  const COL = CONFIG.CLEAN_COLS; // 0-based from Config
   
   const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
   const monthlyData = data.filter(row => {
@@ -327,10 +330,10 @@ function getAdvisorReportData(monthName, year) {
 // --- ANNUAL ADVISOR REPORT ---
 function getAnnualAdvisorData(year) {
   const ss = getSpreadsheet();
-  // ⚡ SERVERLESS: Fetch from Supabase
-  const data = fetchSupabaseCleanMasterAs2DArray(year);
-  if (!data || data.length === 0) return [];
-  const COL = CONFIG.CLEAN_COLS;
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  const data = cleanSheet ? cleanSheet.getDataRange().getValues() : [];
+  if (data.length > 1) data.shift();
+  const COL = CONFIG.CLEAN_COLS; 
 
   // Filter for whole Year
   const yearData = data.filter(row => {
@@ -523,9 +526,9 @@ function getMonthlyTransReportData(monthName, year, forceRefresh = false) {
   }
 
   const ss = getSpreadsheet();
-  // ⚡ SERVERLESS: Fetch from Supabase
-  const data = fetchSupabaseCleanMasterAs2DArray(year);
-  if (!data || data.length === 0) return { month: monthName, year: year, days: [], stores: [] };
+  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+  const data = cleanSheet ? cleanSheet.getDataRange().getValues() : [];
+  if (data.length > 1) data.shift();
   const COL = CONFIG.CLEAN_COLS;
   
   const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
@@ -682,9 +685,14 @@ function getCrossingSalesData(monthName, year, forceRefresh = false) {
     }
 
     const ss = getSpreadsheet();
-    // ⚡ SERVERLESS: Fetch from Supabase
-    const data = fetchSupabaseCleanMasterAs2DArray(year);
-    if (!data || data.length === 0) return { error: "Clean data is empty." };
+    const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+    if (!cleanSheet) return { error: "Clean data sheet not found." };
+    
+    // Check if clean data has headers
+    if (cleanSheet.getLastRow() < 2) return { error: "Clean data is empty." };
+
+    const data = cleanSheet.getDataRange().getValues();
+    const headers = data.shift(); // Remove headers
     
     const COL = CONFIG.CLEAN_COLS;
     const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();

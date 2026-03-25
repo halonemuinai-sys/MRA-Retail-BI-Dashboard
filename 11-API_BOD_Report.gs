@@ -17,9 +17,11 @@ function downloadBODReportPDF(dateStr) {
     const mNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const monthName = mNames[targetMonthIndex];
 
-    // Read Clean Master - ⚡ SERVERLESS: Fetch from Supabase
-    const data = fetchSupabaseCleanMasterAs2DArray(targetYear);
-    if (!data || data.length === 0) throw new Error("Clean Master data not found in Supabase.");
+    // Read Clean Master
+    const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+    if (!cleanSheet) throw new Error("Clean Master sheet missing");
+    const data = cleanSheet.getDataRange().getValues();
+    data.shift(); // Remove headers
     
     // Read Stock Data
     const stockSheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_STOCK);

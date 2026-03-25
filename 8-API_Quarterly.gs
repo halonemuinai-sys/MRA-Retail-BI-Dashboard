@@ -24,10 +24,19 @@ function getQuarterlyData(quarterStr, yearStr, forceRefresh = false) {
 
         const ss = getSpreadsheet();
         const year = Number(yearStr);
+        
+        let sheetName = CONFIG.SHEETS.CLEAN; 
+        const currentYear = new Date().getFullYear();
+        if (year != currentYear) {
+            const archiveName = `Clean_Data_${year}`;
+            if (ss.getSheetByName(archiveName)) sheetName = archiveName;
+        }
 
-        // ⚡ SERVERLESS: Fetch from Supabase
-        const data = fetchSupabaseCleanMasterAs2DArray(year);
-        if (!data || data.length === 0) return { error: 'Data tidak ditemukan di Supabase.' };
+        const cleanSheet = ss.getSheetByName(sheetName);
+        if (!cleanSheet) return { error: `Sheet '${sheetName}' tidak ditemukan.` };
+
+        const data = cleanSheet.getDataRange().getValues();
+        data.shift(); // Remove header
 
         // Define Quarter Months Mapping
         const qMap = {
@@ -121,18 +130,25 @@ function getQuarterlyData(quarterStr, yearStr, forceRefresh = false) {
         // Calculate YoY (Last Year Same Quarter)
         let lastYearQtdSales = 0;
         const lastYear = year - 1;
-
-        // ⚡ SERVERLESS: Fetch last year data from Supabase
-        const lyData = fetchSupabaseCleanMasterAs2DArray(lastYear);
-        lyData.forEach(row => {
-            const d = parseDateFix(row[COL.DATE]);
-            if (d.getFullYear() === lastYear && targetQuarter.months.includes(d.getMonth())) {
-                const loc = String(row[COL.LOCATION]).trim();
-                if (!loc.toLowerCase().includes("head office")) {
-                    lastYearQtdSales += (Number(row[COL.NET_SALES]) || 0);
-                }
-            }
-        });
+        let lastYearSheetName = CONFIG.SHEETS.CLEAN;
+        if (lastYear != currentYear) {
+            const archiveName = `Clean_Data_${lastYear}`;
+            if (ss.getSheetByName(archiveName)) lastYearSheetName = archiveName;
+        }
+        const lastYearSheet = ss.getSheetByName(lastYearSheetName);
+        if (lastYearSheet) {
+             const lyData = lastYearSheet.getDataRange().getValues();
+             lyData.shift();
+             lyData.forEach(row => {
+                 const d = parseDateFix(row[COL.DATE]);
+                 if (d.getFullYear() === lastYear && targetQuarter.months.includes(d.getMonth())) {
+                     const loc = String(row[COL.LOCATION]).trim();
+                     if (!loc.toLowerCase().includes("head office")) {
+                         lastYearQtdSales += (Number(row[COL.NET_SALES]) || 0);
+                     }
+                 }
+             });
+        }
         
         const yoyGrowth = lastYearQtdSales > 0 ? ((qtdSales - lastYearQtdSales) / lastYearQtdSales) * 100 : 0;
         const qtdAchv = qtdTarget > 0 ? (qtdSales / qtdTarget) * 100 : 0;
@@ -377,10 +393,12 @@ function getQuarterlyBudgetData(quarterStr, yearStr, forceRefresh = false) {
 
         const ss = getSpreadsheet();
         const year = Number(yearStr);
+        let sheetName = CONFIG.SHEETS.CLEAN; 
+        const cleanSheet = ss.getSheetByName(sheetName);
+        if (!cleanSheet) return { error: `Sheet '${sheetName}' tidak ditemukan.` };
 
-        // ⚡ SERVERLESS: Fetch from Supabase
-        const data = fetchSupabaseCleanMasterAs2DArray(year);
-        if (!data || data.length === 0) return { error: 'Data tidak ditemukan di Supabase.' };
+        const data = cleanSheet.getDataRange().getValues();
+        data.shift(); // Remove header
 
         const qMap = {
             "Q1": { months: [0, 1, 2], names: ["January", "February", "March"] },
