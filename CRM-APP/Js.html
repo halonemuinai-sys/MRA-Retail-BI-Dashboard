@@ -143,7 +143,7 @@
                         document.getElementById('dashTotalProfiling').textContent = d.totalProfiling.toLocaleString('id-ID');
                         document.getElementById('dashTotalTraffic').textContent = d.totalTraffic.toLocaleString('id-ID');
                         
-                        CRM.renderTopKpis(d.storeTraffic, d.locations);
+                        CRM.renderTopKpis(d.storeTraffic, d.storeSales, d.locations);
                         
                         let rate = 0;
                         if (d.totalTraffic > 0) rate = (d.totalProfiling / d.totalTraffic) * 100;
@@ -151,9 +151,11 @@
                         document.getElementById('txtDonutRate').textContent = rate.toFixed(1) + '%';
                         
                         const daysInMonth = new Date(selectedY, selectedM + 1, 0).getDate();
-                        CRM.renderDailyChart(d.dailyChartData, d.locations, daysInMonth);
+                        CRM.renderDailyChart(d.dailyChartData, d.dailySalesData, d.locations, daysInMonth);
                         CRM.renderDonutChart(rate);
+                        CRM.renderOriginChart(d.clientOrigin);
                         CRM.renderProspectChart(d.prospectData);
+                        CRM.renderVipBirthdays(d.vipBirthdays);
                         
                     } else {
                         CRM.showToast(res.message, true);
@@ -166,7 +168,7 @@
                 .getCrmDashboardOverview(selectedM, selectedY);
         },
         
-        renderTopKpis: (storeTraffic, locations) => {
+        renderTopKpis: (storeTraffic, storeSales, locations) => {
             const container = document.getElementById('storeKpiContainer');
             if(!container) return;
 
@@ -174,9 +176,9 @@
             const sortedLocs = locations.filter(x => x && x !== '-').sort();
             let html = '';
 
-            
             sortedLocs.forEach((loc, idx) => {
                 const count = storeTraffic[loc] || 0;
+                const sales = storeSales[loc] || 0;
                 
                 // Variasikan icon atau warna biar lebih mirip screenshot user
                 const icons = ['lucide:store', 'lucide:building-2', 'lucide:plane', 'lucide:map-pin'];
@@ -184,6 +186,12 @@
                 const badgeCols = ['bg-slate-100 text-slate-500', 'bg-emerald-50 text-emerald-600', 'bg-rose-50 text-rose-500', 'bg-blue-50 text-brand-primary'];
                 const bCol = badgeCols[idx % badgeCols.length];
                 
+                // Format Net Sales
+                let salesStr = '';
+                if (sales >= 1000000000) salesStr = 'Rp ' + (sales/1000000000).toFixed(2) + ' Miliar';
+                else if (sales >= 1000000) salesStr = 'Rp ' + (sales/1000000).toFixed(1) + ' Jt';
+                else salesStr = 'Rp ' + sales.toLocaleString('id-ID');
+
                 html += `
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
                     <div class="absolute right-0 top-0 w-20 h-20 bg-slate-50 rounded-bl-[100px] -z-0"></div>
@@ -191,8 +199,9 @@
                         <iconify-icon icon="${icn}" class="text-sm"></iconify-icon>
                     </div>
                     <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 relative z-10 truncate pr-6">${loc}</h3>
-                    <div class="flex items-baseline gap-2 relative z-10">
-                        <span class="text-4xl font-display font-bold tracking-tight text-slate-800">${count.toLocaleString('id-ID')}</span>
+                    <div class="flex flex-col relative z-10">
+                        <span class="text-2xl font-display font-bold tracking-tight text-slate-800">${salesStr}</span>
+                        <span class="text-xs font-semibold text-slate-400 mt-1.5"><iconify-icon icon="lucide:users" class="inline"></iconify-icon> Traffic: ${count.toLocaleString('id-ID')}</span>
                     </div>
                 </div>
                 `;
@@ -201,7 +210,7 @@
             container.innerHTML = html;
         },
 
-        renderDailyChart: (dailyChartData, locations, daysInMonth) => {
+        renderDailyChart: (dailyChartData, dailySalesData, locations, daysInMonth) => {
             const ctx = document.getElementById('dailyTrafficChart');
             if (!ctx) return;
             if (CRM.dailyChartInstance) CRM.dailyChartInstance.destroy();
@@ -218,41 +227,59 @@
                 return grad;
             };
 
-            const colorPalette = [
-                { border: '#38bdf8', bg: createGrad('56, 189, 248') },
-                { border: '#a78bfa', bg: createGrad('167, 139, 250') },
-                { border: '#34d399', bg: createGrad('52, 211, 153') },
-                { border: '#fbbf24', bg: createGrad('251, 191, 36') },
-                { border: '#fb7185', bg: createGrad('251, 113, 133') },
-                { border: '#818cf8', bg: createGrad('129, 140, 248') }
-            ];
-
             const sortedLocs = locations.filter(x => x && x !== '-').sort();
-
-            const datasets = sortedLocs.map((loc, idx) => {
-                const dataArr = [];
-                for (let i = 0; i < daysInMonth; i++) {
-                    dataArr.push(dailyChartData[i][loc] || 0);
+            
+            // Agregat global (seluruh cabang digabung) per hari
+            const totalTrafficData = [];
+            const totalSalesData = [];
+            
+            for (let i = 0; i < daysInMonth; i++) {
+                let dayTrf = 0;
+                let daySales = 0;
+                for (const loc of sortedLocs) {
+                    dayTrf += (dailyChartData[i][loc] || 0);
+                    daySales += (dailySalesData[i][loc] || 0);
                 }
-                const p = colorPalette[idx % colorPalette.length];
-                return {
-                    label: loc,
-                    data: dataArr,
-                    borderColor: p.border,
-                    backgroundColor: p.bg,
+                totalTrafficData.push(dayTrf);
+                totalSalesData.push(daySales);
+            }
+
+            const datasets = [
+                {
+                    label: '🛒 Sales Transactions',
+                    data: totalSalesData,
+                    borderColor: '#10b981', // Emerald
+                    backgroundColor: createGrad('16, 185, 129'),
                     borderWidth: 2.5,
                     tension: 0.45,
                     fill: true,
-                    pointBackgroundColor: p.border,
-                    pointBorderColor: '#0f172a',
+                    pointBackgroundColor: '#10b981',
+                    pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
                     pointRadius: 0,
                     pointHoverRadius: 6,
-                    pointHoverBackgroundColor: p.border,
+                    pointHoverBackgroundColor: '#10b981',
                     pointHoverBorderColor: '#ffffff',
                     pointHoverBorderWidth: 2
-                };
-            });
+                },
+                {
+                    label: '👥 Traffic Volume',
+                    data: totalTrafficData,
+                    borderColor: '#38bdf8', // Light Blue
+                    backgroundColor: createGrad('56, 189, 248'),
+                    borderWidth: 2.5,
+                    tension: 0.45,
+                    fill: true,
+                    pointBackgroundColor: '#38bdf8',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#38bdf8',
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 2
+                }
+            ];
 
             CRM.dailyChartInstance = new Chart(c2d, {
                 type: 'line',
@@ -332,6 +359,74 @@
                     plugins: { legend: { display: false }, tooltip: { enabled: false } }
                 }
             });
+        },
+
+        renderOriginChart: (originData) => {
+            const ctx = document.getElementById('originChart');
+            if (!ctx) return;
+            if (CRM.originChartInstance) CRM.originChartInstance.destroy();
+
+            // Default fallback if no data
+            if(originData.lokal === 0 && originData.luar === 0) originData.lokal = 1;
+
+            CRM.originChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Lokal (WNI)', 'Turis (WNA)'],
+                    datasets: [{
+                        data: [originData.lokal, originData.luar],
+                        backgroundColor: ['#6366f1', '#e2e8f0'], // Indigo and Slate-200
+                        borderWidth: 0,
+                        hoverOffset: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: { 
+                        legend: { display: false }, 
+                        tooltip: { 
+                            callbacks: {
+                                label: function(context) {
+                                    return ' ' + context.label + ': ' + context.raw;
+                                }
+                            }
+                        } 
+                    }
+                }
+            });
+        },
+
+        renderVipBirthdays: (birthdays) => {
+            const container = document.getElementById('vipBirthdayAlerts');
+            if (!container) return;
+            
+            if (!birthdays || birthdays.length === 0) {
+                container.innerHTML = '<div class="col-span-3 text-sm text-slate-400 p-4 border border-dashed rounded-xl bg-slate-50/50 text-center">Tidak ada event ulang tahun VIP minggu ini.</div>';
+                return;
+            }
+
+            let html = '';
+            birthdays.forEach(b => {
+                let badgeClass = b.diffDays === 0 ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'bg-amber-100 text-amber-700';
+                html += `
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0">
+                            <iconify-icon icon="lucide:gift" class="text-xl ${b.diffDays === 0 ? 'text-rose-500' : 'text-slate-500'}"></iconify-icon>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-sm text-slate-800 truncate">${b.name}</h4>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">${b.location} • Age ${b.age}</p>
+                        </div>
+                    </div>
+                    <div class="px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase shrink-0 ${badgeClass}">
+                        ${b.status}
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
         },
 
         renderProspectChart: (prospectData) => {

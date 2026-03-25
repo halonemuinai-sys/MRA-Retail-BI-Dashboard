@@ -43,22 +43,11 @@
             <span class="group-hover:translate-x-1 transition-transform">Top Advisor</span>
         </button>
 
-        <div class="px-2 mt-5 mb-1">
-            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Operations</p>
-        </div>
-
         <button id="navbtn-daily" onclick="CRM.switchTab('daily')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
             <div class="icon-box w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center group-hover:bg-blue-500/20 group-hover:shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-all">
                 <iconify-icon icon="lucide:calendar-clock" class="text-lg text-slate-400 group-hover:text-blue-400 transition-colors"></iconify-icon>
             </div>
             <span class="group-hover:translate-x-1 transition-transform">Daily Report</span>
-        </button>
-
-        <button id="navbtn-profiling" onclick="CRM.switchTab('profiling')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
-            <div class="icon-box w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center group-hover:bg-purple-500/20 group-hover:shadow-[0_0_12px_rgba(168,85,247,0.4)] transition-all">
-                <iconify-icon icon="lucide:database" class="text-lg text-slate-400 group-hover:text-purple-400 transition-colors"></iconify-icon>
-            </div>
-            <span class="group-hover:translate-x-1 transition-transform">Extract Profiling</span>
         </button>
 
         <!-- Customer Master -->
@@ -67,13 +56,6 @@
                 <iconify-icon icon="lucide:contact-2" class="text-lg text-slate-400 group-hover:text-rose-400 transition-colors"></iconify-icon>
             </div>
             <span class="group-hover:translate-x-1 transition-transform">Customer Master</span>
-        </button>
-
-        <button id="navbtn-traffic" onclick="CRM.switchTab('traffic')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
-            <div class="icon-box w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_12px_rgba(6,182,212,0.4)] transition-all">
-                <iconify-icon icon="lucide:arrow-right-left" class="text-lg text-slate-400 group-hover:text-cyan-400 transition-colors"></iconify-icon>
-            </div>
-            <span class="group-hover:translate-x-1 transition-transform">Traffic Sync</span>
         </button>
 
         <button id="navbtn-clean" onclick="CRM.switchTab('clean')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
@@ -89,6 +71,24 @@
                 <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse border border-slate-900"></span>
             </div>
             <span class="group-hover:translate-x-1 transition-transform">Client Birthdays</span>
+        </button>
+
+        <div class="px-2 mt-5 mb-1">
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Operations</p>
+        </div>
+
+        <button id="navbtn-profiling" onclick="CRM.switchTab('profiling')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
+            <div class="icon-box w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center group-hover:bg-purple-500/20 group-hover:shadow-[0_0_12px_rgba(168,85,247,0.4)] transition-all">
+                <iconify-icon icon="lucide:database" class="text-lg text-slate-400 group-hover:text-purple-400 transition-colors"></iconify-icon>
+            </div>
+            <span class="group-hover:translate-x-1 transition-transform">Extract Profiling</span>
+        </button>
+
+        <button id="navbtn-traffic" onclick="CRM.switchTab('traffic')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
+            <div class="icon-box w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_12px_rgba(6,182,212,0.4)] transition-all">
+                <iconify-icon icon="lucide:arrow-right-left" class="text-lg text-slate-400 group-hover:text-cyan-400 transition-colors"></iconify-icon>
+            </div>
+            <span class="group-hover:translate-x-1 transition-transform">Traffic Sync</span>
         </button>
     </nav>
 
