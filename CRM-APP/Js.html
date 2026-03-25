@@ -151,7 +151,9 @@
                         document.getElementById('txtDonutRate').textContent = rate.toFixed(1) + '%';
                         
                         const daysInMonth = new Date(selectedY, selectedM + 1, 0).getDate();
-                        CRM.renderDailyChart(d.dailyChartData, d.dailySalesData, d.locations, daysInMonth);
+                        CRM.currentChartData = { traffic: d.dailyChartData, sales: d.dailySalesData, locations: d.locations, daysInMonth: daysInMonth };
+                        
+                        CRM.renderDailyChart();
                         CRM.renderDonutChart(rate);
                         CRM.renderOriginChart(d.clientOrigin);
                         CRM.renderProspectChart(d.prospectData);
@@ -186,11 +188,8 @@
                 const badgeCols = ['bg-slate-100 text-slate-500', 'bg-emerald-50 text-emerald-600', 'bg-rose-50 text-rose-500', 'bg-blue-50 text-brand-primary'];
                 const bCol = badgeCols[idx % badgeCols.length];
                 
-                // Format Net Sales
-                let salesStr = '';
-                if (sales >= 1000000000) salesStr = 'Rp ' + (sales/1000000000).toFixed(2) + ' Miliar';
-                else if (sales >= 1000000) salesStr = 'Rp ' + (sales/1000000).toFixed(1) + ' Jt';
-                else salesStr = 'Rp ' + sales.toLocaleString('id-ID');
+                // Format Net Sales tanpa "Rp" dan didetailkan utuh
+                let salesStr = sales.toLocaleString('id-ID');
 
                 html += `
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
@@ -210,16 +209,19 @@
             container.innerHTML = html;
         },
 
-        renderDailyChart: (dailyChartData, dailySalesData, locations, daysInMonth) => {
+        renderDailyChart: () => {
+            if (!CRM.currentChartData) return;
+            const dataObj = CRM.currentChartData;
+
             const ctx = document.getElementById('dailyTrafficChart');
             if (!ctx) return;
             if (CRM.dailyChartInstance) CRM.dailyChartInstance.destroy();
 
-            const labels = [];
-            for(let i=1; i<=daysInMonth; i++) labels.push(i);
-
             const c2d = ctx.getContext('2d');
-            
+            const viewMode = document.getElementById('chartViewMode') ? document.getElementById('chartViewMode').value : 'global';
+            const labels = [];
+            for(let i=1; i<=dataObj.daysInMonth; i++) labels.push(i);
+
             const createGrad = (hexRGB) => {
                 const grad = c2d.createLinearGradient(0, 0, 0, 350);
                 grad.addColorStop(0, `rgba(${hexRGB}, 0.5)`);
@@ -227,59 +229,95 @@
                 return grad;
             };
 
-            const sortedLocs = locations.filter(x => x && x !== '-').sort();
-            
-            // Agregat global (seluruh cabang digabung) per hari
-            const totalTrafficData = [];
-            const totalSalesData = [];
-            
-            for (let i = 0; i < daysInMonth; i++) {
-                let dayTrf = 0;
-                let daySales = 0;
-                for (const loc of sortedLocs) {
-                    dayTrf += (dailyChartData[i][loc] || 0);
-                    daySales += (dailySalesData[i][loc] || 0);
-                }
-                totalTrafficData.push(dayTrf);
-                totalSalesData.push(daySales);
-            }
+            const sortedLocs = dataObj.locations.filter(x => x && x !== '-').sort();
+            let datasets = [];
 
-            const datasets = [
-                {
-                    label: '🛒 Sales Transactions',
-                    data: totalSalesData,
-                    borderColor: '#10b981', // Emerald
-                    backgroundColor: createGrad('16, 185, 129'),
-                    borderWidth: 2.5,
-                    tension: 0.45,
-                    fill: true,
-                    pointBackgroundColor: '#10b981',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    pointHoverBackgroundColor: '#10b981',
-                    pointHoverBorderColor: '#ffffff',
-                    pointHoverBorderWidth: 2
-                },
-                {
-                    label: '👥 Traffic Volume',
-                    data: totalTrafficData,
-                    borderColor: '#38bdf8', // Light Blue
-                    backgroundColor: createGrad('56, 189, 248'),
-                    borderWidth: 2.5,
-                    tension: 0.45,
-                    fill: true,
-                    pointBackgroundColor: '#38bdf8',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    pointHoverBackgroundColor: '#38bdf8',
-                    pointHoverBorderColor: '#ffffff',
-                    pointHoverBorderWidth: 2
+            if (viewMode === 'global') {
+                const totalTrafficData = [];
+                const totalSalesData = [];
+                
+                for (let i = 0; i < dataObj.daysInMonth; i++) {
+                    let dayTrf = 0;
+                    let daySales = 0;
+                    for (const loc of sortedLocs) {
+                        dayTrf += (dataObj.traffic[i][loc] || 0);
+                        daySales += (dataObj.sales[i][loc] || 0);
+                    }
+                    totalTrafficData.push(dayTrf);
+                    totalSalesData.push(daySales);
                 }
-            ];
+
+                datasets = [
+                    {
+                        label: '🛒 Sales Transactions',
+                        data: totalSalesData,
+                        borderColor: '#10b981', // Emerald
+                        backgroundColor: createGrad('16, 185, 129'),
+                        borderWidth: 2.5,
+                        tension: 0.45,
+                        fill: true,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#10b981',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 2
+                    },
+                    {
+                        label: '👥 Traffic Volume',
+                        data: totalTrafficData,
+                        borderColor: '#38bdf8', // Light Blue
+                        backgroundColor: createGrad('56, 189, 248'),
+                        borderWidth: 2.5,
+                        tension: 0.45,
+                        fill: true,
+                        pointBackgroundColor: '#38bdf8',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#38bdf8',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 2
+                    }
+                ];
+            } else {
+                const colorPalette = [
+                    { border: '#38bdf8', bg: createGrad('56, 189, 248') },
+                    { border: '#a78bfa', bg: createGrad('167, 139, 250') },
+                    { border: '#34d399', bg: createGrad('52, 211, 153') },
+                    { border: '#fbbf24', bg: createGrad('251, 191, 36') },
+                    { border: '#fb7185', bg: createGrad('251, 113, 133') },
+                    { border: '#818cf8', bg: createGrad('129, 140, 248') }
+                ];
+
+                datasets = sortedLocs.map((loc, idx) => {
+                    const dataArr = [];
+                    for (let i = 0; i < dataObj.daysInMonth; i++) {
+                        dataArr.push(dataObj.traffic[i][loc] || 0);
+                    }
+                    const p = colorPalette[idx % colorPalette.length];
+                    return {
+                        label: loc,
+                        data: dataArr,
+                        borderColor: p.border,
+                        backgroundColor: p.bg,
+                        borderWidth: 2.5,
+                        tension: 0.45,
+                        fill: true,
+                        pointBackgroundColor: p.border,
+                        pointBorderColor: '#0f172a',
+                        pointBorderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: p.border,
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 2
+                    };
+                });
+            }
 
             CRM.dailyChartInstance = new Chart(c2d, {
                 type: 'line',
