@@ -56,26 +56,10 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   }
 
   const ss = getSpreadsheet();
-  
-  // DYNAMIC LOADING: Coba cari sheet Archive dulu (misal Clean_Data_2024)
-  let sheetName = CONFIG.SHEETS.CLEAN; 
-  const currentYear = new Date().getFullYear();
-  
-  // Logic: Jika tahun yg diminta BUKAN tahun sekarang, coba cari di archive
-  if (year != currentYear) {
-      const archiveName = `Clean_Data_${year}`;
-      if (ss.getSheetByName(archiveName)) {
-          sheetName = archiveName;
-      }
-  }
 
-  const cleanSheet = ss.getSheetByName(sheetName);
-  if (!cleanSheet) return {
-    error: `Sheet '${sheetName}' tidak ditemukan. Harap Sync Data atau Arsip.`
-  };
-
-  const data = cleanSheet.getDataRange().getValues();
-  data.shift(); // Remove header
+  // ⚡ SERVERLESS: Fetch from Supabase instead of Google Sheet
+  const data = fetchSupabaseCleanMasterAs2DArray(year);
+  if (!data || data.length === 0) return { error: 'Data tidak ditemukan di Supabase. Harap Sync Data.' };
 
   // Column Mapping Lokal (Sesuai buildCleanMaster)
   const COL = {
@@ -460,11 +444,10 @@ function getDashboardData(monthName, year, forceRefresh = false) {
 // --- D. Customer Segmentation ---
 function getCustomerSegmentationData() {
   const ss = getSpreadsheet();
-  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
-  if (!cleanSheet) return { error: "Data transaksi tidak ditemukan. Harap Sync Data." };
 
-  const data = cleanSheet.getDataRange().getValues();
-  data.shift();
+  // ⚡ SERVERLESS: Fetch ALL years for Customer Segmentation (LTV needs full history)
+  const data = fetchSupabaseCleanMasterAs2DArray();
+  if (!data || data.length === 0) return { error: "Data transaksi tidak ditemukan di Supabase. Harap Sync Data." };
 
   // Gunakan Global CLEAN_COLS dari 1-Config.gs
   const COL = CONFIG.CLEAN_COLS; 
@@ -580,11 +563,10 @@ function getCustomerSegmentationData() {
 // --- E. Specific Customer Detail ---
 function getCustomerDetails(customerName) {
   const ss = getSpreadsheet();
-  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
-  if (!cleanSheet) return { error: "Data transaksi tidak ditemukan." };
 
-  const data = cleanSheet.getDataRange().getValues();
-  data.shift();
+  // ⚡ SERVERLESS: Full history for Customer Detail
+  const data = fetchSupabaseCleanMasterAs2DArray();
+  if (!data || data.length === 0) return { error: "Data transaksi tidak ditemukan di Supabase." };
   const COL = CONFIG.CLEAN_COLS; 
   
   const history = [];
@@ -641,14 +623,13 @@ function getCustomerDetails(customerName) {
 
 function getDailyReportData(dateStr) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
-  if (!cleanSheet) return { error: 'Clean Data not found.' };
 
-  const data = cleanSheet.getDataRange().getValues();
-  data.shift(); // Remove header
+  // ⚡ SERVERLESS: Fetch from Supabase
+  const targetDate = new Date(dateStr);
+  const data = fetchSupabaseCleanMasterAs2DArray(targetDate.getFullYear());
+  if (!data || data.length === 0) return { error: 'Clean Data not found in Supabase.' };
 
   // Date Parsing
-  const targetDate = new Date(dateStr);
   const targetDay = targetDate.getDate();
   const targetMonth = targetDate.getMonth(); // 0-indexed
   const targetYear = targetDate.getFullYear();

@@ -560,6 +560,62 @@ function parseDateFix(dateVal) {
 }
 
 /**
+ * FACADE ADAPTER: Fetches clean_master data from Supabase and converts
+ * the JSON array into a 2D array format identical to what
+ * SpreadsheetApp.getDataRange().getValues() would return.
+ *
+ * This allows ALL existing analytics (getDashboardData, getSapPerformance,
+ * getQuarterlyData, etc.) to switch data source transparently without
+ * any changes to their internal calculation logic.
+ *
+ * @param {number|string} [year] - Optional year filter to reduce payload size.
+ *   If provided, only rows matching the year are fetched from Supabase.
+ *   If omitted or null, ALL rows are fetched (for multi-year analysis).
+ * @returns {Array<Array>} 2D array WITHOUT header row (already shifted).
+ */
+function fetchSupabaseCleanMasterAs2DArray(year) {
+    let query = "?select=*&order=transaction_date.asc";
+
+    // Optional year filter at the database level for performance
+    if (year) {
+        const y = Number(year);
+        query += "&transaction_date=gte." + y + "-01-01T00:00:00"
+              +  "&transaction_date=lt."  + (y + 1) + "-01-01T00:00:00";
+    }
+
+    const result = SupabaseDB.getAllRows("clean_master", query);
+
+    if (!result.success || !result.data) {
+        console.error("fetchSupabaseCleanMasterAs2DArray failed: " + (result.message || "Unknown error"));
+        return []; // Return empty so callers don't crash
+    }
+
+    // Map each JSON object → ordered array matching CONFIG.CLEAN_COLS indices 0–19
+    return result.data.map(row => [
+        row.trans_no       || "",        // 0: TRANS_NO
+        row.transaction_date ? new Date(row.transaction_date) : new Date(0), // 1: DATE
+        row.customer       || "",        // 2: CUSTOMER
+        row.salesman       || "",        // 3: SALESMAN
+        row.location       || "",        // 4: LOCATION
+        row.sap_code       || "",        // 5: SAP
+        row.main_category  || "",        // 6: MAIN_CAT
+        row.collection     || "",        // 7: COLL
+        Number(row.gross_sales)  || 0,   // 8: GROSS
+        Number(row.disc_pct)     || 0,   // 9: DISC_PCT
+        Number(row.val_disc)     || 0,   // 10: VAL_DISC
+        Number(row.net_price)    || 0,   // 11: NET_PRICE
+        Number(row.comm)         || 0,   // 12: COMM
+        Number(row.cost)         || 0,   // 13: SELLING_COST
+        Number(row.net_sales)    || 0,   // 14: NET_SALES
+        row.type           || "",        // 15: TYPE
+        parseInt(row.qty)  || 0,         // 16: QTY
+        row.catalogue_code || "",        // 17: CATALOGUE
+        row.home_location  || "",        // 18: HOME_LOCATION
+        row.phone          || ""         // 19: PHONE
+    ]);
+}
+
+/**
  * Calculates the Levenshtein distance between two strings
  * Used for Fuzzy Name Matching (Fallback)
  */

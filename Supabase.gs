@@ -48,6 +48,39 @@ const SupabaseDB = {
             if (code >= 200 && code < 300) return { success: true, code: code };
             return { success: false, message: res.getContentText(), code: code };
         } catch(e) { return { success: false, message: e.message, code: 500 }; }
+    },
+
+    /**
+     * Fetch ALL rows from a table using offset-based pagination.
+     * Handles datasets of any size (10k, 50k+) by looping in pages of PAGE_SIZE.
+     * @param {string} table - Table name in Supabase
+     * @param {string} query - Optional query string (e.g. "?transaction_date=gte.2026-01-01")
+     * @returns {{ success: boolean, data: Array, code: number }}
+     */
+    getAllRows: function(table, query) {
+        const PAGE_SIZE = 5000;
+        let allData = [];
+        let offset = 0;
+        let hasMore = true;
+        const separator = (query && query.includes("?")) ? "&" : "?";
+
+        while (hasMore) {
+            const paginatedQuery = (query || "") + separator + "limit=" + PAGE_SIZE + "&offset=" + offset;
+            const result = this.get(table, paginatedQuery);
+
+            if (!result.success) return result; // Propagate error
+
+            if (result.data && result.data.length > 0) {
+                allData = allData.concat(result.data);
+                offset += result.data.length;
+                // If returned fewer than PAGE_SIZE, we've reached the end
+                if (result.data.length < PAGE_SIZE) hasMore = false;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        return { success: true, data: allData, code: 200 };
     }
 };
 

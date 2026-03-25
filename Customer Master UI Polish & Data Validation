@@ -1,0 +1,57 @@
+# Customer Master UI Polish & Data Validation
+
+Enhancing the Customer Master module by merging fragmented transactions, removing "Rp" currency prefixes, and converting static phone numbers into interactive WhatsApp actions.
+
+## User Action Required
+
+> [!NOTE]
+> Review the new deduplication logic. We will merge all transactions based strictly on the **Customer Name**. If a customer has blank phone numbers in some transactions but valid phone numbers in others, their Total Spend (LTV) will be successfully united under one profile, taking their most recent valid phone number.
+
+## Phase 21: Live Time & Top Advisor Serverless Migration
+
+The goal is to sever the final two Google Sheets dependencies driving the heavy analytic menus: Live Time Matrix and Top Advisor. 
+
+### Proposed Changes
+
+#### 1. Live Time Matrix ([8-API_LiveTime.gs](file:///d:/Bvlgari%20Dashboard/CRM-APP/8-API_LiveTime.gs))
+Currently, `buildLiveTimeExtraction` iterates through arrays of the entire database to calculate lifetime aggregates across 12 months.
+- **Refactor `buildLiveTimeExtraction()`**: Replace `SpreadsheetApp.openById` logic with `Supabase.get` REST calls.
+  - Pull `transaction_date`, `location`, `prospect_item` from `mirror_traffic`.
+  - Pull `tanggal_input`, `lokasi_store` from `mirror_profiling`.
+- **Note**: The API will still save the final aggregated small output to `LIVE_SHEET_NAME` to act as cache layer, maintaining ultra-fast UI load times via [getLiveTimeDashboardData()](file:///d:/Bvlgari%20Dashboard/CRM-APP/8-API_LiveTime.gs#6-81).
+
+#### 2. Top Advisor Module ([9-API_Advisor.gs](file:///d:/Bvlgari%20Dashboard/CRM-APP/9-API_Advisor.gs))
+Currently, [getTopAdvisorPerformance](file:///d:/Bvlgari%20Dashboard/CRM-APP/9-API_Advisor.gs#6-114) loops through Traffic and Profiling extracting advisor metrics.
+- **Refactor [getTopAdvisorPerformance()](file:///d:/Bvlgari%20Dashboard/CRM-APP/9-API_Advisor.gs#6-114)**: Retrieve data concurrently via `Supabase.get` with date filters or memory filters.
+  - Traffic: `transaction_date`, `served_by`, `prospect_item`, `status`.
+  - Profiling: `tanggal_input`, `customer_advisor`. Avoid the inefficient `rowStr.includes()` substring search by directly targeting the `customer_advisor` column inside `mirror_profiling`.
+
+### Verification
+- Run Global Sync in Master Dashboard.
+- Navigate to "Top Advisor" and ensure the list populates correctly for the current month.
+- Navigate to "Live Time" and verify the matrices accurately distribute points across different locations and months.
+
+## Phase 22: Outer Dashboard Serverless Migration
+
+The dashboard analytics (Monthly View, Quarterly View, Daily Breakdown, BOD Report) currently iterate through the heavy `clean_master` Google Sheet, which scales poorly as the dataset grows. We will migrate all READ operations to the new Supabase `clean_master` table using a Facade pattern to minimize logic rewrites.
+
+### Proposed Changes
+
+#### 1. Supabase REST API Extension ([Supabase.gs](file:///d:/Bvlgari%20Dashboard/Supabase.gs))
+- Add `SupabaseDB.getAllRows(table, query)` to support cursor/offset pagination, solving the default 1,000 row PostgREST limit and ensuring full datasets are safely pulled into memory.
+
+#### 2. Data Facade Pattern ([6-Helpers.gs](file:///d:/Bvlgari%20Dashboard/6-Helpers.gs))
+- Create standard adapter function `fetchSupabaseCleanMasterAs2DArray(year)` which executes `SupabaseDB.getAllRows`, maps the JSON Array back structurally into the 20-index array format previously provided by `SpreadsheetApp.getDataRange()`.
+- Supports date filtering at the database layer `?transaction_date=gte...` to further trim API payload bloat.
+
+#### 3. Deprecate `SpreadsheetApp` Reads
+Substitute the `const data = cleanSheet.getDataRange().getValues()` stanza with `const data = fetchSupabaseCleanMasterAs2DArray(year)` in the following files:
+- [MODIFY] [4-API_Dashboard.gs](file:///d:/Bvlgari%20Dashboard/4-API_Dashboard.gs) ([getDashboardData](file:///d:/Bvlgari%20Dashboard/4-API_Dashboard.gs#37-459), `getTopPerformers`, `getSapProjection`)
+- [MODIFY] [5-API_Reports.gs](file:///d:/Bvlgari%20Dashboard/5-API_Reports.gs) ([getSapPerformance](file:///d:/Bvlgari%20Dashboard/5-API_Reports.gs#6-63), [getCategoryTrendData](file:///d:/Bvlgari%20Dashboard/5-API_Reports.gs#64-158), [getDetailedDailyData](file:///d:/Bvlgari%20Dashboard/5-API_Reports.gs#159-183) etc.)
+- [MODIFY] [8-API_Quarterly.gs](file:///d:/Bvlgari%20Dashboard/8-API_Quarterly.gs) ([getQuarterlyData](file:///d:/Bvlgari%20Dashboard/8-API_Quarterly.gs#6-196), [getQuarterlyBudgetData](file:///d:/Bvlgari%20Dashboard/8-API_Quarterly.gs#372-520))
+- [MODIFY] [10-API_Email.gs](file:///d:/Bvlgari%20Dashboard/10-API_Email.gs) (`getDailyEmailData`)
+- [MODIFY] [11-API_BOD_Report.gs](file:///d:/Bvlgari%20Dashboard/11-API_BOD_Report.gs) (`getBODReportData`)
+
+### Verification
+- Reload the Monthly Dashboard. The timeline charts, KPIs, and Cross-Sales tables should load noticeably faster without execution timeouts.
+- Perform a Quarterly Budget View fetch via the UI.

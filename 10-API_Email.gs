@@ -11,11 +11,10 @@ function formatMoneyIdrEmail(val) {
 function sendDailyEmailReport(targetDateStr) {
   try {
     const ss = getSpreadsheet();
-    const cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
-    if (!cleanSheet) throw new Error("Clean sheet not found");
 
-    const data = cleanSheet.getDataRange().getValues();
-    const headers = data.shift();
+    // ⚡ SERVERLESS: Fetch from Supabase
+    const data = fetchSupabaseCleanMasterAs2DArray();
+    if (!data || data.length === 0) throw new Error("Clean data not found in Supabase.");
     const COL = CONFIG.CLEAN_COLS;
 
     // Determine target date
