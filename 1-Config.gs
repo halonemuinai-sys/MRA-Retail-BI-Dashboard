@@ -106,5 +106,11 @@ const CONFIG = {
     CATALOGUE: 17,
     HOME_LOCATION: 18, // DYNAMIC FROM MASTER
     PHONE: 19
+  },
+
+  // Database Supabase Configuration (Sama dengan CRM-APP)
+  SUPABASE: {
+      URL: 'ISI_DENGAN_URL_SUPABASE_ANDA_DISINI',
+      KEY: 'ISI_DENGAN_ANON_KEY_SUPABASE_ANDA_DISINI'
   }
 };
