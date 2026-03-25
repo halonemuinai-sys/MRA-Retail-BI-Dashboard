@@ -155,7 +155,6 @@
                         
                         CRM.renderDailyChart();
                         CRM.renderDonutChart(rate);
-                        CRM.renderOriginChart(d.clientOrigin);
                         CRM.renderProspectChart(d.prospectData);
                         CRM.renderVipBirthdays(d.vipBirthdays);
                         
@@ -395,43 +394,6 @@
                     maintainAspectRatio: false,
                     cutout: '75%',
                     plugins: { legend: { display: false }, tooltip: { enabled: false } }
-                }
-            });
-        },
-
-        renderOriginChart: (originData) => {
-            const ctx = document.getElementById('originChart');
-            if (!ctx) return;
-            if (CRM.originChartInstance) CRM.originChartInstance.destroy();
-
-            // Default fallback if no data
-            if(originData.lokal === 0 && originData.luar === 0) originData.lokal = 1;
-
-            CRM.originChartInstance = new Chart(ctx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Lokal (WNI)', 'Turis (WNA)'],
-                    datasets: [{
-                        data: [originData.lokal, originData.luar],
-                        backgroundColor: ['#6366f1', '#e2e8f0'], // Indigo and Slate-200
-                        borderWidth: 0,
-                        hoverOffset: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: { 
-                        legend: { display: false }, 
-                        tooltip: { 
-                            callbacks: {
-                                label: function(context) {
-                                    return ' ' + context.label + ': ' + context.raw;
-                                }
-                            }
-                        } 
-                    }
                 }
             });
         },

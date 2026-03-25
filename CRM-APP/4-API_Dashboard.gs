@@ -9,38 +9,6 @@ function getCrmDashboardOverview(selectedMonth, selectedYear) {
     const proRes = Supabase.get('mirror_profiling', '?select=tanggal_input&limit=100000');
     const cleanRes = Supabase.get('clean_master', '?select=transaction_date,location,net_sales&limit=100000');
     
-    // 2. Fetch Asal Klien (Domisili vs Luar Negeri) direct from Traffic Sheet (current month)
-    let originLokal = 0;
-    let originLuar = 0;
-    try {
-        const extSS = SpreadsheetApp.openById(CONFIG_CRM.PROFILING_SS_ID);
-        const trfSheet = extSS.getSheetByName(CONFIG_CRM.T_SHEET_NAME);
-        if (trfSheet) {
-            const tData = trfSheet.getDataRange().getValues();
-            const headers = tData[0] || [];
-            let idxTgl = -1, idxLuar = -1;
-            for(let j=0; j<headers.length; j++) {
-                const h = String(headers[j]).trim().toLowerCase();
-                if(h.includes('tanggal berkunjung') || h === 'tanggal') idxTgl = j;
-                else if(h.includes('kewarganegaraan') || h.includes('luar nege')) idxLuar = j;
-            }
-            if (idxTgl > -1 && idxLuar > -1) {
-                for (let i = 1; i < tData.length; i++) {
-                    const row = tData[i];
-                    let d = row[idxTgl];
-                    if(d) {
-                        let dateObj = (d instanceof Date) ? d : new Date(d);
-                        if (!isNaN(dateObj.getTime()) && dateObj.getMonth() === selectedMonth && dateObj.getFullYear() === selectedYear) {
-                             const kw = String(row[idxLuar] || '').trim().toLowerCase();
-                             if (kw === 'wna' || kw === 'foreign' || kw === 'luar negeri') originLuar++;
-                             else originLokal++; // Default to Lokal if empty or WNI
-                        }
-                    }
-                }
-            }
-        }
-    } catch(e) { /* ignore error, fallback to 0 */ }
-
     // 3. Process Mirror Traffic
     let monthlyTraffic = 0;
     let monthlySalesTransactions = 0;
@@ -136,7 +104,6 @@ function getCrmDashboardOverview(selectedMonth, selectedYear) {
         storeTraffic: storeTraffic,
         storeSales: storeSales,
         prospectData: prospectSet,
-        clientOrigin: { lokal: originLokal, luar: originLuar },
         vipBirthdays: upcomingVipBdays,
         locations: Array.from(locationSet).sort(),
         lastSync: lastSyncStr

@@ -116,25 +116,16 @@
         <div class="col-span-1 bg-white p-6 lg:p-8 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col relative min-h-[450px]">
             <div class="mb-6">
                 <h3 class="font-bold text-xl text-slate-800">Sales Intelligence</h3>
-                <p class="text-[11px] font-medium text-slate-500 mt-1 uppercase tracking-wider">Conversion & Client Origin</p>
+                <p class="text-[11px] font-medium text-slate-500 mt-1 uppercase tracking-wider">Conversion & Funnel Metrics</p>
             </div>
             
-            <div class="flex flex-row justify-around mb-6 relative gap-4">
-                <!-- Conversion Donut -->
-                <div class="w-1/2 flex justify-center">
-                    <div class="w-32 h-32 relative">
-                        <canvas id="collectionRateChart"></canvas>
-                        <div class="absolute inset-0 flex flex-col justify-center items-center pointer-events-none">
-                            <span id="txtDonutRate" class="text-xl font-bold text-slate-800 tracking-tight">0%</span>
-                            <span class="text-[8px] font-bold uppercase tracking-widest text-slate-400 mt-1">Conv</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Origin Donut -->
-                <div class="w-1/2 flex justify-center relative">
-                    <div class="w-32 h-32 relative">
-                        <canvas id="originChart"></canvas>
+            <!-- Conversion Donut -->
+            <div class="flex justify-center mb-6 relative">
+                <div class="w-44 h-44 relative">
+                    <canvas id="collectionRateChart"></canvas>
+                    <div class="absolute inset-0 flex flex-col justify-center items-center pointer-events-none">
+                        <span id="txtDonutRate" class="text-3xl font-bold text-slate-800 tracking-tight">0%</span>
+                        <span class="text-[8px] font-bold uppercase tracking-widest text-slate-400 mt-1">Conversion</span>
                     </div>
                 </div>
             </div>
