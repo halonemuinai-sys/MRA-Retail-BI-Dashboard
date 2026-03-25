@@ -138,6 +138,35 @@
       // Kita insert (append) saja
       Supabase.insert('raw_traffic', sbPayload);
 
+      // --- INJECT TAMBAHAN KE TABEL CLEAN_MASTER (Sesuai Struktur Tabel) ---
+      const sbPayloadCleanMaster = rowsPayloadArray.map(row => {
+          let d = row[COL.DATE];
+          if(!d) d = new Date(0);
+          else if(typeof d !== 'object' || isNaN(d.getTime())) d = new Date(d);
+
+          return {
+              trans_no: null,
+              transaction_date: !isNaN(d.getTime()) ? d.toISOString() : null,
+              customer: String(row[COL.CUSTOMER] || ''),
+              salesman: String(row[COL.SALESMAN] || ''),
+              location: String(row[COL.LOCATION] || ''),
+              sap_code: null,
+              main_category: null,
+              collection: null,
+              gross_sales: Number(row[COL.GROSS]) || 0,
+              disc_pct: Number(row[COL.DISC_PCT]) || 0,
+              val_disc: Number(row[COL.VAL_DISC]) || 0,
+              net_price: 0,
+              comm: 0,
+              cost: 0,
+              net_sales: Number(row[COL.NET_SALES]) || 0,
+              type: null,
+              qty: 0,
+              catalogue_code: null
+          };
+      });
+      Supabase.insert('clean_master', sbPayloadCleanMaster);
+
       return { success: true, count: rowsPayloadArray.length };
     } catch(e) {
       return { success: false, message: e.message };
