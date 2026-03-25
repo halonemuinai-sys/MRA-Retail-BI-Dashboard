@@ -1,0 +1,106 @@
+<div class="px-6 py-8 w-full max-w-[1400px] mx-auto">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Daily Report</h1>
+            <p class="text-sm text-slate-500 mt-1">View, filter, export, and email daily store traffic and transaction data.</p>
+        </div>
+        
+        <div class="flex flex-wrap gap-2">
+            <!-- Filters -->
+            <select id="dr-filter-location" title="Filter Location" class="bg-white border border-slate-300 text-sm rounded-md px-3 py-2 text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                <option value="All">All Locations</option>
+                <option value="Plaza Indonesia">Plaza Indonesia</option>
+                <option value="Plaza Senayan">Plaza Senayan</option>
+                <option value="Bali">Bali</option>
+            </select>
+            
+            <select id="dr-filter-month" title="Filter Month" class="bg-white border border-slate-300 text-sm rounded-md px-3 py-2 text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                <option value="All">All Months</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+            
+            <select id="dr-filter-year" title="Filter Year" class="bg-white border border-slate-300 text-sm rounded-md px-3 py-2 text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                <option value="All">All Years</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+            </select>
+            
+            <button onclick="fetchDailyReport()" class="bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-700 transition flex items-center gap-2">
+                <iconify-icon icon="lucide:search"></iconify-icon> Filter
+            </button>
+            <button onclick="exportDailyReportExcel()" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition flex items-center gap-2">
+                <iconify-icon icon="lucide:file-spreadsheet"></iconify-icon> Excel
+            </button>
+            <button onclick="sendDailyReportEmailPrompt()" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2">
+                <iconify-icon icon="lucide:mail"></iconify-icon> Email
+            </button>
+        </div>
+    </div>
+    
+    <!-- Summary Tables -->
+    <div id="dr-summary-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 hidden">
+        <!-- Traffic Summary -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <table class="w-full text-left text-sm whitespace-nowrap" id="tbl-summary-traffic">
+                <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                    <tr>
+                        <th class="px-4 py-2 w-2/3">Type</th>
+                        <th class="px-4 py-2 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600" id="tb-summary-traffic">
+                    <!-- Javascript Data -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Advisor Summary -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <table class="w-full text-left text-sm whitespace-nowrap" id="tbl-summary-advisor">
+                <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                    <tr>
+                        <th class="px-4 py-2">Customer Advisor</th>
+                        <th class="px-4 py-2 text-right">Total Handling</th>
+                        <th class="px-4 py-2 text-right">% Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600" id="tb-summary-advisor">
+                    <!-- Javascript Data -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Table Container -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto max-h-[70vh]">
+            <table class="w-full text-left text-sm whitespace-nowrap" id="dr-table">
+                <thead class="bg-slate-50 text-slate-600 font-medium sticky top-0 shadow-sm z-10">
+                    <tr id="dr-table-head">
+                        <!-- Headers generated dynamically -->
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700" id="dr-table-body">
+                    <tr>
+                        <td class="px-4 py-8 text-center text-slate-500" colspan="100%">Click Filter to load data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Include SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</div>

@@ -72,6 +72,8 @@
             } else if (tabId === 'advisor' && window.CRMAdv && !CRMAdv.hasLoaded) {
                 CRMAdv.hasLoaded = true;
                 CRMAdv.fetchData();
+            } else if (tabId === 'daily' && typeof currentDailyReportData !== 'undefined' && currentDailyReportData.length === 0) {
+                initDailyReport();
             }
         },
 

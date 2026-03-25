@@ -47,6 +47,13 @@
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Operations</p>
         </div>
 
+        <button id="navbtn-daily" onclick="CRM.switchTab('daily')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
+            <div class="icon-box w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center group-hover:bg-blue-500/20 group-hover:shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-all">
+                <iconify-icon icon="lucide:calendar-clock" class="text-lg text-slate-400 group-hover:text-blue-400 transition-colors"></iconify-icon>
+            </div>
+            <span class="group-hover:translate-x-1 transition-transform">Daily Report</span>
+        </button>
+
         <button id="navbtn-profiling" onclick="CRM.switchTab('profiling')" class="navbtn w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 active:scale-95 transition-all duration-300 group border border-transparent mt-1">
             <div class="icon-box w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center group-hover:bg-purple-500/20 group-hover:shadow-[0_0_12px_rgba(168,85,247,0.4)] transition-all">
                 <iconify-icon icon="lucide:database" class="text-lg text-slate-400 group-hover:text-purple-400 transition-colors"></iconify-icon>
