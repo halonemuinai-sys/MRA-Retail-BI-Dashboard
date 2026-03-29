@@ -292,3 +292,210 @@ function getFootfallData(monthName, year) {
     return { error: "Footfall extraction failed: " + e.message };
   }
 }
+
+/**
+ * ======================================================================
+ * FOOTFALL CAPTURE RATE EMAIL REPORT
+ * ======================================================================
+ * Triggered from Footfall (CRM) UI - "Send Email" button.
+ * Builds professional HTML email with KPIs + daily table. Attaches CSV.
+ */
+function sendFootfallCaptureRateEmail(month, year) {
+  try {
+    var result = getFootfallAnalytics(month, year);
+    if (!result || result.status === 'error') {
+      return { success: false, message: 'Gagal mengambil data: ' + (result ? result.message : 'empty response') };
+    }
+    var data = result.data || [];
+    if (data.length === 0) {
+      return { success: false, message: 'Tidak ada data Footfall untuk periode ini.' };
+    }
+
+    var sumFF_PI = 0, sumCRM_PI = 0, sumFF_PS = 0, sumCRM_PS = 0;
+    data.forEach(function(item) {
+      sumFF_PI  += item.footfallPI  || 0;
+      sumCRM_PI += item.trafficPI   || 0;
+      sumFF_PS  += item.footfallPS  || 0;
+      sumCRM_PS += item.trafficPS   || 0;
+    });
+
+    var ratePI = sumFF_PI > 0 ? ((sumCRM_PI / sumFF_PI) * 100).toFixed(1) : '0.0';
+    var ratePS = sumFF_PS > 0 ? ((sumCRM_PS / sumFF_PS) * 100).toFixed(1) : '0.0';
+    var totalFF = sumFF_PI + sumFF_PS;
+    var totalCRM = sumCRM_PI + sumCRM_PS;
+    var totalRate = totalFF > 0 ? ((totalCRM / totalFF) * 100).toFixed(1) : '0.0';
+
+    // CSV Attachment
+    var csvContent = '\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%)\n';
+    data.forEach(function(row) {
+      csvContent += row.date + ',' + row.footfallPI + ',' + row.trafficPI + ',' + row.ratePI + ',' + row.footfallPS + ',' + row.trafficPS + ',' + row.ratePS + '\n';
+    });
+    var csvBlob = Utilities.newBlob(csvContent, 'text/csv', 'Footfall_CaptureRate_' + month + '_' + year + '.csv');
+
+    // Styles
+    var bc = '#d6e4f0';
+    var cS  = 'padding:8px 12px; border:1px solid ' + bc + '; font-size:12px;';
+    var cR  = cS + ' text-align:right;';
+    var cB  = cR + ' font-weight:600;';
+    var tS  = 'padding:9px 12px; border:1px solid ' + bc + '; color:#1a3a5c; background:#e8f0fe; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;';
+    var zL  = '#f5f8fc';
+
+    var rc = function(r) { var v = parseFloat(r); if (v >= 50) return '#059669'; if (v >= 30) return '#2563eb'; return '#dc2626'; };
+    var fn = function(n) { return Number(n).toLocaleString('id-ID'); };
+
+    // Build HTML
+    var html = '<div style="font-family:Arial,Helvetica,sans-serif;color:#333;max-width:660px;margin:0 auto;background:#fff;">'
+
+    // === HEADER ===
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f4c3a;border-bottom:3px solid #10b981;">'
+    + '<tr>'
+    + '<td style="padding:26px 28px;">'
+    + '<p style="color:#fff;font-size:19px;font-weight:700;margin:0 0 4px 0;">Footfall &amp; Capture Rate Report</p>'
+    + '<p style="color:#a7f3d0;font-size:12px;margin:0;">Period: ' + month + ' ' + year + ' &mdash; Bvlgari Indonesia</p>'
+    + '</td>'
+    + '<td style="padding:26px 28px;text-align:right;vertical-align:middle;">'
+    + '<p style="color:#fff;font-size:28px;font-weight:800;margin:0;letter-spacing:-1px;">' + totalRate + '%</p>'
+    + '<p style="color:#a7f3d0;font-size:10px;margin:2px 0 0;text-transform:uppercase;letter-spacing:1px;">Overall Capture</p>'
+    + '</td>'
+    + '</tr></table>'
+
+    // === BODY ===
+    + '<div style="padding:24px 28px;">'
+    + '<p style="font-size:13px;color:#374151;line-height:1.6;margin:0 0 24px 0;">'
+    + 'Dear All,<br><br>'
+    + 'Berikut adalah laporan <b>Footfall Capture Rate</b> untuk periode <b>' + month + ' ' + year + '</b>. '
+    + 'Total <b>' + fn(totalFF) + '</b> pengunjung tercatat melalui door counter, '
+    + 'dan <b>' + fn(totalCRM) + '</b> berhasil di-capture oleh tim advisor '
+    + '(<b>' + totalRate + '%</b> overall capture rate).</p>'
+
+    // === STORE SUMMARY ===
+    + '<p style="font-size:14px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px 0;">Store Performance Summary</p>'
+    + '<table style="width:100%;border-collapse:collapse;margin-bottom:24px;">'
+    + '<tr><th style="' + tS + ' text-align:left;">Store</th><th style="' + tS + ' text-align:right;">Total Footfall</th><th style="' + tS + ' text-align:right;">Captured (CRM)</th><th style="' + tS + ' text-align:right;">Capture Rate</th></tr>'
+    + '<tr><td style="' + cS + '">Plaza Indonesia</td><td style="' + cB + '">' + fn(sumFF_PI) + '</td><td style="' + cR + 'color:#4f46e5;font-weight:600;">' + fn(sumCRM_PI) + '</td><td style="' + cR + 'font-weight:700;color:' + rc(ratePI) + ';">' + ratePI + '%</td></tr>'
+    + '<tr style="background:' + zL + ';"><td style="' + cS + '">Plaza Senayan</td><td style="' + cB + '">' + fn(sumFF_PS) + '</td><td style="' + cR + 'color:#4f46e5;font-weight:600;">' + fn(sumCRM_PS) + '</td><td style="' + cR + 'font-weight:700;color:' + rc(ratePS) + ';">' + ratePS + '%</td></tr>'
+    + '<tr style="background:#eef2ff;font-weight:600;"><td style="' + cS + 'font-weight:700;">TOTAL</td><td style="' + cB + '">' + fn(totalFF) + '</td><td style="' + cR + 'color:#4f46e5;font-weight:700;">' + fn(totalCRM) + '</td><td style="' + cR + 'font-weight:800;font-size:14px;color:' + rc(totalRate) + ';">' + totalRate + '%</td></tr>'
+    + '</table>'
+
+    // === DAILY BREAKDOWN ===
+    + '<p style="font-size:14px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px 0;">Daily Breakdown</p>'
+    + '<table style="width:100%;border-collapse:collapse;margin-bottom:24px;">'
+    + '<tr><th style="' + tS + ' text-align:left;" rowspan="2">Date</th>'
+    + '<th style="' + tS + ' text-align:center;background:#e0f2e8;color:#065f46;" colspan="3">Plaza Indonesia</th>'
+    + '<th style="' + tS + ' text-align:center;background:#fef3c7;color:#92400e;" colspan="3">Plaza Senayan</th></tr>'
+    + '<tr><th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Door</th>'
+    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">CRM</th>'
+    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Rate</th>'
+    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Door</th>'
+    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">CRM</th>'
+    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Rate</th></tr>';
+
+    // Daily rows
+    data.forEach(function(item, idx) {
+      var bg = idx % 2 !== 0 ? 'background:' + zL + ';' : '';
+      var dateLabel = item.date;
+      try {
+        var d = new Date(item.date);
+        if (!isNaN(d.getTime())) {
+          dateLabel = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+          var dow = d.getDay();
+          if (dow === 0 || dow === 6) dateLabel = '<span style="color:#dc2626;font-weight:bold;">' + dateLabel + '</span>';
+        }
+      } catch(e) {}
+
+      html += '<tr style="' + bg + '">'
+        + '<td style="' + cS + 'white-space:nowrap;">' + dateLabel + '</td>'
+        + '<td style="' + cR + '">' + item.footfallPI + '</td>'
+        + '<td style="' + cR + 'color:#4f46e5;font-weight:600;">' + item.trafficPI + '</td>'
+        + '<td style="' + cR + 'font-weight:600;color:' + rc(item.ratePI) + ';">' + item.ratePI + '%</td>'
+        + '<td style="' + cR + '">' + item.footfallPS + '</td>'
+        + '<td style="' + cR + 'color:#4f46e5;font-weight:600;">' + item.trafficPS + '</td>'
+        + '<td style="' + cR + 'font-weight:600;color:' + rc(item.ratePS) + ';">' + item.ratePS + '%</td>'
+        + '</tr>';
+    });
+
+    // Daily total row
+    html += '<tr style="background:#eef2ff;font-weight:700;">'
+      + '<td style="' + cS + 'font-weight:700;">TOTAL</td>'
+      + '<td style="' + cB + '">' + fn(sumFF_PI) + '</td>'
+      + '<td style="' + cR + 'color:#4f46e5;font-weight:700;">' + fn(sumCRM_PI) + '</td>'
+      + '<td style="' + cR + 'font-weight:700;color:' + rc(ratePI) + ';">' + ratePI + '%</td>'
+      + '<td style="' + cB + '">' + fn(sumFF_PS) + '</td>'
+      + '<td style="' + cR + 'color:#4f46e5;font-weight:700;">' + fn(sumCRM_PS) + '</td>'
+      + '<td style="' + cR + 'font-weight:700;color:' + rc(ratePS) + ';">' + ratePS + '%</td>'
+      + '</tr></table>'
+
+      + '<p style="font-size:11px;color:#9ca3af;margin:8px 0 0 0;"><em>Detail lengkap terlampir dalam file CSV.</em></p>'
+
+      // FOOTER
+      + '<div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:24px;">'
+      + '<p style="font-size:11px;color:#9ca3af;margin:0;line-height:1.5;">'
+      + 'This report was automatically generated by the Bvlgari Intelligence Dashboard<br>'
+      + new Date().toLocaleString('id-ID') + ' &mdash; MRA Retail Indonesia</p>'
+      + '</div></div></div>';
+
+    // Send
+    var recipients = CONFIG.EMAIL_RECIPIENTS;
+    if (!recipients || recipients.length === 0) {
+      return { success: false, message: 'Tidak ada email penerima di Config.' };
+    }
+
+    MailApp.sendEmail({
+      to: recipients.join(','),
+      subject: 'Footfall Capture Rate Report - ' + month + ' ' + year + ' | Bvlgari Indonesia',
+      htmlBody: html,
+      attachments: [csvBlob]
+    });
+
+    return { success: true, message: 'Report berhasil dikirim ke ' + recipients.join(', ') };
+
+  } catch (e) {
+    console.error('sendFootfallCaptureRateEmail Error: ' + e.message);
+    return { success: false, message: e.message };
+  }
+}
+
+/**
+ * =====================================================
+ * TEST FUNCTIONS - Jalankan dari Apps Script Editor
+ * =====================================================
+ */
+
+/**
+ * TEST 1: Kirim email Footfall report lengkap
+ * Pilih fungsi ini di dropdown editor → Run
+ * Jika pertama kali, akan minta otorisasi → Klik "Review Permissions" → Allow
+ */
+function manualTestFootfallEmail() {
+  var result = sendFootfallCaptureRateEmail('Maret', '2026');
+  Logger.log('=== RESULT ===');
+  Logger.log(JSON.stringify(result));
+}
+
+/**
+ * TEST 2: Kirim email sederhana untuk verify MailApp permission 
+ * Jika ini berhasil tapi TEST 1 gagal, berarti masalah di data/logic
+ * Jika ini juga gagal, berarti masalah permission MailApp
+ */
+function testEmailPermission() {
+  try {
+    var quota = MailApp.getRemainingDailyQuota();
+    Logger.log('Email quota remaining: ' + quota);
+    
+    if (quota <= 0) {
+      Logger.log('ERROR: No email quota left!');
+      return;
+    }
+    
+    MailApp.sendEmail({
+      to: CONFIG.EMAIL_RECIPIENTS[0],
+      subject: '[TEST] Footfall Email Permission Test',
+      htmlBody: '<h2>Test Email Berhasil</h2><p>MailApp sudah ter-otorisasi. Timestamp: ' + new Date().toLocaleString('id-ID') + '</p>'
+    });
+    
+    Logger.log('SUCCESS: Test email sent to ' + CONFIG.EMAIL_RECIPIENTS[0]);
+  } catch (e) {
+    Logger.log('ERROR: ' + e.message);
+  }
+}
+

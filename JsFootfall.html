@@ -28,7 +28,7 @@
                 UI.showLoader(true, 'Memproses data analitik Footfall & CRM...');
             }
 
-            document.getElementById('footfallTableBody').innerHTML = `
+            document.getElementById('footfallCrmTableBody').innerHTML = `
                 <tr><td colspan="7" class="py-12 text-center text-slate-400">
                     <svg class="animate-spin h-5 w-5 mx-auto text-emerald-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     Menarik data Footfall vs CRM...
@@ -39,7 +39,7 @@
                 .withSuccessHandler(FOOTFALL.renderData)
                 .withFailureHandler((err) => {
                     if (typeof UI !== 'undefined' && UI.showLoader) UI.showLoader(false);
-                    document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Gagal memuat data: ${err.message}</td></tr>`;
+                    document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Gagal memuat data: ${err.message}</td></tr>`;
                     Swal.fire('Error', 'Gagal memuat data Footfall: ' + err.message, 'error');
                 })
                 .getFootfallAnalytics(m, y);
@@ -55,7 +55,7 @@
                 }
                 if (res.status === 'error') {
                     Swal.fire('Error Dashboard', res.message, 'error');
-                    document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Error: ${res.message}</td></tr>`;
+                    document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Error: ${res.message}</td></tr>`;
                     return;
                 }
 
@@ -64,7 +64,7 @@
                 const dbg = res.debug || {};
                 const dbgTxt = `(Trace: M=${dbg.targetM}, Y=${dbg.targetY} | Rows: PI=${dbg.piRowsEvaluated||0}, PS=${dbg.psRowsEvaluated||0}, TRF=${dbg.trfRowsEvaluated||0})`;
                 
-                document.getElementById('footfallTableBody').innerHTML = `
+                document.getElementById('footfallCrmTableBody').innerHTML = `
                     <tr><td colspan="7" class="py-12 text-center text-slate-400 italic">
                         Tidak ada data Footfall ditemukan untuk periode terpilih.<br>
                         <span class="text-[10px] text-slate-300">${dbgTxt}</span>
@@ -83,11 +83,20 @@
                 sumFF_PS += item.footfallPS;
                 sumCRM_PS += item.trafficPS;
 
+                // Format date for display (yyyy-MM-dd → DD Mon)
+                let displayDate = item.date;
+                try {
+                    const d = new Date(item.date + 'T00:00:00');
+                    if (!isNaN(d.getTime())) {
+                        displayDate = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                    }
+                } catch(e) {}
+
                 html += `
                     <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="py-3 px-4 font-medium text-slate-700 whitespace-nowrap">${item.date}</td>
+                        <td class="py-3 px-4 font-medium text-slate-700 whitespace-nowrap">${displayDate}</td>
                         
-                        <td class="py-3 px-4 text-center border-l border-slate-100">${item.footfallPI}</td>
+                        <td class="py-3 px-4 text-center" style="border-left:2px solid #e2e8f0;">${item.footfallPI}</td>
                         <td class="py-3 px-4 text-center text-indigo-600 font-bold">${item.trafficPI}</td>
                         <td class="py-3 px-4 text-center">
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.ratePI < 30 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">
@@ -95,7 +104,7 @@
                             </span>
                         </td>
 
-                        <td class="py-3 px-4 text-center border-l border-slate-100">${item.footfallPS}</td>
+                        <td class="py-3 px-4 text-center" style="border-left:2px solid #e2e8f0;">${item.footfallPS}</td>
                         <td class="py-3 px-4 text-center text-indigo-600 font-bold">${item.trafficPS}</td>
                         <td class="py-3 px-4 text-center">
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.ratePS < 30 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
@@ -106,7 +115,26 @@
                 `;
             });
 
-            document.getElementById('footfallTableBody').innerHTML = html;
+            // Add totals row
+            const totalRatePI = sumFF_PI > 0 ? ((sumCRM_PI / sumFF_PI) * 100).toFixed(1) : 0;
+            const totalRatePS = sumFF_PS > 0 ? ((sumCRM_PS / sumFF_PS) * 100).toFixed(1) : 0;
+            html += `
+                <tr class="bg-slate-50 font-bold border-t-2 border-slate-200">
+                    <td class="py-3 px-4 text-slate-700">TOTAL</td>
+                    <td class="py-3 px-4 text-center text-slate-700" style="border-left:2px solid #e2e8f0;">${sumFF_PI.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-center text-indigo-700">${sumCRM_PI.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${totalRatePI < 30 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">${totalRatePI}%</span>
+                    </td>
+                    <td class="py-3 px-4 text-center text-slate-700" style="border-left:2px solid #e2e8f0;">${sumFF_PS.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-center text-indigo-700">${sumCRM_PS.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${totalRatePS < 30 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">${totalRatePS}%</span>
+                    </td>
+                </tr>
+            `;
+
+            document.getElementById('footfallCrmTableBody').innerHTML = html;
 
             // Update KPI Cards
             document.getElementById('ff_pi_total').innerText = sumFF_PI.toLocaleString('id-ID');
@@ -123,7 +151,7 @@
 
             } catch (err) {
                 console.error("FOOTFALL Render Error:", err);
-                document.getElementById('footfallTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Render Error: ${err.message}</td></tr>`;
+                document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Render Error: ${err.message}</td></tr>`;
                 Swal.fire('Error Render', 'Gagal memproses data Footfall: ' + err.message, 'error');
             }
         },
@@ -137,9 +165,9 @@
              const m = document.getElementById('footfallMonthSelect').value;
              const y = document.getElementById('footfallYearSelect').value;
 
-             let csv = '\\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%)\\n';
+             let csv = '\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%)\n';
              currentFootfallData.forEach(row => {
-                 csv += `${row.date},${row.footfallPI},${row.trafficPI},${row.ratePI},${row.footfallPS},${row.trafficPS},${row.ratePS}\\n`;
+                 csv += `${row.date},${row.footfallPI},${row.trafficPI},${row.ratePI},${row.footfallPS},${row.trafficPS},${row.ratePS}\n`;
              });
 
              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -149,6 +177,73 @@
              document.body.appendChild(link);
              link.click();
              document.body.removeChild(link);
+        },
+
+        sendEmail: () => {
+            if (currentFootfallData.length === 0) {
+                Swal.fire('No Data', 'Muat data terlebih dahulu sebelum mengirim email.', 'warning');
+                return;
+            }
+
+            const m = document.getElementById('footfallMonthSelect').value;
+            const y = document.getElementById('footfallYearSelect').value;
+
+            Swal.fire({
+                title: 'Kirim Email Report?',
+                html: `<div style="text-align:left;font-size:13px;line-height:1.7;">
+                    <p>Laporan <b>Footfall Capture Rate</b> untuk periode <b>${m} ${y}</b> akan dikirim ke email yang terdaftar di Config.</p>
+                    <p style="margin-top:8px;color:#6b7280;">Termasuk:</p>
+                    <ul style="color:#374151;margin:4px 0 0 16px;">
+                        <li>✅ HTML Report (KPI + Daily Table)</li>
+                        <li>📎 CSV Attachment</li>
+                    </ul>
+                </div>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#059669',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'Kirim Sekarang',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading
+                    const btn = document.getElementById('btnSendFootfallEmail');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerHTML = `<svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Mengirim...`;
+                    }
+
+                    google.script.run
+                        .withSuccessHandler(function(res) {
+                            // Restore button
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> Send Email`;
+                            }
+
+                            if (res && res.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Email Terkirim!',
+                                    text: res.message,
+                                    confirmButtonColor: '#059669'
+                                });
+                            } else {
+                                Swal.fire('Gagal Kirim', res ? res.message : 'Unknown error', 'error');
+                            }
+                        })
+                        .withFailureHandler(function(err) {
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> Send Email`;
+                            }
+                            Swal.fire('Error', 'Gagal mengirim email: ' + err.message, 'error');
+                        })
+                        .sendFootfallCaptureRateEmail(m, y);
+                }
+            });
         }
     };
 </script>
+
