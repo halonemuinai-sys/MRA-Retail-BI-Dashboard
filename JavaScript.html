@@ -421,9 +421,10 @@
                 const y = document.getElementById('yearSelect').value;
                 google.script.run.withSuccessHandler(RENDER.viewCRM).getDashboardData(m, y, isRefresh);
             } else if (currentMode === 'store') {
-                const m = document.getElementById('monthSelect').value;
-                const y = document.getElementById('yearSelect').value;
-                google.script.run.withSuccessHandler(RENDER.viewStore).getDashboardData(m, y, isRefresh);
+                // Store Performance now has its own dedicated API & data flow
+                if (typeof STORE !== 'undefined') {
+                    STORE.loadData();
+                }
             } else if (currentMode === 'crossing') {
                 if (STATE.crossingSubView === 'footfall') {
                     const m = document.getElementById('monthSelect').value;
@@ -1334,17 +1335,8 @@
         },
 
         viewStore: (data) => {
+            // Legacy callback — STORE module now handles its own rendering via STORE.loadData()
             UI.showLoader(false);
-            if (data.error) { UI.showToast(data.error); return; }
-            if (data.lastSync && document.getElementById('lastSyncLabel')) {
-                document.getElementById('lastSyncLabel').innerText = data.lastSync;
-            }
-            if (typeof STORE !== 'undefined') {
-                STORE.renderTable(data);
-                STORE.renderChart(data.storeStats || []);
-                STORE.renderAdvisor(data);
-                STORE.renderCategoryChart(data.categorySales || null);
-            }
         },
 
         monthlyTransaction: (data) => {

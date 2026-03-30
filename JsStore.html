@@ -1,122 +1,334 @@
 <script>
     /**
-     * STORE MODULE - MODULAR CONTROLLER
-     * Handles Store Performance rendering separately from Monthly Overview
+     * STORE MODULE - Annual Performance Command Center
+     * Handles Store Performance rendering with dedicated API
      */
     const STORE = {
-        // Render Store Performance Table
-        renderTable: (data) => {
-            const activeStores = data.storeStats || [];
-            if (activeStores.length === 0) return;
+        charts: { trend: null, category: null },
 
-            let storeHtml = "";
-            activeStores.sort((a, b) => b.actual - a.actual).forEach(s => {
-                const sColors = HELPERS.getStatusColor(s.achievement);
-                const remaining = Math.max(0, s.target - s.actual);
-                storeHtml += `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group">
-            <td class="py-3 px-5 font-semibold text-slate-700 group-hover:text-brand-blue transition-colors text-xs">${s.store}</td>
-            <td class="py-3 px-5 text-right font-mono text-slate-600 font-bold whitespace-nowrap tracking-tight text-[11px]">${HELPERS.formatIDR(s.actual)}</td>
-            <td class="py-3 px-5 text-right font-mono text-rose-500 font-medium whitespace-nowrap tracking-tight text-[11px]">${HELPERS.formatIDR(s.cost)}</td>
-            <td class="py-3 px-5 text-right font-mono text-slate-400 text-[11px] whitespace-nowrap tracking-tight">${HELPERS.formatIDR(s.target)}</td>
-            <td class="py-3 px-5 text-right font-mono text-slate-500 text-[11px] whitespace-nowrap tracking-tight">${HELPERS.formatIDR(remaining)}</td>
-            <td class="py-3 px-5 text-right"><span class="font-bold text-[11px] ${sColors.text}">${HELPERS.formatPct(s.achievement)}</span></td>
-          </tr>`;
-            });
-            UI.setHTML('storeTableBody', storeHtml);
+        init: () => {
+            const ySelect = document.getElementById('storeYearSelect');
+            if (ySelect) ySelect.value = new Date().getFullYear().toString();
+            STORE.loadData();
         },
 
-        // Render Store Sales Contribution Pie Chart
-        renderChart: (storeList) => {
-            const ctxEl = document.getElementById('catChart');
-            if (!ctxEl) return;
-            const sortedStores = (storeList || []).sort((a, b) => b.actual - a.actual);
-            const labels = sortedStores.map(s => s.store);
-            const dataPoints = sortedStores.map(s => s.actual);
+        loadData: () => {
+            const store = document.getElementById('storeFilterSelect').value;
+            const year = document.getElementById('storeYearSelect').value;
 
-            if (STATE.charts.cat) STATE.charts.cat.destroy();
-            STATE.charts.cat = new Chart(ctxEl, {
-                type: 'pie', data: { labels: labels, datasets: [{ data: dataPoints, backgroundColor: THEME.colors.chart, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4 }] },
-                options: { ...THEME.chartDefaults, plugins: { ...THEME.chartDefaults.plugins, tooltip: { callbacks: { label: function (context) { const value = context.parsed; const total = context.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%'; return context.label + ': ' + HELPERS.formatIDR(value) + ' (' + pct + ')'; } } }, datalabels: { ...THEME.chartDefaults.plugins.datalabels, formatter: (value) => value > 0 ? (value >= 1000000000 ? (value / 1000000000).toFixed(1) + 'M' : (value / 1000000).toFixed(0) + 'jt') : '' } } }, plugins: HELPERS.getChartPlugins()
-            });
-        },
+            // Update subtitle
+            const label = store === 'ALL' ? 'All Stores' : store;
+            const sub = document.getElementById('storeSubtitle');
+            if (sub) sub.textContent = 'Annual Performance Overview — ' + label + ' (' + year + ')';
 
-        // Render Advisor Performance (>100%) for Store view
-        renderAdvisor: (data) => {
-            const topAdvisors = (data.advisorData || []).filter(a => a.achievement >= 100).sort((a, b) => b.netSales - a.netSales);
-            let advisorHtml = "";
-            if (topAdvisors.length === 0) {
-                advisorHtml = `<tr><td colspan="7" class="py-8 text-center text-slate-400 italic text-xs">No advisors reached 100% target yet.</td></tr>`;
-            } else {
-                topAdvisors.forEach((adv, idx) => {
-                    advisorHtml += `
-                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 group">
-                    <td class="py-2.5 px-5 text-center text-slate-400 text-xs font-bold">${idx + 1}</td>
-                    <td class="py-2.5 px-5 text-xs font-bold text-slate-700 group-hover:text-brand-blue transition-colors">${adv.name}</td>
-                    <td class="py-2.5 px-5 text-xs text-slate-500">${adv.store}</td>
-                    <td class="py-2.5 px-5 text-center text-xs font-mono">${adv.transactions || 0}</td>
-                    <td class="py-2.5 px-5 text-right text-xs font-mono font-bold text-slate-700">${HELPERS.formatIDR(adv.netSales)}</td>
-                    <td class="py-2.5 px-5 text-right text-xs font-mono text-slate-400">${HELPERS.formatIDR(adv.target)}</td>
-                    <td class="py-2.5 px-5 text-right"><span class="font-bold text-[11px] text-emerald-600">${HELPERS.formatPct(adv.achievement)}</span></td>
-                </tr>`;
-                });
+            if (typeof UI !== 'undefined' && UI.showLoader) {
+                UI.showLoader(true, 'Memproses data Store Performance...');
             }
-            UI.setHTML('storeAdvisorTable', advisorHtml);
+
+            google.script.run
+                .withSuccessHandler(STORE.render)
+                .withFailureHandler(function(err) {
+                    if (typeof UI !== 'undefined') UI.showLoader(false);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire('Error', 'Gagal memuat data: ' + err.message, 'error');
+                    }
+                })
+                .getStorePerformanceData(store, year);
         },
 
-        // Render Category Chart for Store view
-        renderCategoryChart: (catData) => {
-            if (!catData) return;
-            const ctxEl = document.getElementById('storeCategoryChart');
+        render: (res) => {
+            if (typeof UI !== 'undefined') UI.showLoader(false);
+            if (!res || res.status === 'error') {
+                if (typeof Swal !== 'undefined') Swal.fire('Error', res ? res.message : 'Empty response', 'error');
+                return;
+            }
+
+            STORE.renderKPI(res.kpi);
+            STORE.renderEfficiency(res.efficiency);
+            STORE.renderTrend(res);
+            STORE.renderCategory(res.categoryStats);
+            STORE.renderAdvisors(res.advisorStats);
+        },
+
+        renderKPI: (kpi) => {
+            // YTD Sales — full IDR format (no abbreviations)
+            const fmtB = (v) => HELPERS.formatIDR(v);
+
+            document.getElementById('storeKpi_ytdSales').textContent = fmtB(kpi.totalSales);
+
+            // YoY badge
+            const yoyEl = document.getElementById('storeKpi_yoyBadge');
+            if (yoyEl) {
+                const g = kpi.yoyGrowth;
+                const arrow = g >= 0 ? '↑' : '↓';
+                const color = g >= 0 ? 'text-emerald-600' : 'text-rose-600';
+                const bg = g >= 0 ? 'bg-emerald-50' : 'bg-rose-50';
+                yoyEl.innerHTML = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${color} ${bg}">${arrow} ${Math.abs(g).toFixed(1)}%</span>
+                    <span class="text-[10px] text-slate-400">vs ${fmtB(kpi.prevYearSales)}</span>`;
+            }
+
+            // Annual Target
+            document.getElementById('storeKpi_target').textContent = fmtB(kpi.annualTarget);
+            const remaining = Math.max(0, kpi.annualTarget - kpi.totalSales);
+            document.getElementById('storeKpi_remaining').textContent = 'Remaining: ' + fmtB(remaining);
+
+            // Achievement
+            const achvEl = document.getElementById('storeKpi_achievement');
+            const achv = kpi.achievement;
+            const achvColor = achv >= 100 ? 'text-blue-600' : (achv >= 80 ? 'text-emerald-600' : 'text-rose-600');
+            achvEl.textContent = achv.toFixed(1) + '%';
+            achvEl.className = 'text-2xl font-bold ' + achvColor;
+
+            const barEl = document.getElementById('storeKpi_achievementBar');
+            const barColor = achv >= 100 ? 'bg-blue-500' : (achv >= 80 ? 'bg-emerald-500' : 'bg-rose-500');
+            barEl.className = 'h-1.5 rounded-full transition-all duration-500 ' + barColor;
+            barEl.style.width = Math.min(100, achv).toFixed(0) + '%';
+
+            // ATV
+            document.getElementById('storeKpi_atv').textContent = fmtB(kpi.avgTransValue);
+            document.getElementById('storeKpi_transCount').textContent = HELPERS.formatIDR(kpi.transCount) + ' transactions';
+
+            // Discount
+            const discEl = document.getElementById('storeKpi_discount');
+            const discPct = kpi.discountPct;
+            const discColor = discPct > 15 ? 'text-rose-600' : (discPct > 8 ? 'text-amber-600' : 'text-emerald-600');
+            discEl.textContent = discPct.toFixed(1) + '%';
+            discEl.className = 'text-2xl font-bold ' + discColor;
+            document.getElementById('storeKpi_costLabel').textContent = 'Selling Cost: ' + kpi.costPct.toFixed(1) + '%';
+        },
+
+        renderEfficiency: (eff) => {
+            if (!eff) return;
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            // Footfall
+            document.getElementById('storeEff_footfall').textContent = fmt(eff.footfall);
+            
+            // Traffic
+            document.getElementById('storeEff_traffic').textContent = fmt(eff.traffic);
+            var bd = eff.trafficBreakdown || {};
+            var trafficLabel = document.getElementById('storeEff_trafficLabel');
+            if (trafficLabel) {
+                trafficLabel.textContent = 'Berhasil: ' + fmt(bd.berhasil || 0) + ' | Gagal: ' + fmt(bd.gagal || 0);
+            }
+            
+            // Capture Rate
+            var crEl = document.getElementById('storeEff_captureRate');
+            crEl.textContent = eff.captureRate.toFixed(1) + '%';
+            
+            // Conversion Rate
+            var cvEl = document.getElementById('storeEff_conversionRate');
+            cvEl.textContent = eff.conversionRate.toFixed(1) + '%';
+        },
+
+        renderTrend: (res) => {
+            const ctxEl = document.getElementById('storeTrendChart');
             if (!ctxEl) return;
 
-            const sortedCats = Object.entries(catData)
-                .map(([cat, val]) => ({ cat, net: val.net, qty: val.qty }))
-                .sort((a, b) => b.qty - a.qty);
+            if (STORE.charts.trend) STORE.charts.trend.destroy();
 
-            const labels = sortedCats.map(c => c.cat);
-            const dataQty = sortedCats.map(c => c.qty);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const fmtTooltip = (v) => HELPERS.formatIDR(v);
 
-            if (STATE.charts.storeCategory) STATE.charts.storeCategory.destroy();
-
-            STATE.charts.storeCategory = new Chart(ctxEl, {
+            STORE.charts.trend = new Chart(ctxEl, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Quantity Sold',
-                        data: dataQty,
-                        backgroundColor: THEME.colors.chart,
-                        borderRadius: 4,
-                        barPercentage: 0.6
-                    }]
+                    labels: months,
+                    datasets: [
+                        {
+                            label: res.year,
+                            data: res.monthlyTrend,
+                            backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                            borderColor: '#3B82F6',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            barPercentage: 0.55,
+                            order: 2
+                        },
+                        {
+                            label: res.prevYear,
+                            data: res.prevYearTrend,
+                            backgroundColor: 'rgba(203, 213, 225, 0.5)',
+                            borderColor: '#CBD5E1',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.55,
+                            order: 3
+                        },
+                        {
+                            label: 'Target',
+                            data: res.monthlyTargets,
+                            type: 'line',
+                            borderColor: '#F43F5E',
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: false,
+                            tension: 0.3,
+                            order: 1
+                        }
+                    ]
                 },
                 options: {
-                    ...THEME.chartDefaults,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#64748B' } },
-                        y: { grid: { color: '#F1F5F9', borderDash: [4, 4] }, ticks: { font: { family: 'Inter', size: 10 }, color: '#94A3B8', callback: (value) => value }, border: { display: false } }
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: '#64748B' }
+                        },
+                        y: {
+                            grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                            border: { display: false },
+                            ticks: {
+                                font: { family: 'Inter', size: 10 },
+                                color: '#94A3B8',
+                                callback: function(value) {
+                                    return HELPERS.formatIDR(value);
+                                }
+                            }
+                        }
                     },
                     plugins: {
-                        ...THEME.chartDefaults.plugins,
-                        legend: { display: false },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'rectRounded',
+                                font: { family: 'Inter', size: 10 },
+                                padding: 16
+                            }
+                        },
                         tooltip: {
+                            backgroundColor: '#0F172A',
+                            titleFont: { family: 'Inter', size: 12, weight: '700' },
+                            bodyFont: { family: 'Inter', size: 11 },
+                            padding: 12,
+                            cornerRadius: 8,
                             callbacks: {
-                                label: function (context) {
-                                    const value = context.parsed.y;
-                                    const net = sortedCats[context.dataIndex].net;
-                                    return ` Qty: ${value} pcs (Sales: ${HELPERS.formatIDR(net)})`;
+                                label: function(ctx) {
+                                    return ' ' + ctx.dataset.label + ': ' + fmtTooltip(ctx.parsed.y);
                                 }
                             }
                         },
-                        datalabels: { ...THEME.chartDefaults.plugins.datalabels, formatter: (value) => value }
+                        datalabels: { display: false }
+                    }
+                }
+            });
+
+            // Update trend label
+            const lbl = document.getElementById('storeTrendLabel');
+            if (lbl) lbl.textContent = 'Monthly Net Sales — ' + res.year + ' vs ' + res.prevYear;
+        },
+
+        renderCategory: (catData) => {
+            const ctxEl = document.getElementById('storeCatChart');
+            if (!ctxEl || !catData || catData.length === 0) return;
+
+            if (STORE.charts.category) STORE.charts.category.destroy();
+
+            const catColors = {
+                'Jewelry': '#F59E0B', 'Watches': '#3B82F6',
+                'Accessories': '#EC4899', 'Perfume': '#10B981',
+                'Other': '#94A3B8'
+            };
+            const labels = catData.map(c => c.name);
+            const values = catData.map(c => c.value);
+            const colors = labels.map(l => catColors[l] || '#6366F1');
+            const total = values.reduce((a, b) => a + b, 0);
+
+            STORE.charts.category = new Chart(ctxEl, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '55%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                font: { family: 'Inter', size: 10 },
+                                padding: 12
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#0F172A',
+                            callbacks: {
+                                label: function(ctx) {
+                                    const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                    return ' ' + ctx.label + ': ' + HELPERS.formatIDR(ctx.parsed) + ' (' + pct + '%)';
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: { weight: 'bold', size: 11 },
+                            formatter: (value) => {
+                                const pct = total > 0 ? ((value / total) * 100).toFixed(0) : 0;
+                                return pct > 5 ? pct + '%' : '';
+                            }
+                        }
                     }
                 },
-                plugins: HELPERS.getChartPlugins()
+                plugins: typeof HELPERS !== 'undefined' && HELPERS.getChartPlugins ? HELPERS.getChartPlugins() : []
             });
         },
 
-        init: () => {
-            console.log("Store Module initialized.");
+        renderAdvisors: (advisors) => {
+            const tbody = document.getElementById('storeAdvisorTableBody');
+            if (!tbody) return;
+
+            if (!advisors || advisors.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-slate-400 italic text-xs">Belum ada data advisor untuk periode ini.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            advisors.forEach((adv, idx) => {
+                const achv = adv.achievement;
+                const achvColor = achv >= 100 ? 'text-blue-600' : (achv >= 80 ? 'text-emerald-600' : 'text-rose-500');
+                const achvBg = achv >= 100 ? 'bg-blue-50' : (achv >= 80 ? 'bg-emerald-50' : 'bg-rose-50');
+                
+                const fmtB = (v) => HELPERS.formatIDR(v);
+
+                // Medal for top 3
+                let medal = '';
+                if (idx === 0) medal = '<span class="text-amber-500">🥇</span> ';
+                else if (idx === 1) medal = '<span class="text-slate-400">🥈</span> ';
+                else if (idx === 2) medal = '<span class="text-amber-700">🥉</span> ';
+
+                html += `
+                <tr class="hover:bg-slate-50 transition-colors group">
+                    <td class="py-2.5 px-4 text-center text-slate-400 text-xs font-bold">${idx + 1}</td>
+                    <td class="py-2.5 px-4 text-xs font-bold text-slate-700 group-hover:text-brand-blue transition-colors whitespace-nowrap">${medal}${adv.name}</td>
+                    <td class="py-2.5 px-4 text-xs text-slate-500">${adv.location || '-'}</td>
+                    <td class="py-2.5 px-4 text-right text-xs font-mono font-bold text-slate-700">${fmtB(adv.totalSales)}</td>
+                    <td class="py-2.5 px-4 text-right text-xs font-mono text-slate-400">${adv.target > 0 ? fmtB(adv.target) : '-'}</td>
+                    <td class="py-2.5 px-4 text-right">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${achvColor} ${achvBg}">
+                            ${adv.target > 0 ? achv.toFixed(1) + '%' : '-'}
+                        </span>
+                    </td>
+                    <td class="py-2.5 px-4 text-center text-xs font-mono text-slate-500">${adv.trans}</td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
         }
     };
 </script>

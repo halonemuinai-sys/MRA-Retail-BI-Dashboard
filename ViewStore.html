@@ -1,6 +1,6 @@
 <div id="viewStore" class="hidden animate-fade-in relative h-full flex flex-col">
-    <!-- Header Store Performance -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 px-2">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 px-2">
         <div>
             <h2 class="text-2xl font-display font-bold text-brand-dark tracking-tight flex items-center gap-3">
                 <svg class="w-7 h-7 text-brand-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -8,77 +8,178 @@
                 </svg>
                 Store Performance
             </h2>
-            <p class="text-sm text-slate-500 mt-1">Performance & Sales Contribution per Store Location</p>
+            <p class="text-sm text-slate-500 mt-1" id="storeSubtitle">Annual Performance Overview — All Stores</p>
         </div>
-        <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 flex flex-col items-end">
-             <span class="text-[10px] uppercase font-bold text-blue-400 tracking-widest">Monitoring</span>
-             <span class="text-xs font-bold text-brand-blue flex items-center gap-1.5" id="storeSyncStatus">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Data
-             </span>
-        </div>
-    </div>
-
-    <!-- Store Performance Table + Pie Chart -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 px-2">
-        <!-- Store Performance Table (2/3) -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm lg:col-span-2 overflow-hidden flex flex-col h-full">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
-                <h3 class="font-display text-base font-bold text-brand-dark">Store Sales vs Target</h3>
-                <span class="px-2.5 py-1 bg-slate-50 text-slate-500 rounded-md text-[10px] font-bold uppercase tracking-wider border border-slate-100">Live</span>
+        <div class="flex items-center gap-3">
+            <!-- Store Filter -->
+            <div class="relative w-48">
+                <select id="storeFilterSelect" onchange="STORE.loadData()" title="Select Store"
+                    class="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-bold cursor-pointer shadow-sm hover:border-slate-300 transition-colors">
+                    <option value="ALL">All Stores</option>
+                    <option value="Plaza Indonesia">Plaza Indonesia</option>
+                    <option value="Plaza Senayan">Plaza Senayan</option>
+                    <option value="Bali">Bali Boutique</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
             </div>
-            <div class="overflow-x-auto flex-grow">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100">
-                        <tr>
-                            <th class="py-3 px-5 font-bold">Location</th>
-                            <th class="py-3 px-5 text-right font-bold">Actual Sales</th>
-                            <th class="py-3 px-5 text-right font-bold text-rose-600">Selling Cost</th>
-                            <th class="py-3 px-5 text-right font-bold">Target</th>
-                            <th class="py-3 px-5 text-right font-bold text-slate-600">Remaining</th>
-                            <th class="py-3 px-5 text-right font-bold">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="storeTableBody" class="divide-y divide-slate-50"></tbody>
-                </table>
-            </div>
-        </div>
-        <!-- Store Sales Contribution (Pie) -->
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
-            <h3 class="font-display text-base font-bold text-brand-dark mb-1">Store Sales Contribution</h3>
-            <div class="relative flex-grow flex items-center justify-center min-h-[220px]"><canvas id="catChart"></canvas>
+            <!-- Year Filter -->
+            <div class="relative w-28">
+                <select id="storeYearSelect" onchange="STORE.loadData()" title="Select Year"
+                    class="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-bold cursor-pointer shadow-sm hover:border-slate-300 transition-colors">
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Customer Advisor Performance (>100% ACHIEVEMENT) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 px-2">
-        <!-- Table Section (2/3 Width) -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2 flex flex-col h-full">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
-                <h3 class="font-display text-base font-bold text-brand-dark">Customer Advisor Performance (>100%)</h3>
-            </div>
-            <div class="overflow-x-auto flex-grow custom-scrollbar">
-                <table class="w-full text-sm text-left align-middle">
-                    <thead class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 bg-white z-10">
-                        <tr>
-                            <th class="py-3 px-5 font-bold w-12 text-center">#</th>
-                            <th class="py-3 px-5 font-bold">Advisor Name</th>
-                            <th class="py-3 px-5 font-bold">Location</th>
-                            <th class="py-3 px-5 text-center font-bold">Trans No</th>
-                            <th class="py-3 px-5 text-right font-bold">Net Sales</th>
-                            <th class="py-3 px-5 text-right font-bold">Target</th>
-                            <th class="py-3 px-5 text-right font-bold">Achievement</th>
-                        </tr>
-                    </thead>
-                    <tbody id="storeAdvisorTable" class="divide-y divide-slate-50"></tbody>
-                </table>
+    <!-- KPI Cards Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6 px-2">
+        <!-- YTD Sales -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1 flex items-center gap-1">YTD Net Sales <span title="Total penjualan bersih (Net Sales After Tax) dari awal tahun hingga hari ini untuk store yang dipilih." class="cursor-help text-slate-300 hover:text-blue-400 transition-colors">ⓘ</span></p>
+            <p class="text-xl font-bold text-slate-800 font-mono" id="storeKpi_ytdSales">-</p>
+            <div class="flex items-center gap-1 mt-1.5" id="storeKpi_yoyBadge">
+                <span class="text-[10px] font-bold text-slate-400">vs prev year</span>
             </div>
         </div>
-        <!-- Chart Section (1/3 Width) -->
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
-            <h3 class="font-display text-base font-bold text-brand-dark mb-1">Monthly Sales by Category</h3>
-            <div class="relative flex-grow flex items-center justify-center min-h-[200px]">
-                <canvas id="storeCategoryChart"></canvas>
+        <!-- Annual Target -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1 flex items-center gap-1">Annual Target <span title="Akumulasi target bulanan selama 1 tahun penuh dari master_target_store. Jika pilih ALL, target semua store dijumlahkan." class="cursor-help text-slate-300 hover:text-blue-400 transition-colors">ⓘ</span></p>
+            <p class="text-xl font-bold text-indigo-700 font-mono" id="storeKpi_target">-</p>
+            <p class="text-[10px] text-slate-400 mt-1.5" id="storeKpi_remaining">Remaining: -</p>
+        </div>
+        <!-- Achievement -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1 flex items-center gap-1">Achievement <span title="Persentase pencapaian target: (YTD Net Sales ÷ Annual Target) × 100%. Hijau ≥80%, Biru ≥100%, Merah <80%." class="cursor-help text-slate-300 hover:text-blue-400 transition-colors">ⓘ</span></p>
+            <p class="text-2xl font-bold" id="storeKpi_achievement">-</p>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+                <div class="h-1.5 rounded-full transition-all duration-500" id="storeKpi_achievementBar"></div>
+            </div>
+        </div>
+        <!-- Avg Transaction Value -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1 flex items-center gap-1">Avg. Transaction <span title="Average Transaction Value (ATV): Total Net Sales ÷ Jumlah Transaksi Unik. Menunjukkan rata-rata spending per customer." class="cursor-help text-slate-300 hover:text-blue-400 transition-colors">ⓘ</span></p>
+            <p class="text-xl font-bold text-amber-700 font-mono" id="storeKpi_atv">-</p>
+            <p class="text-[10px] text-slate-400 mt-1.5" id="storeKpi_transCount">- transactions</p>
+        </div>
+        <!-- Discount % -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-rose-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1 flex items-center gap-1">Avg. Discount <span title="Rata-rata diskon: (Total Discount Value ÷ Gross Sales) × 100%. Hijau <8%, Kuning 8-15%, Merah >15%. Monitor agar tidak over-discount." class="cursor-help text-slate-300 hover:text-amber-400 transition-colors">ⓘ</span></p>
+            <p class="text-2xl font-bold" id="storeKpi_discount">-</p>
+            <p class="text-[10px] text-slate-400 mt-1.5" id="storeKpi_costLabel">Selling Cost: -</p>
+        </div>
+    </div>
+
+    <!-- Operational Efficiency Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-2">
+        <!-- Mall Visitors (Footfall) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full"></div>
+            <div class="flex items-center gap-2 mb-1">
+                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">Mall Visitors <span title="Jumlah orang yang melewati depan toko (dari sensor footfall mall). Data diambil dari sheet footfall_pi & footfall_ps. Bali belum memiliki sensor." class="cursor-help text-slate-600 hover:text-white transition-colors">ⓘ</span></p>
+            </div>
+            <p class="text-xl font-bold text-white font-mono" id="storeEff_footfall">-</p>
+            <p class="text-[10px] text-slate-500 mt-1" id="storeEff_footfallLabel">YTD Footfall Sensor Count</p>
+        </div>
+        <!-- Store Visitors (Traffic) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full"></div>
+            <div class="flex items-center gap-2 mb-1">
+                <svg class="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">Store Visitors <span title="Jumlah tamu yang masuk toko dan dilayani oleh advisor (tercatat di CRM Traffic). Termasuk Walk-In, Follow-Up, dan Delivery." class="cursor-help text-slate-600 hover:text-blue-400 transition-colors">ⓘ</span></p>
+            </div>
+            <p class="text-xl font-bold text-blue-400 font-mono" id="storeEff_traffic">-</p>
+            <p class="text-[10px] text-slate-500 mt-1" id="storeEff_trafficLabel">CRM Traffic (Served)</p>
+        </div>
+        <!-- Capture Rate -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full"></div>
+            <div class="flex items-center gap-2 mb-1">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">Capture Rate <span title="Persentase orang yang lewat di depan toko yang akhirnya masuk: (Store Visitors ÷ Mall Visitors) × 100%. Mengukur daya tarik visual toko & greeting team." class="cursor-help text-slate-600 hover:text-emerald-400 transition-colors">ⓘ</span></p>
+            </div>
+            <p class="text-2xl font-bold text-emerald-400" id="storeEff_captureRate">-</p>
+            <p class="text-[10px] text-slate-500 mt-1">Traffic / Footfall</p>
+        </div>
+        <!-- Sales Conversion -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full"></div>
+            <div class="flex items-center gap-2 mb-1">
+                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">Sales Conversion <span title="Persentase tamu yang akhirnya melakukan pembelian: (Jumlah Transaksi ÷ Store Visitors) × 100%. Mengukur kemampuan advisor dalam closing." class="cursor-help text-slate-600 hover:text-amber-400 transition-colors">ⓘ</span></p>
+            </div>
+            <p class="text-2xl font-bold text-amber-400" id="storeEff_conversionRate">-</p>
+            <p class="text-[10px] text-slate-500 mt-1">Transactions / Traffic</p>
+        </div>
+    </div>
+
+    <!-- ANNUAL SALES TREND (Full Width, Matching Dashboard Style) -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6 mx-2">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h3 class="font-display text-lg font-bold text-brand-dark">Annual Sales Trend</h3>
+                <p class="text-[10px] text-slate-400 mt-1" id="storeTrendLabel">Monthly Net Sales (Jan — Des)</p>
+            </div>
+            <div class="flex items-center gap-4 text-[10px] font-medium text-slate-500">
+                <span class="flex items-center gap-1.5"><span class="w-3.5 h-2.5 rounded-sm bg-blue-500 inline-block"></span>Current Year</span>
+                <span class="flex items-center gap-1.5"><span class="w-3.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span>Previous Year</span>
+                <span class="flex items-center gap-1.5"><span class="w-7 border-t-2 border-dashed border-rose-400 inline-block"></span>Target</span>
+            </div>
+        </div>
+        <div class="relative h-72 w-full"><canvas id="storeTrendChart"></canvas></div>
+    </div>
+
+    <!-- Category + Advisors Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 px-2">
+        <!-- Category Breakdown (1/3) -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-display font-bold text-brand-dark text-sm">Category Contribution</h3>
+                <p class="text-[10px] text-slate-400 mt-0.5">YTD Sales by Main Category</p>
+            </div>
+            <div class="p-4 flex-grow flex items-center justify-center" style="min-height:260px;">
+                <canvas id="storeCatChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Advisors (2/3) -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2 flex flex-col">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <div>
+                    <h3 class="font-display font-bold text-brand-dark text-sm">Advisor Ranking</h3>
+                    <p class="text-[10px] text-slate-400 mt-0.5">YTD Performance — sorted by Net Sales</p>
+                </div>
+            </div>
+            <div class="overflow-x-auto flex-grow custom-scrollbar" style="max-height:380px;">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-50/50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="py-3 px-4 font-bold w-10 text-center">#</th>
+                            <th class="py-3 px-4 font-bold">Advisor Name</th>
+                            <th class="py-3 px-4 font-bold">Location</th>
+                            <th class="py-3 px-4 text-right font-bold">YTD Sales</th>
+                            <th class="py-3 px-4 text-right font-bold">Target</th>
+                            <th class="py-3 px-4 text-right font-bold">Achievement</th>
+                            <th class="py-3 px-4 text-center font-bold">Trans</th>
+                        </tr>
+                    </thead>
+                    <tbody id="storeAdvisorTableBody" class="divide-y divide-slate-50">
+                        <tr><td colspan="7" class="py-12 text-center text-slate-400 italic">Memuat data...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

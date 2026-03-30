@@ -1046,3 +1046,415 @@ function getTrafficProspectData(month, year, location, prospectLevel, status) {
 function triggerSyncSalesToTraffic() {
   return syncSalesToTraffic();
 }
+
+// ======================================================================
+// STORE PERFORMANCE MODULE (ANNUAL DRILL-DOWN)
+// ======================================================================
+
+/**
+ * Fetches annual (YTD) performance data for a specific store or ALL stores.
+ * Includes YoY comparison, discount monitoring, category & advisor breakdown.
+ * 
+ * @param {string} storeName - "ALL", "Plaza Indonesia", "Plaza Senayan", or "Bali"
+ * @param {string|number} year - Target year (e.g. "2026")
+ * @returns {object} Store performance payload
+ */
+function getStorePerformanceData(storeName, year) {
+  try {
+    const ss = getSpreadsheet();
+    const targetY = Number(year);
+    const prevY = targetY - 1;
+    
+    // 1. Resolve sheet for current year
+    let sheetName = CONFIG.SHEETS.CLEAN;
+    const currentYear = new Date().getFullYear();
+    if (targetY !== currentYear) {
+      const archiveName = 'Clean_Data_' + targetY;
+      if (ss.getSheetByName(archiveName)) sheetName = archiveName;
+    }
+    
+    const cleanSheet = ss.getSheetByName(sheetName);
+    if (!cleanSheet) throw new Error("Sheet '" + sheetName + "' tidak ditemukan.");
+    
+    const data = cleanSheet.getDataRange().getValues();
+    data.shift();
+
+    const COL = CONFIG.CLEAN_COLS;
+    var filterStore = (!storeName || storeName === 'ALL') ? null : storeName.toLowerCase();
+
+    // Structures for current year
+    var monthlyTrend = new Array(12).fill(0);
+    var monthlyQty = new Array(12).fill(0);
+    var categoryMap = {};
+    var advisorMap = {};
+    var activeStoresSet = {};
+    var transactionSet = {};
+    
+    var totalNet = 0, totalQty = 0, totalGross = 0, totalDisc = 0, totalCost = 0;
+
+    // 2. Process current year data
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var d = parseDateFix(row[COL.DATE]);
+      if (d.getFullYear() !== targetY) continue;
+
+      var loc = String(row[COL.LOCATION]).trim();
+      if (loc.toLowerCase().includes('head office')) continue;
+      
+      activeStoresSet[loc] = true;
+      if (filterStore && loc.toLowerCase() !== filterStore) continue;
+
+      var m = d.getMonth();
+      var net = Number(row[COL.NET_SALES]) || 0;
+      var qty = Number(row[COL.QTY]) || 0;
+      var gross = Number(row[COL.GROSS]) || 0;
+      var disc = Number(row[COL.VAL_DISC]) || 0;
+      var cost = Number(row[COL.SELLING_COST]) || 0;
+      var cat = String(row[COL.MAIN_CAT] || 'Other').trim();
+      var adv = String(row[COL.SALESMAN] || 'Unknown').trim();
+      var transNo = String(row[COL.TRANS_NO] || '');
+
+      monthlyTrend[m] += net;
+      monthlyQty[m] += qty;
+      totalNet += net;
+      totalQty += qty;
+      totalGross += gross;
+      totalDisc += disc;
+      totalCost += cost;
+      if (transNo) transactionSet[transNo] = true;
+
+      if (!categoryMap[cat]) categoryMap[cat] = { net: 0, qty: 0 };
+      categoryMap[cat].net += net;
+      categoryMap[cat].qty += qty;
+
+      if (!advisorMap[adv]) advisorMap[adv] = { net: 0, qty: 0, trans: 0 };
+      advisorMap[adv].net += net;
+      advisorMap[adv].qty += qty;
+      advisorMap[adv].trans++;
+    }
+
+    // 3. Load advisor targets from master_sales_advisor
+    var advSheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_ADVISOR);
+    if (advSheet) {
+      var advData = advSheet.getDataRange().getValues();
+      if (advData.length > 1) {
+        var advHeaders = advData[0];
+        // Find all month column indices for summing annual target
+        var monthColIndices = [];
+        var monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+        for (var ci = 0; ci < advHeaders.length; ci++) {
+          var hStr = String(advHeaders[ci]).trim().toLowerCase();
+          for (var mi = 0; mi < monthNames.length; mi++) {
+            if (hStr === monthNames[mi] || hStr.startsWith(monthNames[mi])) {
+              monthColIndices.push(ci);
+              break;
+            }
+          }
+        }
+        
+        for (var ai = 1; ai < advData.length; ai++) {
+          var advRow = advData[ai];
+          if (String(advRow[0]) != targetY) continue;
+          var advName = String(advRow[1]).trim();
+          var advLoc = String(advRow[3] || '').trim(); // Column D = Location
+          var advKey = advName.toLowerCase();
+          
+          // Sum annual target across all month columns
+          var annualAdvTarget = 0;
+          for (var mci = 0; mci < monthColIndices.length; mci++) {
+            annualAdvTarget += (Number(advRow[monthColIndices[mci]]) || 0);
+          }
+          
+          // Match advisor
+          var foundKey = null;
+          for (var ak in advisorMap) {
+            if (ak.toLowerCase() === advKey || ak.toLowerCase().includes(advKey)) {
+              foundKey = ak;
+              break;
+            }
+          }
+          
+          if (foundKey) {
+            advisorMap[foundKey].target = annualAdvTarget;
+            advisorMap[foundKey].location = advLoc;
+          } else if (annualAdvTarget > 0) {
+            advisorMap[advName] = { net: 0, qty: 0, trans: 0, target: annualAdvTarget, location: advLoc };
+          }
+        }
+      }
+    }
+
+    // 4. YoY: Load previous year data
+    var prevMonthlyTrend = new Array(12).fill(0);
+    var prevTotalNet = 0;
+    
+    var prevSheetName = CONFIG.SHEETS.CLEAN;
+    var prevArchive = 'Clean_Data_' + prevY;
+    if (ss.getSheetByName(prevArchive)) {
+      prevSheetName = prevArchive;
+    }
+    
+    var prevSheet = ss.getSheetByName(prevSheetName);
+    if (prevSheet) {
+      var prevData = prevSheet.getDataRange().getValues();
+      prevData.shift();
+      for (var pi = 0; pi < prevData.length; pi++) {
+        var pRow = prevData[pi];
+        var pd = parseDateFix(pRow[COL.DATE]);
+        if (pd.getFullYear() !== prevY) continue;
+        var pLoc = String(pRow[COL.LOCATION]).trim();
+        if (pLoc.toLowerCase().includes('head office')) continue;
+        if (filterStore && pLoc.toLowerCase() !== filterStore) continue;
+        
+        var pNet = Number(pRow[COL.NET_SALES]) || 0;
+        prevMonthlyTrend[pd.getMonth()] += pNet;
+        prevTotalNet += pNet;
+      }
+    }
+
+    // 5. Annual Target
+    var totalTarget = getAnnualStoreTarget(ss, storeName, targetY);
+
+    // 6. Monthly targets (for target line on chart)
+    var monthlyTargets = getMonthlyStoreTargets(ss, storeName, targetY);
+
+    // 7. Format output
+    var transCount = Object.keys(transactionSet).length;
+    var avgTransValue = transCount > 0 ? totalNet / transCount : 0;
+    var discountPct = totalGross > 0 ? (totalDisc / totalGross) * 100 : 0;
+    var costPct = totalGross > 0 ? (totalCost / totalGross) * 100 : 0;
+    var yoyGrowth = prevTotalNet > 0 ? ((totalNet - prevTotalNet) / prevTotalNet) * 100 : 0;
+
+    var catData = [];
+    for (var ck in categoryMap) {
+      catData.push({ name: ck, value: categoryMap[ck].net, qty: categoryMap[ck].qty });
+    }
+    catData.sort(function(a, b) { return b.value - a.value; });
+
+    var advResults = [];
+    for (var advk in advisorMap) {
+      var av = advisorMap[advk];
+      if (av.net === 0 && (!av.target || av.target === 0)) continue;
+      var advAchv = av.target > 0 ? (av.net / av.target) * 100 : 0;
+      advResults.push({
+        name: advk,
+        location: av.location || '',
+        totalSales: av.net,
+        qty: av.qty,
+        trans: av.trans,
+        target: av.target || 0,
+        achievement: advAchv
+      });
+    }
+    advResults.sort(function(a, b) { return b.totalSales - a.totalSales; });
+
+    var storeList = Object.keys(activeStoresSet).sort();
+
+    // 8. TRAFFIC DATA (from Traffic_Summary data mart — lightweight)
+    var trafficTotal = 0, trafficBerhasil = 0, trafficGagal = 0;
+    var trafficMenunggu = 0, trafficPotensial = 0, trafficNego = 0;
+    try {
+      var tsSheet = ss.getSheetByName(CONFIG.SHEETS.TRAFFIC_SUMMARY);
+      if (tsSheet) {
+        var tsData = tsSheet.getDataRange().getValues();
+        tsData.shift(); // remove header
+        for (var ti = 0; ti < tsData.length; ti++) {
+          var tRow = tsData[ti];
+          if (String(tRow[0]) != targetY) continue;
+          
+          var tLoc = String(tRow[2] || '').trim().toLowerCase();
+          
+          // Filter by store
+          if (filterStore) {
+            var matchStore = false;
+            if (filterStore === 'plaza indonesia' && (tLoc.indexOf('plaza indonesia') !== -1 || tLoc === 'pi')) matchStore = true;
+            if (filterStore === 'plaza senayan' && (tLoc.indexOf('plaza senayan') !== -1 || tLoc === 'ps')) matchStore = true;
+            if (filterStore === 'bali' && tLoc.indexOf('bali') !== -1) matchStore = true;
+            if (!matchStore) continue;
+          } else {
+            // Exclude unknown/empty for ALL
+            if (!tLoc || tLoc === 'unknown') continue;
+          }
+          
+          trafficBerhasil += Number(tRow[3]) || 0;
+          trafficGagal += Number(tRow[4]) || 0;
+          trafficMenunggu += Number(tRow[5]) || 0;
+          trafficPotensial += Number(tRow[6]) || 0;
+          trafficNego += Number(tRow[7]) || 0;
+          trafficTotal += Number(tRow[8]) || 0;
+        }
+      }
+    } catch (te) {
+      Logger.log('Traffic_Summary load error: ' + te.message);
+    }
+
+    // 9. FOOTFALL DATA (from footfall_pi / footfall_ps — lightweight daily counts)
+    var footfallTotal = 0;
+    try {
+      var footfallSheets = [];
+      if (!filterStore || filterStore === 'plaza indonesia') {
+        footfallSheets.push(CONFIG.SHEETS.FOOTFALL_PI);
+      }
+      if (!filterStore || filterStore === 'plaza senayan') {
+        footfallSheets.push(CONFIG.SHEETS.FOOTFALL_PS);
+      }
+      // Note: Bali doesn't have a footfall sensor sheet yet
+      
+      for (var fi = 0; fi < footfallSheets.length; fi++) {
+        var fSheet = ss.getSheetByName(footfallSheets[fi]);
+        if (!fSheet) continue;
+        var fData = fSheet.getDataRange().getValues();
+        for (var fj = 1; fj < fData.length; fj++) {
+          var fRow = fData[fj];
+          var fDate = fRow[0];
+          if (!fDate) continue;
+          try {
+            var fd = new Date(fDate);
+            if (isNaN(fd.getTime())) continue;
+            if (fd.getFullYear() !== targetY) continue;
+            footfallTotal += parseInt(fRow[2]) || 0; // Col C = Masuk
+          } catch (fe) { continue; }
+        }
+      }
+    } catch (fte) {
+      Logger.log('Footfall load error: ' + fte.message);
+    }
+
+    // 10. Efficiency Metrics
+    var captureRate = footfallTotal > 0 ? (trafficTotal / footfallTotal) * 100 : 0;
+    var conversionRate = trafficTotal > 0 ? (transCount / trafficTotal) * 100 : 0;
+    var salesPerVisitor = footfallTotal > 0 ? totalNet / footfallTotal : 0;
+
+    return {
+      status: 'success',
+      store: storeName || 'ALL',
+      year: targetY,
+      kpi: {
+        totalSales: totalNet,
+        totalQty: totalQty,
+        annualTarget: totalTarget,
+        achievement: totalTarget > 0 ? (totalNet / totalTarget) * 100 : 0,
+        avgTransValue: avgTransValue,
+        transCount: transCount,
+        discountPct: discountPct,
+        costPct: costPct,
+        yoyGrowth: yoyGrowth,
+        prevYearSales: prevTotalNet
+      },
+      efficiency: {
+        footfall: footfallTotal,
+        traffic: trafficTotal,
+        captureRate: captureRate,
+        conversionRate: conversionRate,
+        salesPerVisitor: salesPerVisitor,
+        trafficBreakdown: {
+          berhasil: trafficBerhasil,
+          gagal: trafficGagal,
+          menunggu: trafficMenunggu,
+          potensial: trafficPotensial,
+          nego: trafficNego
+        }
+      },
+      monthlyTrend: monthlyTrend,
+      monthlyQtyTrend: monthlyQty,
+      monthlyTargets: monthlyTargets,
+      prevYearTrend: prevMonthlyTrend,
+      prevYear: prevY,
+      categoryStats: catData,
+      advisorStats: advResults,
+      availableStores: storeList
+    };
+
+  } catch (e) {
+    Logger.log('getStorePerformanceData Error: ' + e.message);
+    return { status: 'error', message: e.message };
+  }
+}
+
+/**
+ * Resolves ANNUAL target for specific store or full network.
+ * Sums all monthly targets for the given year.
+ */
+function getAnnualStoreTarget(ss, storeName, year) {
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_TARGET_STORE);
+  if (!sheet) return 0;
+  
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return 0;
+  
+  var headers = data[0];
+  var totalTarget = 0;
+  var filterStore = (!storeName || storeName === 'ALL') ? null : storeName.toLowerCase();
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (String(row[0]) != year) continue;
+
+    for (var j = 2; j < row.length; j++) {
+      var colLoc = String(headers[j]).trim().toLowerCase();
+      if (colLoc === 'head office') continue;
+      if (!filterStore || colLoc === filterStore) {
+        totalTarget += (Number(row[j]) || 0);
+      }
+    }
+  }
+  return totalTarget;
+}
+
+/**
+ * Returns array[12] of monthly targets for a specific store or all stores.
+ * Used to draw "target line" on the annual trend chart.
+ * Supports both English and Indonesian month names in the sheet.
+ */
+function getMonthlyStoreTargets(ss, storeName, year) {
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_TARGET_STORE);
+  if (!sheet) return new Array(12).fill(0);
+  
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return new Array(12).fill(0);
+  
+  var headers = data[0];
+  var filterStore = (!storeName || storeName === 'ALL') ? null : storeName.toLowerCase();
+  
+  // Support both English and Indonesian month names
+  var monthNamesEN = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  var monthNamesID = ['januari','februari','maret','april','mei','juni','juli','agustus','september','oktober','november','desember'];
+  var monthTargets = new Array(12).fill(0);
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (String(row[0]) != year) continue;
+    
+    var rowMonth = String(row[1]).trim().toLowerCase();
+    var mIdx = -1;
+    
+    // Try English first
+    for (var mi = 0; mi < monthNamesEN.length; mi++) {
+      if (rowMonth === monthNamesEN[mi] || monthNamesEN[mi].startsWith(rowMonth) || rowMonth.startsWith(monthNamesEN[mi])) {
+        mIdx = mi;
+        break;
+      }
+    }
+    
+    // Fallback: try Indonesian
+    if (mIdx === -1) {
+      for (var mi2 = 0; mi2 < monthNamesID.length; mi2++) {
+        if (rowMonth === monthNamesID[mi2] || monthNamesID[mi2].startsWith(rowMonth) || rowMonth.startsWith(monthNamesID[mi2])) {
+          mIdx = mi2;
+          break;
+        }
+      }
+    }
+    
+    if (mIdx === -1) continue;
+    
+    for (var j = 2; j < row.length; j++) {
+      var colLoc = String(headers[j]).trim().toLowerCase();
+      if (colLoc === 'head office') continue;
+      if (!filterStore || colLoc === filterStore) {
+        monthTargets[mIdx] += (Number(row[j]) || 0);
+      }
+    }
+  }
+  return monthTargets;
+}
