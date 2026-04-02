@@ -255,12 +255,16 @@ function sendDailyEmailReport(targetDateStr) {
             subject: `Daily Sales Report - ${maxDate} ${monthName} ${targetYear}`,
             htmlBody: html
         });
+        
+        logEmailActivity('Daily Sales Report', `${maxDate} ${monthName} ${targetYear}`, recipients.join(","), 'SUCCESS');
         return { success: true, message: "Email Sent Successfully" };
     } else {
+        logEmailActivity('Daily Sales Report', `${maxDate} ${monthName} ${targetYear}`, 'None', 'FAILED: No recipients');
         return { success: false, message: "No recipients configured." };
     }
 
   } catch(e) {
+    logEmailActivity('Daily Sales Report', 'Unknown', 'Unknown', `ERROR: ${e.message}`);
     return { success: false, message: e.message };
   }
 }
@@ -608,6 +612,7 @@ function sendCRMEmailReport(monthStr, yearStr) {
     // SEND
     const recipients = CONFIG.EMAIL_RECIPIENTS;
     if (!recipients || recipients.length === 0) {
+      logEmailActivity('CRM Performance Report', `${monthName} ${year}`, 'None', 'FAILED: No Config');
       return { success: false, message: "No email recipients configured in Config." };
     }
 
@@ -618,9 +623,11 @@ function sendCRMEmailReport(monthStr, yearStr) {
       attachments: [csvBlob]
     });
 
+    logEmailActivity('CRM Performance Report', `${monthName} ${year}`, recipients.join(","), 'SUCCESS');
     return { success: true, message: "CRM Report sent to " + recipients.join(", ") };
 
   } catch(e) {
+    logEmailActivity('CRM Performance Report', `${monthName} ${year}`, 'Unknown', `ERROR: ${e.message}`);
     return { success: false, message: e.message };
   }
 }

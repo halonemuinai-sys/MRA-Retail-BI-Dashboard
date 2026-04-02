@@ -332,125 +332,168 @@ function sendFootfallCaptureRateEmail(month, year) {
     });
     var csvBlob = Utilities.newBlob(csvContent, 'text/csv', 'Footfall_CaptureRate_' + month + '_' + year + '.csv');
 
-    // Styles
-    var bc = '#d6e4f0';
-    var cS  = 'padding:8px 12px; border:1px solid ' + bc + '; font-size:12px;';
-    var cR  = cS + ' text-align:right;';
-    var cB  = cR + ' font-weight:600;';
-    var tS  = 'padding:9px 12px; border:1px solid ' + bc + '; color:#1a3a5c; background:#e8f0fe; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;';
-    var zL  = '#f5f8fc';
+    // Styles (Removed unused inline styles)
 
     var rc = function(r) { var v = parseFloat(r); if (v >= 50) return '#059669'; if (v >= 30) return '#2563eb'; return '#dc2626'; };
     var fn = function(n) { return Number(n).toLocaleString('id-ID'); };
 
-    // Build HTML
-    var html = '<div style="font-family:Arial,Helvetica,sans-serif;color:#333;max-width:660px;margin:0 auto;background:#fff;">'
+    // Reduce HTML size by using a central <style> block instead of heavy inline styling
+    var html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, Helvetica, sans-serif; color: #333; margin: 0; padding: 0; background: #f9fafb; }
+        .wrap { max-width: 660px; margin: 0 auto; background: #fff; }
+        .hdr { background: #0f4c3a; border-bottom: 3px solid #10b981; width: 100%; border-collapse: collapse; }
+        .hdr td { padding: 26px 28px; }
+        .h-title { color: #fff; font-size: 19px; font-weight: 700; margin: 0 0 4px 0; }
+        .h-sub { color: #a7f3d0; font-size: 12px; margin: 0; }
+        .h-rate { color: #fff; font-size: 28px; font-weight: 800; margin: 0; letter-spacing: -1px; text-align: right; }
+        .h-rate-sub { color: #a7f3d0; font-size: 10px; margin: 2px 0 0; text-transform: uppercase; letter-spacing: 1px; text-align: right; }
+        .content { padding: 24px 28px; }
+        .t-head { padding: 9px 12px; border: 1px solid #d6e4f0; color: #1a3a5c; background: #e8f0fe; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+        .t-cell { padding: 8px 12px; border: 1px solid #d6e4f0; font-size: 12px; }
+        .num { text-align: right; }
+        .b { font-weight: 600; }
+        .tbl { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+        .t-crm { color: #4f46e5; font-weight: 600; }
+        .sec-t { font-size: 14px; font-weight: 600; color: #1a3a5c; text-transform: uppercase; margin: 0 0 12px 0; }
+      </style>
+    </head>
+    <body>
+    <div class="wrap">
+      <table class="hdr">
+        <tr>
+          <td>
+            <p class="h-title">Footfall &amp; Capture Rate Report</p>
+            <p class="h-sub">Period: ${month} ${year} &mdash; Bvlgari Indonesia</p>
+          </td>
+          <td>
+            <p class="h-rate">${totalRate}%</p>
+            <p class="h-rate-sub">Overall Capture</p>
+          </td>
+        </tr>
+      </table>
+      <div class="content">
+        <p style="font-size:13px;line-height:1.6;margin:0 0 24px 0;">
+          Dear All,<br><br>
+          Berikut adalah laporan <b>Footfall Capture Rate</b> untuk periode <b>${month} ${year}</b>. 
+          Total <b>${fn(totalFF)}</b> pengunjung melalui door counter, 
+          dan <b>${fn(totalCRM)}</b> di-capture oleh advisor (<b>${totalRate}%</b> overall capture rate).
+        </p>
 
-    // === HEADER ===
-    + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f4c3a;border-bottom:3px solid #10b981;">'
-    + '<tr>'
-    + '<td style="padding:26px 28px;">'
-    + '<p style="color:#fff;font-size:19px;font-weight:700;margin:0 0 4px 0;">Footfall &amp; Capture Rate Report</p>'
-    + '<p style="color:#a7f3d0;font-size:12px;margin:0;">Period: ' + month + ' ' + year + ' &mdash; Bvlgari Indonesia</p>'
-    + '</td>'
-    + '<td style="padding:26px 28px;text-align:right;vertical-align:middle;">'
-    + '<p style="color:#fff;font-size:28px;font-weight:800;margin:0;letter-spacing:-1px;">' + totalRate + '%</p>'
-    + '<p style="color:#a7f3d0;font-size:10px;margin:2px 0 0;text-transform:uppercase;letter-spacing:1px;">Overall Capture</p>'
-    + '</td>'
-    + '</tr></table>'
+        <p class="sec-t">Store Performance</p>
+        <table class="tbl">
+          <tr>
+            <th class="t-head" style="text-align:left;">Store</th>
+            <th class="t-head num">Footfall</th>
+            <th class="t-head num">Captured (CRM)</th>
+            <th class="t-head num">Rate</th>
+          </tr>
+          <tr>
+            <td class="t-cell">Plaza Indonesia</td>
+            <td class="t-cell num b">${fn(sumFF_PI)}</td>
+            <td class="t-cell num t-crm">${fn(sumCRM_PI)}</td>
+            <td class="t-cell num b" style="color:${rc(ratePI)};">${ratePI}%</td>
+          </tr>
+          <tr style="background:#f5f8fc;">
+            <td class="t-cell">Plaza Senayan</td>
+            <td class="t-cell num b">${fn(sumFF_PS)}</td>
+            <td class="t-cell num t-crm">${fn(sumCRM_PS)}</td>
+            <td class="t-cell num b" style="color:${rc(ratePS)};">${ratePS}%</td>
+          </tr>
+          <tr style="background:#eef2ff;">
+            <td class="t-cell" style="font-weight:700;">TOTAL</td>
+            <td class="t-cell num b">${fn(totalFF)}</td>
+            <td class="t-cell num" style="color:#4f46e5;font-weight:700;">${fn(totalCRM)}</td>
+            <td class="t-cell num" style="font-weight:800;font-size:14px;color:${rc(totalRate)};">${totalRate}%</td>
+          </tr>
+        </table>
 
-    // === BODY ===
-    + '<div style="padding:24px 28px;">'
-    + '<p style="font-size:13px;color:#374151;line-height:1.6;margin:0 0 24px 0;">'
-    + 'Dear All,<br><br>'
-    + 'Berikut adalah laporan <b>Footfall Capture Rate</b> untuk periode <b>' + month + ' ' + year + '</b>. '
-    + 'Total <b>' + fn(totalFF) + '</b> pengunjung tercatat melalui door counter, '
-    + 'dan <b>' + fn(totalCRM) + '</b> berhasil di-capture oleh tim advisor '
-    + '(<b>' + totalRate + '%</b> overall capture rate).</p>'
+        <p class="sec-t">Daily Breakdown</p>
+        <table class="tbl">
+          <tr>
+            <th class="t-head" style="text-align:left;" rowspan="2">Date</th>
+            <th class="t-head" style="text-align:center;background:#e0f2e8;color:#065f46;" colspan="3">Plaza Indonesia</th>
+            <th class="t-head" style="text-align:center;background:#fef3c7;color:#92400e;" colspan="3">Plaza Senayan</th>
+          </tr>
+          <tr>
+            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Door</th>
+            <th class="t-head num" style="font-size:9px;padding:4px 10px;">CRM</th>
+            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Rate</th>
+            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Door</th>
+            <th class="t-head num" style="font-size:9px;padding:4px 10px;">CRM</th>
+            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Rate</th>
+          </tr>`;
 
-    // === STORE SUMMARY ===
-    + '<p style="font-size:14px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px 0;">Store Performance Summary</p>'
-    + '<table style="width:100%;border-collapse:collapse;margin-bottom:24px;">'
-    + '<tr><th style="' + tS + ' text-align:left;">Store</th><th style="' + tS + ' text-align:right;">Total Footfall</th><th style="' + tS + ' text-align:right;">Captured (CRM)</th><th style="' + tS + ' text-align:right;">Capture Rate</th></tr>'
-    + '<tr><td style="' + cS + '">Plaza Indonesia</td><td style="' + cB + '">' + fn(sumFF_PI) + '</td><td style="' + cR + 'color:#4f46e5;font-weight:600;">' + fn(sumCRM_PI) + '</td><td style="' + cR + 'font-weight:700;color:' + rc(ratePI) + ';">' + ratePI + '%</td></tr>'
-    + '<tr style="background:' + zL + ';"><td style="' + cS + '">Plaza Senayan</td><td style="' + cB + '">' + fn(sumFF_PS) + '</td><td style="' + cR + 'color:#4f46e5;font-weight:600;">' + fn(sumCRM_PS) + '</td><td style="' + cR + 'font-weight:700;color:' + rc(ratePS) + ';">' + ratePS + '%</td></tr>'
-    + '<tr style="background:#eef2ff;font-weight:600;"><td style="' + cS + 'font-weight:700;">TOTAL</td><td style="' + cB + '">' + fn(totalFF) + '</td><td style="' + cR + 'color:#4f46e5;font-weight:700;">' + fn(totalCRM) + '</td><td style="' + cR + 'font-weight:800;font-size:14px;color:' + rc(totalRate) + ';">' + totalRate + '%</td></tr>'
-    + '</table>'
-
-    // === DAILY BREAKDOWN ===
-    + '<p style="font-size:14px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px 0;">Daily Breakdown</p>'
-    + '<table style="width:100%;border-collapse:collapse;margin-bottom:24px;">'
-    + '<tr><th style="' + tS + ' text-align:left;" rowspan="2">Date</th>'
-    + '<th style="' + tS + ' text-align:center;background:#e0f2e8;color:#065f46;" colspan="3">Plaza Indonesia</th>'
-    + '<th style="' + tS + ' text-align:center;background:#fef3c7;color:#92400e;" colspan="3">Plaza Senayan</th></tr>'
-    + '<tr><th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Door</th>'
-    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">CRM</th>'
-    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Rate</th>'
-    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Door</th>'
-    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">CRM</th>'
-    + '<th style="' + tS + 'text-align:right;font-size:9px;padding:4px 10px;">Rate</th></tr>';
-
-    // Daily rows
+    // Process daily rows concisely
     data.forEach(function(item, idx) {
-      var bg = idx % 2 !== 0 ? 'background:' + zL + ';' : '';
-      var dateLabel = item.date;
+      var bg = idx % 2 !== 0 ? 'background:#f5f8fc;' : '';
+      var dL = item.date;
       try {
         var d = new Date(item.date);
         if (!isNaN(d.getTime())) {
-          dateLabel = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-          var dow = d.getDay();
-          if (dow === 0 || dow === 6) dateLabel = '<span style="color:#dc2626;font-weight:bold;">' + dateLabel + '</span>';
+          dL = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+          if (d.getDay() === 0 || d.getDay() === 6) dL = '<span style="color:#dc2626;font-weight:bold;">' + dL + '</span>';
         }
       } catch(e) {}
 
-      html += '<tr style="' + bg + '">'
-        + '<td style="' + cS + 'white-space:nowrap;">' + dateLabel + '</td>'
-        + '<td style="' + cR + '">' + item.footfallPI + '</td>'
-        + '<td style="' + cR + 'color:#4f46e5;font-weight:600;">' + item.trafficPI + '</td>'
-        + '<td style="' + cR + 'font-weight:600;color:' + rc(item.ratePI) + ';">' + item.ratePI + '%</td>'
-        + '<td style="' + cR + '">' + item.footfallPS + '</td>'
-        + '<td style="' + cR + 'color:#4f46e5;font-weight:600;">' + item.trafficPS + '</td>'
-        + '<td style="' + cR + 'font-weight:600;color:' + rc(item.ratePS) + ';">' + item.ratePS + '%</td>'
-        + '</tr>';
+      html += `
+          <tr style="${bg}">
+            <td class="t-cell" style="white-space:nowrap;">${dL}</td>
+            <td class="t-cell num">${item.footfallPI}</td>
+            <td class="t-cell num t-crm">${item.trafficPI}</td>
+            <td class="t-cell num b" style="color:${rc(item.ratePI)};">${item.ratePI}%</td>
+            <td class="t-cell num">${item.footfallPS}</td>
+            <td class="t-cell num t-crm">${item.trafficPS}</td>
+            <td class="t-cell num b" style="color:${rc(item.ratePS)};">${item.ratePS}%</td>
+          </tr>`;
     });
 
-    // Daily total row
-    html += '<tr style="background:#eef2ff;font-weight:700;">'
-      + '<td style="' + cS + 'font-weight:700;">TOTAL</td>'
-      + '<td style="' + cB + '">' + fn(sumFF_PI) + '</td>'
-      + '<td style="' + cR + 'color:#4f46e5;font-weight:700;">' + fn(sumCRM_PI) + '</td>'
-      + '<td style="' + cR + 'font-weight:700;color:' + rc(ratePI) + ';">' + ratePI + '%</td>'
-      + '<td style="' + cB + '">' + fn(sumFF_PS) + '</td>'
-      + '<td style="' + cR + 'color:#4f46e5;font-weight:700;">' + fn(sumCRM_PS) + '</td>'
-      + '<td style="' + cR + 'font-weight:700;color:' + rc(ratePS) + ';">' + ratePS + '%</td>'
-      + '</tr></table>'
-
-      + '<p style="font-size:11px;color:#9ca3af;margin:8px 0 0 0;"><em>Detail lengkap terlampir dalam file CSV.</em></p>'
-
-      // FOOTER
-      + '<div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:24px;">'
-      + '<p style="font-size:11px;color:#9ca3af;margin:0;line-height:1.5;">'
-      + 'This report was automatically generated by the Bvlgari Intelligence Dashboard<br>'
-      + new Date().toLocaleString('id-ID') + ' &mdash; MRA Retail Indonesia</p>'
-      + '</div></div></div>';
+    html += `
+          <tr style="background:#eef2ff;font-weight:700;">
+            <td class="t-cell">TOTAL</td>
+            <td class="t-cell num">${fn(sumFF_PI)}</td>
+            <td class="t-cell num" style="color:#4f46e5;">${fn(sumCRM_PI)}</td>
+            <td class="t-cell num" style="color:${rc(ratePI)};">${ratePI}%</td>
+            <td class="t-cell num">${fn(sumFF_PS)}</td>
+            <td class="t-cell num" style="color:#4f46e5;">${fn(sumCRM_PS)}</td>
+            <td class="t-cell num" style="color:${rc(ratePS)};">${ratePS}%</td>
+          </tr>
+        </table>
+        
+        <p style="font-size:11px;color:#9ca3af;margin:8px 0 0 0;"><em>Detail terlampir di file CSV.</em></p>
+        <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:24px;">
+          <p style="font-size:11px;color:#9ca3af;margin:0;line-height:1.5;">
+            Generated by Bvlgari Dashboard<br>
+            ${new Date().toLocaleString('id-ID')} &mdash; MRA Retail
+          </p>
+        </div>
+      </div>
+    </div>
+    </body>
+    </html>`;
 
     // Send
     var recipients = CONFIG.EMAIL_RECIPIENTS;
     if (!recipients || recipients.length === 0) {
+      logEmailActivity('Footfall Rate Report', `${month} ${year}`, 'None', 'FAILED: No Config');
       return { success: false, message: 'Tidak ada email penerima di Config.' };
     }
 
     MailApp.sendEmail({
       to: recipients.join(','),
       subject: 'Footfall Capture Rate Report - ' + month + ' ' + year + ' | Bvlgari Indonesia',
-      htmlBody: html,
-      attachments: [csvBlob]
+      htmlBody: html
     });
 
+    logEmailActivity('Footfall Rate Report', `${month} ${year}`, recipients.join(','), 'SUCCESS');
     return { success: true, message: 'Report berhasil dikirim ke ' + recipients.join(', ') };
 
   } catch (e) {
     console.error('sendFootfallCaptureRateEmail Error: ' + e.message);
+    logEmailActivity('Footfall Rate Report', 'Unknown', 'Unknown', `ERROR: ${e.message}`);
     return { success: false, message: e.message };
   }
 }

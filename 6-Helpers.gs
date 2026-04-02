@@ -1320,3 +1320,34 @@ function syncSalesToTraffic() {
   console.log(resultMsg);
   return { status: 'success', message: resultMsg, count: syncCount };
 }
+
+/**
+ * Helper to log email sending activities to a dedicated sheet
+ * @param {string} reportType - The name/type of the report (e.g. 'Daily CRM Report', 'Footfall Report')
+ * @param {string} periodInfo - Period covered by the report (e.g. '01 March 2026')
+ * @param {string} recipientsStr - Comma-separated list of recipients
+ * @param {string} status - 'SUCCESS' or error message string
+ */
+function logEmailActivity(reportType, periodInfo, recipientsStr, status) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetName = CONFIG.SHEETS.LOG_EMAIL || 'log_email_sent';
+    let logSheet = ss.getSheetByName(sheetName);
+    
+    if (!logSheet) {
+      logSheet = ss.insertSheet(sheetName);
+      // Create Header
+      logSheet.appendRow(['Date', 'Time', 'Report Type', 'Target Period', 'Recipients', 'Status']);
+      logSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#f3f4f6');
+      logSheet.setFrozenRows(1);
+    }
+    
+    const currDate = new Date();
+    const dateStr = Utilities.formatDate(currDate, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+    const timeStr = Utilities.formatDate(currDate, Session.getScriptTimeZone(), 'HH:mm:ss');
+    logSheet.appendRow([dateStr, timeStr, reportType, periodInfo, recipientsStr, status]);
+    
+  } catch (error) {
+    console.error('Failed to log email activity: ' + error.message);
+  }
+}

@@ -19,7 +19,8 @@ const CONFIG = {
     MASTER_STOCK: 'master_stock',
     FOOTFALL_PI: 'footfall_pi',
     FOOTFALL_PS: 'footfall_ps',
-    TRAFFIC_SUMMARY: 'Traffic_Summary'
+    TRAFFIC_SUMMARY: 'Traffic_Summary',
+    LOG_EMAIL: 'log_email_sent'
   },
   // Setting Alamat Email Tujuan Report Otomatis
   EMAIL_RECIPIENTS: [
