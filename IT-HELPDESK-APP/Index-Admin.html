@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Helpdesk Admin | MRA Retail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { theme: { extend: {
+            colors: { 'bk':'#0f172a', 'bl':'#2563eb' },
+            fontFamily: { 'dp':['Playfair Display','serif'], 'sn':['Inter','sans-serif'] }
+        }}}
+    </script>
+    <style>
+        *{box-sizing:border-box}
+        body{font-family:'Inter',sans-serif;background:#f1f5f9;margin:0}
+        .toast{position:fixed;top:24px;right:24px;background:#0f172a;color:#fff;padding:14px 28px;border-radius:14px;font-size:13px;font-weight:600;z-index:300;transform:translateX(120%);transition:transform .4s cubic-bezier(.16,1,.3,1);box-shadow:0 20px 60px rgba(0,0,0,.2)}
+        .toast.show{transform:translateX(0)}
+        .sidebar{width:260px;min-height:100vh;background:linear-gradient(180deg,#0f172a,#1e293b);position:fixed;left:0;top:0;z-index:50;display:flex;flex-direction:column}
+        .nav-btn{display:flex;align-items:center;gap:12px;padding:12px 24px;color:#94a3b8;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border-left:3px solid transparent}
+        .nav-btn:hover{color:#e2e8f0;background:rgba(255,255,255,.04)}
+        .nav-btn.on{color:#fff;background:rgba(59,130,246,.12);border-left-color:#3b82f6}
+        .main{margin-left:260px;min-height:100vh}
+        .scard{background:#fff;border-radius:20px;padding:24px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:all .2s}
+        .scard:hover{box-shadow:0 8px 25px rgba(0,0,0,.08);transform:translateY(-2px)}
+        .ttable{width:100%;border-collapse:separate;border-spacing:0}
+        .ttable th{background:#f8fafc;padding:12px 16px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#64748b;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:5}
+        .ttable td{padding:14px 16px;border-bottom:1px solid #f1f5f9;font-size:13px}
+        .ttable tbody tr{cursor:pointer;transition:background .15s}
+        .ttable tbody tr:hover{background:#f8fafc}
+        .badge{display:inline-flex;padding:4px 10px;border-radius:8px;font-size:10px;font-weight:700;text-transform:uppercase}
+        .b-high{background:#fef2f2;color:#dc2626}.b-medium{background:#fffbeb;color:#d97706}.b-low{background:#f0fdf4;color:#16a34a}
+        .b-open{background:#fffbeb;color:#d97706}.b-resolved{background:#f0fdf4;color:#16a34a}.b-in{background:#eff6ff;color:#2563eb}.b-responded{background:#eff6ff;color:#2563eb}
+        .sla-emerald{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+        .sla-red{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+        .sla-amber{background:#fffbeb;color:#d97706;border:1px solid #fde68a}
+        .sla-blue{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+        .sla-gray{background:#f8fafc;color:#64748b;border:1px solid #e2e8f0}
+        .bar{height:28px;border-radius:6px;transition:width .6s cubic-bezier(.16,1,.3,1);background:linear-gradient(90deg,#3b82f6,#2563eb);min-width:4px}
+        .panel{position:fixed;top:0;right:0;width:480px;height:100vh;background:#fff;z-index:60;transform:translateX(100%);transition:transform .35s cubic-bezier(.16,1,.3,1);box-shadow:-20px 0 60px rgba(0,0,0,.1);overflow-y:auto}
+        .panel.open{transform:translateX(0)}
+        .overlay{position:fixed;inset:0;background:rgba(15,23,42,.3);z-index:55;opacity:0;pointer-events:none;transition:opacity .3s}
+        .overlay.open{opacity:1;pointer-events:all}
+        .glass{background:rgba(255,255,255,.85);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.9);box-shadow:0 25px 60px -12px rgba(0,0,0,.12)}
+        .gi{background:rgba(255,255,255,.6);border:1px solid rgba(226,232,240,.8);color:#1e293b;transition:all .2s}
+        .gi:focus{background:#fff;border-color:#3b82f6;outline:none;box-shadow:0 0 0 4px rgba(59,130,246,.1)}
+    </style>
+</head>
+<body class="text-slate-700">
+
+<div id="toast" class="toast"></div>
+
+<!-- ======== LOGIN ======== -->
+<div id="loginScreen" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-100 to-blue-50">
+    <div class="absolute top-8 left-8">
+        <h1 class="text-2xl font-dp font-bold tracking-widest text-slate-800">HELPDESK</h1>
+        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[.2em]">IT Admin Console</p>
+    </div>
+    <div class="glass rounded-3xl p-10 w-full max-w-sm">
+        <h2 class="text-xl font-bold text-slate-800 mb-1">Admin Login</h2>
+        <p class="text-xs text-slate-400 mb-8">Hanya untuk tim IT.</p>
+        <div class="mb-5">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Lokasi</label>
+            <select id="selStore" title="Lokasi" aria-label="Lokasi" onchange="ADM.onStore()" class="w-full gi p-3.5 rounded-xl font-semibold text-sm"><option value="" disabled selected>Memuat...</option></select>
+        </div>
+        <div class="mb-5">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Nama</label>
+            <select id="selName" title="Nama" aria-label="Nama" disabled class="w-full gi p-3.5 rounded-xl font-semibold text-sm disabled:opacity-50"><option value="" disabled selected>Pilih Lokasi</option></select>
+        </div>
+        <div class="mb-8">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">PIN</label>
+            <input type="password" id="inPin" maxlength="4" inputmode="numeric" placeholder="••••" class="w-full gi p-3.5 rounded-xl font-bold text-center tracking-[.8em] text-lg">
+        </div>
+        <button onclick="ADM.login()" id="btnLogin" class="w-full py-4 rounded-xl font-bold text-white bg-bk shadow-lg active:scale-[.98] transition-all">MASUK</button>
+    </div>
+</div>
+
+<!-- ======== DASHBOARD ======== -->
+<div id="app" class="hidden">
+    <div class="sidebar">
+        <div class="p-6 pb-2">
+            <h1 class="text-xl font-dp font-bold text-white tracking-wider">HELPDESK</h1>
+            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-[.2em] mt-1">Admin Console</p>
+        </div>
+        <div class="px-4 py-3"><div class="bg-slate-800/60 rounded-xl p-3">
+            <p class="text-[10px] text-slate-500 font-bold uppercase">Logged in as</p>
+            <p class="text-sm text-white font-bold mt-0.5" id="sName">—</p>
+            <p class="text-[10px] text-slate-400" id="sStore">—</p>
+        </div></div>
+        <nav class="mt-4 flex-1">
+            <div class="nav-btn on" onclick="ADM.page('dash')" id="nDash">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>Dashboard
+            </div>
+            <div class="nav-btn" onclick="ADM.page('list')" id="nList">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Semua Tiket
+            </div>
+        </nav>
+        <div class="p-4 mt-auto">
+            <button onclick="ADM.logout()" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 text-xs font-bold transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Keluar
+            </button>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- Top Bar -->
+        <div class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-30">
+            <div><h2 class="text-lg font-bold text-slate-800" id="pTitle">Dashboard</h2><p class="text-xs text-slate-400" id="pSub">Ringkasan tiket</p></div>
+            <div class="flex items-center gap-3">
+                <select id="fMonth" title="Bulan" aria-label="Bulan" onchange="ADM.refresh()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 outline-none"></select>
+                <select id="fYear" title="Tahun" aria-label="Tahun" onchange="ADM.refresh()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 outline-none w-20"></select>
+                <button onclick="ADM.refresh()" class="bg-bl text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm">Refresh</button>
+            </div>
+        </div>
+
+        <!-- PAGE: DASHBOARD -->
+        <div id="pgDash" class="p-8">
+            <div class="grid grid-cols-3 gap-5 mb-8">
+                <div class="scard"><p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Open</p><p class="text-3xl font-extrabold text-amber-500" id="stOpen">0</p></div>
+                <div class="scard"><p class="text-[10px] font-bold text-slate-400 uppercase mb-2">In Progress</p><p class="text-3xl font-extrabold text-blue-500" id="stProg">0</p></div>
+                <div class="scard"><p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Resolved</p><p class="text-3xl font-extrabold text-emerald-500" id="stDone">0</p></div>
+            </div>
+            <div class="grid grid-cols-2 gap-5 mb-8">
+                <div class="scard"><h3 class="text-sm font-bold text-slate-700 mb-4">Per Kategori</h3><div id="chCat" class="space-y-3"></div></div>
+                <div class="scard"><h3 class="text-sm font-bold text-slate-700 mb-4">Per Store</h3><div id="chStore" class="space-y-3"></div></div>
+            </div>
+            <div class="scard">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-sm font-bold text-slate-700">Tiket Terbaru</h3><button onclick="ADM.page('list')" class="text-xs text-bl font-bold">Lihat Semua →</button></div>
+                <div id="recent" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <!-- PAGE: ALL TICKETS -->
+        <div id="pgList" class="p-8 hidden">
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 mb-6 flex flex-wrap gap-3 items-center">
+                <select id="flStore" title="Store" aria-label="Store" onchange="ADM.filter()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 outline-none"><option value="">Semua Store</option></select>
+                <select id="flPrio" title="Prioritas" aria-label="Prioritas" onchange="ADM.filter()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 outline-none"><option value="">Semua Prioritas</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select>
+                <select id="flStatus" title="Status" aria-label="Status" onchange="ADM.filter()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 outline-none"><option value="">Semua Status</option><option value="Open">Open</option><option value="In Progress">In Progress</option><option value="Resolved">Resolved</option></select>
+                <div class="flex-1"></div>
+                <p class="text-xs text-slate-400 font-bold" id="tCount">0 tiket</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto max-h-[65vh] overflow-y-auto">
+                    <table class="ttable"><thead><tr>
+                        <th>ID</th><th>Tanggal</th><th>Store</th><th>Kategori</th><th>Pelapor</th><th>Prioritas</th><th>Status</th><th>SLA</th><th>Assigned</th>
+                    </tr></thead><tbody id="tBody"><tr><td colspan="9" class="text-center text-slate-400 py-10">Memuat...</td></tr></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE PANEL -->
+    <div class="overlay" id="ov" onclick="ADM.closePanel()"></div>
+    <div class="panel" id="pnl">
+        <div class="p-8">
+            <div class="flex justify-between items-start mb-6">
+                <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" id="pId">—</p><h3 class="text-xl font-bold text-slate-800 mt-1" id="pCat">—</h3></div>
+                <button onclick="ADM.closePanel()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400">✕</button>
+            </div>
+            <div class="space-y-3 mb-8">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 rounded-xl p-3"><p class="text-[9px] font-bold text-slate-400 uppercase">Store</p><p class="text-sm font-bold mt-0.5" id="pStore">—</p></div>
+                    <div class="bg-slate-50 rounded-xl p-3"><p class="text-[9px] font-bold text-slate-400 uppercase">Pelapor</p><p class="text-sm font-bold mt-0.5" id="pWho">—</p></div>
+                    <div class="bg-slate-50 rounded-xl p-3"><p class="text-[9px] font-bold text-slate-400 uppercase">Dibuat</p><p class="text-sm font-bold mt-0.5" id="pDate">—</p></div>
+                    <div class="bg-slate-50 rounded-xl p-3"><p class="text-[9px] font-bold text-slate-400 uppercase">Prioritas</p><p class="text-sm font-bold mt-0.5" id="pPrio">—</p></div>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-4"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Deskripsi</p><p class="text-sm text-slate-700" id="pDesc">—</p></div>
+            </div>
+            <hr class="border-slate-100 mb-6">
+            <h4 class="text-sm font-bold text-slate-800 mb-4">🛠 Update Tiket</h4>
+            <input type="hidden" id="pTid">
+            <div class="mb-4">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
+                <select id="pStatus" title="Status" aria-label="Status" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-semibold outline-none focus:border-bl">
+                    <option value="Open">Open</option><option value="In Progress">In Progress</option><option value="Resolved">Resolved</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Assign ke IT</label>
+                <select id="pAssign" title="Assign" aria-label="Assign" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-semibold outline-none focus:border-bl"><option value="">—</option></select>
+            </div>
+            <div class="mb-6">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Catatan IT</label>
+                <textarea id="pNotes" rows="3" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-bl" placeholder="Solusi / catatan..."></textarea>
+            </div>
+            <button onclick="ADM.save()" id="btnSave" class="w-full py-4 bg-bl text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 active:scale-[.98] transition-all">Simpan Update</button>
+        </div>
+    </div>
+
+    <!-- LOADER -->
+    <div id="loader" class="fixed inset-0 bg-white/60 z-[100] hidden items-center justify-center flex-col" style="-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">
+        <div class="w-14 h-14 border-4 border-slate-200 border-t-bk rounded-full animate-spin mb-4"></div>
+        <p class="text-sm font-bold text-bk uppercase tracking-widest animate-pulse">Memuat Data...</p>
+    </div>
+</div>
+
+<?!= include('JsAdmin'); ?>
+</body>
+</html>

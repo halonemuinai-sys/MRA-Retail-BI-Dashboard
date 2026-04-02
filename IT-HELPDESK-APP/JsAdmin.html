@@ -1,0 +1,312 @@
+<script>
+// ============================================================
+// ADMIN CONTROLLER — Desktop IT Helpdesk
+// ============================================================
+const ADMIN = {
+    currentUser: null,
+    allUsers: [],
+    allTickets: [],
+    filteredTickets: [],
+    categories: [],
+    itStaff: [],
+    stats: null,
+    selectedMonth: new Date().getMonth(),
+    selectedYear: new Date().getFullYear(),
+    autoRefreshTimer: null,
+    currentPage: 'overview',
+
+    // ---- INIT ----
+    init: () => {
+        google.script.run.withSuccessHandler(res => {
+            const storeSel = document.getElementById('loginStore');
+            const nameSel = document.getElementById('loginSelect');
+            storeSel.innerHTML = '<option value="" disabled selected>-- Pilih Lokasi --</option>';
+            nameSel.innerHTML = '<option value="" disabled selected>Pilih Lokasi</option>';
+            if (res.success) {
+                ADMIN.allUsers = res.users;
+                const stores = [...new Set(res.users.map(u => u.store))].filter(Boolean).sort();
+                stores.forEach(s => { storeSel.innerHTML += `<option value="${s}">${s}</option>`; });
+            }
+        }).withFailureHandler(e => ADMIN.toast('Error: ' + e.message)).getHelpdeskUserList();
+
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) ADMIN.categories = res.categories;
+        }).getHelpdeskCategories();
+
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) ADMIN.itStaff = res.staff;
+        }).getITStaffList();
+    },
+
+    onStoreChange: () => {
+        const store = document.getElementById('loginStore').value;
+        const nameSel = document.getElementById('loginSelect');
+        nameSel.innerHTML = '<option value="" disabled selected>-- Pilih Nama --</option>';
+        if (!store) { nameSel.disabled = true; return; }
+        ADMIN.allUsers.filter(u => u.store === store).forEach(u => {
+            nameSel.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+        });
+        nameSel.disabled = false;
+    },
+
+    login: () => {
+        const name = document.getElementById('loginSelect').value;
+        const pin = document.getElementById('loginPin').value;
+        if (!name || !pin) { ADMIN.toast('Lengkapi semua field'); return; }
+
+        const btn = document.getElementById('btnLogin');
+        btn.disabled = true; btn.textContent = 'Memverifikasi...';
+
+        google.script.run.withSuccessHandler(res => {
+            btn.disabled = false; btn.textContent = 'MASUK';
+            if (res.success) {
+                if (res.user.role !== 'admin' && res.user.role !== 'it') {
+                    ADMIN.toast('Akses ditolak. Hanya Admin/IT yang diizinkan.');
+                    return;
+                }
+                ADMIN.currentUser = res.user;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('adminApp').classList.remove('hidden');
+                document.getElementById('sidebarName').textContent = res.user.name;
+                document.getElementById('sidebarStore').textContent = res.user.store;
+                ADMIN.initFilters();
+                ADMIN.refresh();
+                // Auto-refresh 30s
+                ADMIN.autoRefreshTimer = setInterval(() => ADMIN.silentRefresh(), 30000);
+            } else { ADMIN.toast(res.message); }
+        }).withFailureHandler(e => { btn.disabled = false; btn.textContent = 'MASUK'; ADMIN.toast('Error: ' + e.message); })
+        .loginHelpdesk(name, pin);
+    },
+
+    logout: () => {
+        if (ADMIN.autoRefreshTimer) clearInterval(ADMIN.autoRefreshTimer);
+        ADMIN.currentUser = null;
+        document.getElementById('adminApp').classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+    },
+
+    initFilters: () => {
+        const mSel = document.getElementById('filterMonth');
+        const ySel = document.getElementById('filterYear');
+        const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        mSel.innerHTML = '';
+        months.forEach((m, i) => { const o = document.createElement('option'); o.value = i; o.textContent = m; mSel.appendChild(o); });
+        mSel.value = ADMIN.selectedMonth;
+        ySel.innerHTML = '';
+        for (let y = ADMIN.selectedYear - 2; y <= ADMIN.selectedYear + 1; y++) { const o = document.createElement('option'); o.value = y; o.textContent = y; ySel.appendChild(o); }
+        ySel.value = ADMIN.selectedYear;
+    },
+
+    // ---- UTILS ----
+    showLoader: () => { const l = document.getElementById('globalLoader'); if(l) { l.classList.remove('hidden'); l.style.display = 'flex'; } },
+    hideLoader: () => { const l = document.getElementById('globalLoader'); if(l) { l.classList.add('hidden'); l.style.display = ''; } },
+    toast: (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); },
+
+    // ---- NAV ----
+    showPage: (page) => {
+        ADMIN.currentPage = page;
+        document.getElementById('pageOverview').classList.toggle('hidden', page !== 'overview');
+        document.getElementById('pageTickets').classList.toggle('hidden', page !== 'tickets');
+        document.getElementById('navOverview').classList.toggle('active', page === 'overview');
+        document.getElementById('navTickets').classList.toggle('active', page === 'tickets');
+        document.getElementById('pageTitle').textContent = page === 'overview' ? 'Dashboard Overview' : 'Semua Tiket';
+        document.getElementById('pageSubtitle').textContent = page === 'overview' ? 'Ringkasan tiket IT bulan ini' : 'Kelola dan update tiket IT';
+    },
+
+    // ---- DATA LOAD ----
+    refresh: () => {
+        const m = parseInt(document.getElementById('filterMonth').value);
+        const y = parseInt(document.getElementById('filterYear').value);
+        ADMIN.selectedMonth = m;
+        ADMIN.selectedYear = y;
+        ADMIN.showLoader();
+
+        // Parallel load: stats + tickets
+        let loaded = 0;
+        const checkDone = () => { loaded++; if (loaded >= 2) ADMIN.hideLoader(); };
+
+        google.script.run.withSuccessHandler(res => {
+            if (res && res.success) { ADMIN.stats = res.stats; ADMIN.renderStats(); }
+            checkDone();
+        }).withFailureHandler(e => { console.error('Stats error:', e); checkDone(); }).getTicketStats(m, y);
+
+        google.script.run.withSuccessHandler(res => {
+            if (res && res.success) { ADMIN.allTickets = res.tickets; ADMIN.filteredTickets = res.tickets; ADMIN.renderTable(); ADMIN.renderRecent(); ADMIN.populateStoreFilter(); }
+            checkDone();
+        }).withFailureHandler(e => { console.error('Tickets error:', e); checkDone(); }).getHelpdeskTickets(ADMIN.currentUser ? ADMIN.currentUser.store : '', 'admin', m, y);
+    },
+
+    silentRefresh: () => {
+        const m = ADMIN.selectedMonth, y = ADMIN.selectedYear;
+        google.script.run.withSuccessHandler(res => {
+            if (res && res.success) { ADMIN.stats = res.stats; ADMIN.renderStats(); }
+        }).withFailureHandler(e => console.error(e)).getTicketStats(m, y);
+        google.script.run.withSuccessHandler(res => {
+            if (res && res.success) { ADMIN.allTickets = res.tickets; ADMIN.filterTickets(); ADMIN.renderRecent(); }
+        }).withFailureHandler(e => console.error(e)).getHelpdeskTickets(ADMIN.currentUser ? ADMIN.currentUser.store : '', 'admin', m, y);
+    },
+
+    // ---- RENDER STATS ----
+    renderStats: () => {
+        if (!ADMIN.stats) return;
+        const s = ADMIN.stats;
+        document.getElementById('statOpen').textContent = s.open;
+        document.getElementById('statProgress').textContent = s.responded;
+        document.getElementById('statResolved').textContent = s.resolved;
+        document.getElementById('statBreach').textContent = s.breached;
+        document.getElementById('prioHigh').textContent = s.byPriority.High || 0;
+        document.getElementById('prioMed').textContent = s.byPriority.Medium || 0;
+        document.getElementById('prioLow').textContent = s.byPriority.Low || 0;
+
+        // Chart: Category
+        const catDiv = document.getElementById('chartCategory');
+        const maxCat = Math.max(...Object.values(s.byCategory), 1);
+        let catHtml = '';
+        Object.entries(s.byCategory).sort((a,b) => b[1]-a[1]).forEach(([k,v]) => {
+            const pct = (v / maxCat * 100).toFixed(0);
+            catHtml += `<div class="flex items-center gap-3"><span class="text-[11px] font-semibold text-slate-600 w-32 truncate">${k}</span><div class="flex-1 bg-slate-100 rounded-md h-7 relative"><div class="chart-bar" style="width:${pct}%"></div></div><span class="text-xs font-bold text-slate-800 w-8 text-right">${v}</span></div>`;
+        });
+        catDiv.innerHTML = catHtml || '<p class="text-xs text-slate-400">Tidak ada data</p>';
+
+        // Chart: Store
+        const storeDiv = document.getElementById('chartStore');
+        const maxStore = Math.max(...Object.values(s.byStore), 1);
+        let storeHtml = '';
+        Object.entries(s.byStore).sort((a,b) => b[1]-a[1]).forEach(([k,v]) => {
+            const pct = (v / maxStore * 100).toFixed(0);
+            storeHtml += `<div class="flex items-center gap-3"><span class="text-[11px] font-semibold text-slate-600 w-32 truncate">${k}</span><div class="flex-1 bg-slate-100 rounded-md h-7 relative"><div class="chart-bar" style="width:${pct}%; background:linear-gradient(90deg,#8b5cf6,#7c3aed);"></div></div><span class="text-xs font-bold text-slate-800 w-8 text-right">${v}</span></div>`;
+        });
+        storeDiv.innerHTML = storeHtml || '<p class="text-xs text-slate-400">Tidak ada data</p>';
+    },
+
+    // ---- RENDER TABLE ----
+    populateStoreFilter: () => {
+        const sel = document.getElementById('filterStore');
+        const stores = [...new Set(ADMIN.allTickets.map(t => t.store))].sort();
+        sel.innerHTML = '<option value="">Semua Store</option>';
+        stores.forEach(s => { sel.innerHTML += `<option value="${s}">${s}</option>`; });
+    },
+
+    filterTickets: () => {
+        const fs = document.getElementById('filterStore').value;
+        const fp = document.getElementById('filterPriority').value;
+        const fst = document.getElementById('filterStatus').value;
+        ADMIN.filteredTickets = ADMIN.allTickets.filter(t => {
+            if (fs && t.store !== fs) return false;
+            if (fp && t.priority !== fp) return false;
+            if (fst && t.status !== fst) return false;
+            return true;
+        });
+        ADMIN.renderTable();
+    },
+
+    renderTable: () => {
+        const tbody = document.getElementById('ticketTableBody');
+        const tickets = ADMIN.filteredTickets;
+        document.getElementById('ticketCount').textContent = tickets.length + ' tiket';
+
+        if (!tickets.length) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-slate-400 py-10">Tidak ada tiket ditemukan.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        // Show newest on top in table view
+        const sorted = [...tickets].reverse();
+        sorted.forEach(t => {
+            const prioBadge = `badge-${t.priority.toLowerCase()}`;
+            const statusBadge = `badge-${t.status.toLowerCase()}`;
+            const slaBadge = `badge-sla-${t.sla.color || 'gray'}`;
+
+            html += `<tr onclick="ADMIN.openPanel('${t.id}')">
+                <td class="font-bold text-slate-800 text-xs">${t.id}</td>
+                <td class="text-xs text-slate-500">${t.createdAt}</td>
+                <td class="text-xs font-semibold">${t.store}</td>
+                <td class="text-xs">${t.category}</td>
+                <td class="text-xs text-slate-500">${t.reportedBy}</td>
+                <td><span class="badge ${prioBadge}">${t.priority}</span></td>
+                <td><span class="badge ${statusBadge}">${t.status}</span></td>
+                <td><span class="badge ${slaBadge}">${t.sla.text}</span></td>
+                <td class="text-xs font-semibold text-violet-600">${t.assignedTo || '—'}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    },
+
+    renderRecent: () => {
+        const div = document.getElementById('recentTickets');
+        const recent = [...ADMIN.allTickets].reverse().slice(0, 5);
+        if (!recent.length) { div.innerHTML = '<p class="text-xs text-slate-400 py-4 text-center">Tidak ada tiket.</p>'; return; }
+
+        let html = '';
+        recent.forEach(t => {
+            const statusBadge = `badge-${t.status.toLowerCase()}`;
+            html += `<div class="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors" onclick="ADMIN.showPage('tickets'); setTimeout(() => ADMIN.openPanel('${t.id}'), 200);">
+                <div class="flex-1 min-w-0 pr-3">
+                    <p class="text-xs font-bold text-slate-800 truncate">${t.category} — ${t.description.substring(0,50)}${t.description.length>50?'...':''}</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">${t.id} • ${t.store} • ${t.createdAt}</p>
+                </div>
+                <span class="badge ${statusBadge}">${t.status}</span>
+            </div>`;
+        });
+        div.innerHTML = html;
+    },
+
+    // ---- SLIDE PANEL ----
+    openPanel: (id) => {
+        let t = ADMIN.allTickets.find(x => x.id === id);
+        if (!t) { t = ADMIN.filteredTickets.find(x => x.id === id); }
+        if (!t) return;
+
+        document.getElementById('panelTicketId').value = t.id;
+        document.getElementById('panelId').textContent = t.id;
+        document.getElementById('panelCategory').textContent = t.category;
+        document.getElementById('panelStore').textContent = t.store;
+        document.getElementById('panelReporter').textContent = t.reportedBy;
+        document.getElementById('panelCreated').textContent = t.createdAt;
+        document.getElementById('panelPriority').textContent = t.priority;
+        document.getElementById('panelResponded').textContent = t.respondedAt;
+        document.getElementById('panelResolved').textContent = t.resolvedAt;
+        document.getElementById('panelDesc').textContent = t.description;
+        document.getElementById('panelStatus').value = t.status;
+        document.getElementById('panelNotes').value = t.notes;
+
+        // Populate assign dropdown
+        const aSel = document.getElementById('panelAssign');
+        aSel.innerHTML = '<option value="">— Belum Ditugaskan —</option>';
+        ADMIN.itStaff.forEach(s => { aSel.innerHTML += `<option value="${s.name}">${s.name} (${s.role})</option>`; });
+        if (t.assignedTo) aSel.value = t.assignedTo;
+
+        document.getElementById('slideOverlay').classList.add('open');
+        document.getElementById('slidePanel').classList.add('open');
+    },
+
+    closePanel: () => {
+        document.getElementById('slidePanel').classList.remove('open');
+        document.getElementById('slideOverlay').classList.remove('open');
+    },
+
+    saveUpdate: () => {
+        const ticketId = document.getElementById('panelTicketId').value;
+        const status = document.getElementById('panelStatus').value;
+        const notes = document.getElementById('panelNotes').value;
+        const assignedTo = document.getElementById('panelAssign').value;
+        if (!ticketId) return;
+
+        const btn = document.getElementById('btnPanelSave');
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+        google.script.run.withSuccessHandler(res => {
+            btn.disabled = false; btn.textContent = 'Simpan Update';
+            if (res.success) {
+                ADMIN.toast(res.message);
+                ADMIN.closePanel();
+                ADMIN.refresh();
+            } else { ADMIN.toast('Error: ' + res.message); }
+        }).withFailureHandler(e => { btn.disabled = false; btn.textContent = 'Simpan Update'; ADMIN.toast('Error: ' + e.message); })
+        .saveHelpdeskTicket('', '', '', '', '', true, ticketId, status, notes, assignedTo);
+    }
+};
+
+window.onload = ADMIN.init;
+</script>

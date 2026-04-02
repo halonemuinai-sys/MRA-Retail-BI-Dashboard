@@ -1,0 +1,233 @@
+<script>
+var APP = {
+    user: null, users: [], tickets: [], cats: [], timer: null,
+
+    init: function() {
+        google.script.run.withSuccessHandler(function(r) {
+            if (!r || !r.ok) return;
+            APP.users = r.users;
+            var ss = document.getElementById('selStore');
+            ss.innerHTML = '<option value="" disabled selected>-- Pilih Lokasi --</option>';
+            var stores = [];
+            for (var i = 0; i < r.users.length; i++) {
+                if (stores.indexOf(r.users[i].store) === -1) stores.push(r.users[i].store);
+            }
+            stores.sort();
+            for (var j = 0; j < stores.length; j++) {
+                ss.innerHTML += '<option value="' + stores[j] + '">' + stores[j] + '</option>';
+            }
+        }).getUsers();
+
+        google.script.run.withSuccessHandler(function(r) {
+            if (r && r.ok) APP.cats = r.list;
+        }).getCategories();
+
+        APP.initFilters();
+    },
+
+    initFilters: function() {
+        var now = new Date();
+        var ms = document.getElementById('fMonth');
+        var ys = document.getElementById('fYear');
+        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        ms.innerHTML = '';
+        for (var i = 0; i < 12; i++) { ms.innerHTML += '<option value="' + i + '">' + months[i] + '</option>'; }
+        ms.value = now.getMonth();
+        ys.innerHTML = '';
+        for (var y = now.getFullYear() - 2; y <= now.getFullYear() + 1; y++) { ys.innerHTML += '<option value="' + y + '">' + y + '</option>'; }
+        ys.value = now.getFullYear();
+    },
+
+    onStore: function() {
+        var store = document.getElementById('selStore').value;
+        var ns = document.getElementById('selName');
+        ns.innerHTML = '<option value="" disabled selected>-- Pilih Nama --</option>';
+        if (!store) { ns.disabled = true; return; }
+        for (var i = 0; i < APP.users.length; i++) {
+            if (APP.users[i].store === store) {
+                ns.innerHTML += '<option value="' + APP.users[i].name + '">' + APP.users[i].name + '</option>';
+            }
+        }
+        ns.disabled = false;
+    },
+
+    login: function() {
+        var name = document.getElementById('selName').value;
+        var pin = document.getElementById('inPin').value;
+        if (!name) { APP.toast('Pilih nama'); return; }
+        if (!pin) { APP.toast('Masukkan PIN'); return; }
+        var btn = document.getElementById('btnLogin');
+        btn.disabled = true; btn.textContent = 'Memverifikasi...';
+
+        google.script.run.withSuccessHandler(function(r) {
+            btn.disabled = false; btn.textContent = 'MASUK';
+            if (!r || !r.ok) { APP.toast(r ? r.msg : 'Server error'); return; }
+            APP.user = r.user;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('hStore').textContent = r.user.store;
+            document.getElementById('hName').textContent = r.user.name;
+            APP.load();
+            APP.timer = setInterval(function() { APP.load(true); }, 60000);
+        }).withFailureHandler(function(e) {
+            btn.disabled = false; btn.textContent = 'MASUK';
+            APP.toast('Error: ' + e.message);
+        }).login(name, pin);
+    },
+
+    logout: function() {
+        if (APP.timer) clearInterval(APP.timer);
+        APP.user = null;
+        document.getElementById('mainApp').classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('inPin').value = '';
+    },
+
+    toast: function(msg) {
+        var t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(function() { t.classList.remove('show'); }, 3000);
+    },
+
+    // ---- TICKETS ----
+    load: function(silent) {
+        if (!APP.user) return;
+        var m = parseInt(document.getElementById('fMonth').value);
+        var y = parseInt(document.getElementById('fYear').value);
+        if (!silent) { var l = document.getElementById('loader'); l.classList.remove('hidden'); l.style.display = 'flex'; }
+
+        google.script.run.withSuccessHandler(function(r) {
+            var l = document.getElementById('loader'); l.classList.add('hidden'); l.style.display = '';
+            if (!r || !r.ok) {
+                document.getElementById('ticketList').innerHTML = '<div class="card p-8 text-center text-red-500 text-sm">Gagal: ' + (r ? r.msg : 'Server error') + '</div>';
+                return;
+            }
+            APP.tickets = r.tickets;
+            APP.render(r.tickets);
+        }).withFailureHandler(function(e) {
+            var l = document.getElementById('loader'); l.classList.add('hidden'); l.style.display = '';
+            document.getElementById('ticketList').innerHTML = '<div class="card p-8 text-center text-red-500 text-sm">Error: ' + e.message + '</div>';
+        }).getTickets(APP.user.store, APP.user.role, m, y);
+    },
+
+    render: function(tickets) {
+        var h = 0, m = 0, lo = 0;
+        for (var i = 0; i < tickets.length; i++) {
+            var t = tickets[i];
+            if (t.status !== 'Resolved') {
+                if (t.priority === 'High') h++; else if (t.priority === 'Medium') m++; else lo++;
+            }
+        }
+        document.getElementById('cH').textContent = h;
+        document.getElementById('cM').textContent = m;
+        document.getElementById('cL').textContent = lo;
+
+        var el = document.getElementById('ticketList');
+        if (!tickets.length) { el.innerHTML = '<div class="card p-8 text-center text-slate-400 text-sm">Tidak ada tiket.</div>'; return; }
+
+        var html = '';
+        for (var i = 0; i < tickets.length; i++) {
+            var t = tickets[i];
+            var sc = 'sla-' + (t.sla.color || 'gray');
+            var sb = t.status === 'Resolved' ? 'bg-emerald-50 text-emerald-600' : (t.status === 'Open' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600');
+            var pi = t.priority === 'High' ? '🔴' : (t.priority === 'Medium' ? '🟡' : '🟢');
+            var asg = t.assigned ? '<span class="text-[9px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded font-bold">👤 ' + t.assigned + '</span>' : '';
+
+            html += '<div class="card p-5 cursor-pointer hover:shadow-md transition-shadow" onclick="APP.detail(\'' + t.id + '\')">' +
+                '<div class="flex justify-between items-start mb-2">' +
+                    '<div class="pr-3 flex-1 min-w-0">' +
+                        '<div class="flex items-center gap-2 mb-1"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">' + t.id + '</p>' + asg + '</div>' +
+                        '<p class="font-bold text-slate-800 text-sm truncate">' + t.category + '</p>' +
+                        '<p class="text-[11px] text-slate-500 mt-0.5 truncate">' + t.desc + '</p>' +
+                        '<p class="text-[10px] text-slate-400 mt-1">' + t.reporter + ' • ' + t.date + '</p>' +
+                    '</div>' +
+                    '<span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ' + sb + '">' + t.status + '</span>' +
+                '</div>' +
+                '<div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">' +
+                    '<span class="text-[10px] font-bold text-slate-600">' + pi + ' ' + t.priority + '</span>' +
+                    '<span class="text-[9px] font-bold px-2 py-0.5 rounded-md ' + sc + '">SLA: ' + t.sla.text + '</span>' +
+                '</div>' +
+                (t.notes ? '<div class="mt-2 bg-blue-50/50 p-2 text-[10px] rounded border border-blue-100 truncate"><b class="text-blue-600">IT:</b> ' + t.notes + '</div>' : '') +
+            '</div>';
+        }
+        el.innerHTML = html;
+    },
+
+    // ---- DETAIL ----
+    detail: function(id) {
+        var t = null;
+        for (var i = 0; i < APP.tickets.length; i++) { if (APP.tickets[i].id === id) { t = APP.tickets[i]; break; } }
+        if (!t) return;
+        var sc = 'sla-' + (t.sla.color || 'gray');
+        document.getElementById('detailBody').innerHTML =
+            '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">' + t.id + '</p>' +
+            '<h3 class="text-lg font-dp font-bold text-slate-800 mb-4">' + t.category + '</h3>' +
+            '<div class="space-y-3 text-sm">' +
+                '<div class="flex justify-between"><span class="text-slate-400">Status</span><span class="font-bold">' + t.status + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-slate-400">Prioritas</span><span class="font-bold">' + t.priority + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-slate-400">Dibuat</span><span class="font-bold">' + t.date + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-slate-400">Respon</span><span class="font-bold">' + t.responded + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-slate-400">Selesai</span><span class="font-bold">' + t.resolved + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-slate-400">SLA</span><span class="font-bold px-2 py-0.5 rounded ' + sc + '">' + t.sla.text + '</span></div>' +
+                (t.assigned ? '<div class="flex justify-between"><span class="text-slate-400">Ditangani</span><span class="font-bold text-violet-600">' + t.assigned + '</span></div>' : '') +
+                '<div class="pt-3 border-t border-slate-100"><p class="text-slate-400 text-xs mb-1">Deskripsi:</p><p class="text-slate-700">' + t.desc + '</p></div>' +
+                (t.notes ? '<div class="pt-3 border-t border-slate-100"><p class="text-slate-400 text-xs mb-1">Catatan IT:</p><p class="text-blue-700">' + t.notes + '</p></div>' : '') +
+            '</div>';
+        document.getElementById('detailModal').classList.remove('hidden');
+        setTimeout(function() { document.getElementById('detailContent').style.transform = 'translateY(0)'; }, 10);
+    },
+
+    closeDetail: function() {
+        document.getElementById('detailContent').style.transform = 'translateY(100%)';
+        setTimeout(function() { document.getElementById('detailModal').classList.add('hidden'); }, 300);
+    },
+
+    // ---- NEW TICKET ----
+    openNew: function() {
+        var sel = document.getElementById('fCat');
+        sel.innerHTML = '<option value="" disabled selected>Pilih Kategori...</option>';
+        for (var i = 0; i < APP.cats.length; i++) {
+            sel.innerHTML += '<option value="' + APP.cats[i] + '">' + APP.cats[i] + '</option>';
+        }
+        document.getElementById('fPrio').value = 'Low';
+        document.getElementById('fDesc').value = '';
+        document.getElementById('modal').classList.remove('hidden');
+        setTimeout(function() { document.getElementById('modalContent').style.transform = 'translateY(0)'; }, 10);
+    },
+
+    closeModal: function() {
+        document.getElementById('modalContent').style.transform = 'translateY(100%)';
+        setTimeout(function() { document.getElementById('modal').classList.add('hidden'); }, 300);
+    },
+
+    submit: function() {
+        var cat = document.getElementById('fCat').value;
+        var prio = document.getElementById('fPrio').value;
+        var desc = document.getElementById('fDesc').value;
+        if (!cat || !desc) { APP.toast('Kategori & Deskripsi wajib diisi'); return; }
+
+        var btn = document.getElementById('btnSubmit');
+        btn.disabled = true; btn.textContent = 'Mengirim...';
+
+        google.script.run.withSuccessHandler(function(r) {
+            btn.disabled = false; btn.textContent = 'Kirim Laporan';
+            APP.closeModal();
+            if (r && r.ok) {
+                APP.toast(r.msg);
+                // Reset filter ke bulan ini agar tiket baru terlihat
+                var now = new Date();
+                document.getElementById('fMonth').value = now.getMonth();
+                document.getElementById('fYear').value = now.getFullYear();
+                APP.load();
+            } else {
+                APP.toast('Error: ' + (r ? r.msg : 'Server error'));
+            }
+        }).withFailureHandler(function(e) {
+            btn.disabled = false; btn.textContent = 'Kirim Laporan';
+            APP.toast('Error: ' + e.message);
+        }).createTicket(APP.user.store, APP.user.name, cat, desc, prio);
+    }
+};
+
+window.onload = APP.init;
+</script>
