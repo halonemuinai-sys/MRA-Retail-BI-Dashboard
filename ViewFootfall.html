@@ -60,7 +60,7 @@
     </div>
 
     <!-- KPI Cards (Store Performance) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 px-2">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 px-2">
         <!-- Plaza Indonesia -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-full -z-0"></div>
@@ -121,6 +121,36 @@
                 </div>
             </div>
         </div>
+
+        <!-- Bali -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-bl-full -z-0"></div>
+            <div class="flex items-center gap-3 mb-4 relative z-10">
+                <div class="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-display font-bold text-brand-dark text-lg">Bali</h3>
+                    <p class="text-xs text-slate-500 font-medium">Capture Rate Overview</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 relative z-10">
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 text-center">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Total Footfall</p>
+                    <p class="text-xl font-bold text-slate-700" id="ff_bl_total">0</p>
+                </div>
+                <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 text-center">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 mb-1">Captured (CRM)</p>
+                    <p class="text-xl font-bold text-indigo-700" id="ff_bl_crm">0</p>
+                </div>
+                <div class="bg-cyan-50 rounded-xl p-3 border border-cyan-100 text-center relative overflow-hidden">
+                    <p class="text-[10px] uppercase font-bold tracking-wider text-cyan-600 mb-1">Capture Rate</p>
+                    <p class="text-2xl font-bold text-cyan-600" id="ff_bl_rate">0%</p>
+                </div>
+            </div>
+        </div>
     </div>
 
 
@@ -136,13 +166,16 @@
         <div class="flex-grow overflow-auto custom-scrollbar">
             <table class="w-full text-xs text-left border-collapse table-fixed">
                 <colgroup>
-                    <col class="w-[14%]">
-                    <col class="w-[14.3%]">
-                    <col class="w-[14.3%]">
-                    <col class="w-[14.3%]">
-                    <col class="w-[14.3%]">
-                    <col class="w-[14.3%]">
-                    <col class="w-[14.3%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
+                    <col class="w-[10%]">
                 </colgroup>
                 <thead class="text-slate-500 font-bold sticky top-0 z-10">
                     <!-- Row 1: Group headers -->
@@ -155,6 +188,9 @@
                         </th>
                         <th colspan="3" class="text-center px-1 py-[10px] text-[11px] font-bold text-amber-800 bg-amber-50 border-b border-amber-200 border-l-2 border-slate-200">
                             Plaza Senayan
+                        </th>
+                        <th colspan="3" class="text-center px-1 py-[10px] text-[11px] font-bold text-cyan-800 bg-cyan-50 border-b border-cyan-200 border-l-2 border-slate-200">
+                            Bali
                         </th>
                     </tr>
                     <!-- Row 2: Sub-headers -->
@@ -177,11 +213,20 @@
                         <th class="text-center px-2 py-[7px] text-[9px] uppercase tracking-[0.5px] text-amber-600 border-b-2 border-slate-200">
                             % Capture Rate
                         </th>
+                        <th class="text-center px-2 py-[7px] text-[9px] uppercase tracking-[0.5px] text-slate-500 border-b-2 border-slate-200 border-l-2 border-slate-200">
+                            Total Masuk (Door)
+                        </th>
+                        <th class="text-center px-2 py-[7px] text-[9px] uppercase tracking-[0.5px] text-indigo-500 border-b-2 border-slate-200">
+                            Captured (CRM)
+                        </th>
+                        <th class="text-center px-2 py-[7px] text-[9px] uppercase tracking-[0.5px] text-cyan-600 border-b-2 border-slate-200">
+                            % Capture Rate
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="footfallCrmTableBody" class="divide-y divide-slate-50 bg-white">
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-slate-400 italic">Memuat data analitik...</td>
+                        <td colspan="10" class="py-12 text-center text-slate-400 italic">Memuat data analitik...</td>
                     </tr>
                 </tbody>
             </table>

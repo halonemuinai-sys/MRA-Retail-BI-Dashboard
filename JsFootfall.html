@@ -29,7 +29,7 @@
             }
 
             document.getElementById('footfallCrmTableBody').innerHTML = `
-                <tr><td colspan="7" class="py-12 text-center text-slate-400">
+                <tr><td colspan="10" class="py-12 text-center text-slate-400">
                     <svg class="animate-spin h-5 w-5 mx-auto text-emerald-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     Menarik data Footfall vs CRM...
                 </td></tr>
@@ -39,7 +39,7 @@
                 .withSuccessHandler(FOOTFALL.renderData)
                 .withFailureHandler((err) => {
                     if (typeof UI !== 'undefined' && UI.showLoader) UI.showLoader(false);
-                    document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Gagal memuat data: ${err.message}</td></tr>`;
+                    document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="10" class="py-12 text-center text-red-500">Gagal memuat data: ${err.message}</td></tr>`;
                     Swal.fire('Error', 'Gagal memuat data Footfall: ' + err.message, 'error');
                 })
                 .getFootfallAnalytics(m, y);
@@ -55,7 +55,7 @@
                 }
                 if (res.status === 'error') {
                     Swal.fire('Error Dashboard', res.message, 'error');
-                    document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Error: ${res.message}</td></tr>`;
+                    document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="10" class="py-12 text-center text-red-500">Error: ${res.message}</td></tr>`;
                     return;
                 }
 
@@ -65,7 +65,7 @@
                 const dbgTxt = `(Trace: M=${dbg.targetM}, Y=${dbg.targetY} | Rows: PI=${dbg.piRowsEvaluated||0}, PS=${dbg.psRowsEvaluated||0}, TRF=${dbg.trfRowsEvaluated||0})`;
                 
                 document.getElementById('footfallCrmTableBody').innerHTML = `
-                    <tr><td colspan="7" class="py-12 text-center text-slate-400 italic">
+                    <tr><td colspan="10" class="py-12 text-center text-slate-400 italic">
                         Tidak ada data Footfall ditemukan untuk periode terpilih.<br>
                         <span class="text-[10px] text-slate-300">${dbgTxt}</span>
                     </td></tr>
@@ -76,12 +76,15 @@
             let html = '';
             let sumFF_PI = 0, sumCRM_PI = 0;
             let sumFF_PS = 0, sumCRM_PS = 0;
+            let sumFF_BL = 0, sumCRM_BL = 0;
 
             currentFootfallData.forEach(item => {
                 sumFF_PI += item.footfallPI;
                 sumCRM_PI += item.trafficPI;
                 sumFF_PS += item.footfallPS;
                 sumCRM_PS += item.trafficPS;
+                sumFF_BL += item.footfallBL;
+                sumCRM_BL += item.trafficBL;
 
                 // Format date for display (yyyy-MM-dd → DD Mon)
                 let displayDate = item.date;
@@ -111,6 +114,14 @@
                                 ${item.ratePS}%
                             </span>
                         </td>
+
+                        <td class="py-3 px-4 text-center" style="border-left:2px solid #e2e8f0;">${item.footfallBL}</td>
+                        <td class="py-3 px-4 text-center text-indigo-600 font-bold">${item.trafficBL}</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.rateBL < 30 ? 'bg-red-100 text-red-600' : 'bg-cyan-100 text-cyan-600'}">
+                                ${item.rateBL}%
+                            </span>
+                        </td>
                     </tr>
                 `;
             });
@@ -118,6 +129,7 @@
             // Add totals row
             const totalRatePI = sumFF_PI > 0 ? ((sumCRM_PI / sumFF_PI) * 100).toFixed(1) : 0;
             const totalRatePS = sumFF_PS > 0 ? ((sumCRM_PS / sumFF_PS) * 100).toFixed(1) : 0;
+            const totalRateBL = sumFF_BL > 0 ? ((sumCRM_BL / sumFF_BL) * 100).toFixed(1) : 0;
             html += `
                 <tr class="bg-slate-50 font-bold border-t-2 border-slate-200">
                     <td class="py-3 px-4 text-slate-700">TOTAL</td>
@@ -130,6 +142,11 @@
                     <td class="py-3 px-4 text-center text-indigo-700">${sumCRM_PS.toLocaleString('id-ID')}</td>
                     <td class="py-3 px-4 text-center">
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${totalRatePS < 30 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">${totalRatePS}%</span>
+                    </td>
+                    <td class="py-3 px-4 text-center text-slate-700" style="border-left:2px solid #e2e8f0;">${sumFF_BL.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-center text-indigo-700">${sumCRM_BL.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${totalRateBL < 30 ? 'bg-red-100 text-red-600' : 'bg-cyan-100 text-cyan-600'}">${totalRateBL}%</span>
                     </td>
                 </tr>
             `;
@@ -149,9 +166,15 @@
             document.getElementById('ff_ps_rate').innerText = ratePS + '%';
             document.getElementById('ff_ps_rate').className = `text-2xl font-bold ${ratePS < 30 ? 'text-red-500' : 'text-amber-600'}`;
 
+            document.getElementById('ff_bl_total').innerText = sumFF_BL.toLocaleString('id-ID');
+            document.getElementById('ff_bl_crm').innerText = sumCRM_BL.toLocaleString('id-ID');
+            const rateBL = sumFF_BL > 0 ? ((sumCRM_BL / sumFF_BL) * 100).toFixed(1) : 0;
+            document.getElementById('ff_bl_rate').innerText = rateBL + '%';
+            document.getElementById('ff_bl_rate').className = `text-2xl font-bold ${rateBL < 30 ? 'text-red-500' : 'text-cyan-600'}`;
+
             } catch (err) {
                 console.error("FOOTFALL Render Error:", err);
-                document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="7" class="py-12 text-center text-red-500">Render Error: ${err.message}</td></tr>`;
+                document.getElementById('footfallCrmTableBody').innerHTML = `<tr><td colspan="10" class="py-12 text-center text-red-500">Render Error: ${err.message}</td></tr>`;
                 Swal.fire('Error Render', 'Gagal memproses data Footfall: ' + err.message, 'error');
             }
         },
@@ -165,9 +188,9 @@
              const m = document.getElementById('footfallMonthSelect').value;
              const y = document.getElementById('footfallYearSelect').value;
 
-             let csv = '\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%)\n';
+             let csv = '\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%),BL Footfall,BL Captured,BL Rate (%)\n';
              currentFootfallData.forEach(row => {
-                 csv += `${row.date},${row.footfallPI},${row.trafficPI},${row.ratePI},${row.footfallPS},${row.trafficPS},${row.ratePS}\n`;
+                 csv += `${row.date},${row.footfallPI},${row.trafficPI},${row.ratePI},${row.footfallPS},${row.trafficPS},${row.ratePS},${row.footfallBL},${row.trafficBL},${row.rateBL}\n`;
              });
 
              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

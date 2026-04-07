@@ -3,8 +3,8 @@
     <!-- View Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-            <h2 class="font-display text-2xl font-bold text-brand-dark tracking-tight">Crossing Sales & Mobility</h2>
-            <p class="text-xs text-slate-500 mt-1 font-medium">Monthly Analysis of Sales Advisor Inter-Boutique
+            <h2 id="crossingViewTitle" class="font-display text-2xl font-bold text-brand-dark tracking-tight">Crossing Sales & Mobility</h2>
+            <p id="crossingViewSubtitle" class="text-xs text-slate-500 mt-1 font-medium">Monthly Analysis of Sales Advisor Inter-Boutique
                 Operations</p>
         </div>
 
@@ -201,7 +201,7 @@
     <div id="crossingFootfallSubView" class="hidden">
 
         <!-- Footfall KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
                 <div
                     class="absolute -right-4 -top-4 w-20 h-20 bg-brand-blue/5 rounded-full group-hover:scale-150 transition-transform duration-500">
@@ -227,6 +227,20 @@
                     id="footfallTotalPS">-</p>
                 <div class="mt-4 w-full bg-slate-100 h-1.5 rounded-full overflow-hidden relative z-10">
                     <div class="bg-emerald-500 h-full rounded-full w-full"></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <div
+                    class="absolute -right-4 -top-4 w-20 h-20 bg-cyan-50 rounded-full group-hover:scale-150 transition-transform duration-500">
+                </div>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 relative z-10">Total Footfall
+                    Bali
+                </h3>
+                <p class="font-display text-3xl font-bold text-cyan-600 tracking-tight relative z-10"
+                    id="footfallTotalBL">-</p>
+                <div class="mt-4 w-full bg-slate-100 h-1.5 rounded-full overflow-hidden relative z-10">
+                    <div class="bg-cyan-500 h-full rounded-full w-full"></div>
                 </div>
             </div>
 
@@ -321,6 +335,8 @@
                                 colspan="2">Plaza Indonesia</th>
                             <th class="py-3 px-5 font-bold text-center border-l border-slate-100 bg-emerald-500/5"
                                 colspan="2">Plaza Senayan</th>
+                            <th class="py-3 px-5 font-bold text-center border-l border-slate-100 bg-cyan-500/5"
+                                colspan="2">Bali Boutique</th>
                             <th class="py-3 px-5 text-right font-bold w-32 border-l border-slate-100">Total
                                 Combined
                                 IN</th>
@@ -337,6 +353,12 @@
                                 class="py-2 px-5 font-bold text-right border-l border-slate-100 bg-emerald-500/5 text-emerald-600">
                                 In</th>
                             <th class="py-2 px-5 font-bold text-right border-l border-slate-50 bg-emerald-500/5">
+                                Out
+                            </th>
+                            <th
+                                class="py-2 px-5 font-bold text-right border-l border-slate-100 bg-cyan-500/5 text-cyan-600">
+                                In</th>
+                            <th class="py-2 px-5 font-bold text-right border-l border-slate-50 bg-cyan-500/5">
                                 Out
                             </th>
                             <th class="py-2 px-5 font-medium border-l border-slate-100"></th>

@@ -1,295 +1,431 @@
-// ============================================================
-//  IT HELPDESK — BACKEND
-// ============================================================
+// Safe getters — fallback jika 0-Config belum ter-load
+function _getSheetId() {
+  try { return HELPDESK_CONFIG.DB_SHEET_ID; } catch(e) { return '1HJN4XcdJWmejuBbPZzjnntHSxKL5zYQd31gqc06zwSU'; }
+}
+function _sn(key) {
+  // Safe Sheet Name getter
+  try { return HELPDESK_CONFIG.SHEETS[key]; } catch(e) {
+    var n = { USERS:'USERS', TICKETS:'TICKETS', CATEGORIES:'CATEGORIES', IT_STAFF:'IT_STAFF' };
+    return n[key] || key;
+  }
+}
+function _getDefaultCategories() {
+  try { return HELPDESK_CONFIG.DEFAULT_CATEGORIES; } catch(e) {
+    return [
+      { code:'POS_HW', label:'POS Hardware', desc:'Mesin POS mati, keyboard, monitor' },
+      { code:'POS_SW', label:'POS Software', desc:'Error aplikasi POS, update fitur' },
+      { code:'POS_ACC', label:'POS Account', desc:'Reset password, akun terkunci' },
+      { code:'PRINTER', label:'Printer & Peripheral', desc:'Printer struk, label, scanner' },
+      { code:'EMAIL', label:'Email & Ms Office', desc:'Outlook, Word, Excel, PowerPoint' },
+      { code:'NETWORK', label:'Network & Internet', desc:'WiFi, koneksi, VPN' },
+      { code:'INFRA', label:'Infrastruktur IT', desc:'Server, switch, AP, kabel' },
+      { code:'CCTV', label:'CCTV & Security', desc:'CCTV offline, NVR, rekaman' },
+      { code:'ERP', label:'ERP / SAP', desc:'Error SAP, sync data' },
+      { code:'TRAFFIC', label:'Traffic Counter', desc:'Sensor traffic, footfall' },
+      { code:'RETAILSOFT', label:'Retailsoft', desc:'Aplikasi Retailsoft' },
+      { code:'BSC', label:'BSC', desc:'Balanced Scorecard' },
+      { code:'DEVICE_REQ', label:'Permintaan Perangkat', desc:'Request laptop/HP/tablet' },
+      { code:'OTHER', label:'Lainnya', desc:'Masalah lain' }
+    ];
+  }
+}
 
+// ============================================================
+// ROUTING — doGet
+// ============================================================
 function doGet(e) {
-  var view = 'mobile';
-  if (e && e.parameter && e.parameter.view === 'admin') view = 'admin';
-  var file = (view === 'admin') ? 'Index-Admin' : 'Index-Helpdesk';
-  return HtmlService.createTemplateFromFile(file)
-    .evaluate()
-    .setTitle('IT Helpdesk | MRA Retail')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  var view = (e && e.parameter && e.parameter.view) ? e.parameter.view : 'mobile';
+  var template = (view === 'admin') ? 'Index-Admin' : 'Index-Helpdesk';
+  
+  return HtmlService.createTemplateFromFile(template)
+      .evaluate()
+      .setTitle('IT Helpdesk | MRA Retail')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-// ---- Helper: Open spreadsheet ----
-function _ss() {
-  return SpreadsheetApp.openById(CONFIG.SHEET_ID);
-}
-
-// ---- Setup: Pastikan semua sheet ada ----
-function setupSheets() {
-  var ss = _ss();
-
-  if (!ss.getSheetByName('USERS')) {
-    var s = ss.insertSheet('USERS');
-    s.appendRow(['Store','Name','PIN','Role']);
-    s.getRange('A1:D1').setFontWeight('bold');
-    s.appendRow(['Plaza Indonesia','Store Staff PI','1234','staff']);
-    s.appendRow(['Head Office','IT Admin','9999','admin']);
+// ============================================================
+// SETUP — Ensure Sheets Exist
+// ============================================================
+function ensureHelpdeskSheets() {
+  var ss = SpreadsheetApp.openById(_getSheetId());
+  
+  // ---- USERS ----
+  var userSheet = ss.getSheetByName(_sn('USERS'));
+  if (!userSheet) {
+    userSheet = ss.insertSheet(_sn('USERS'));
+    userSheet.appendRow(["Store", "Name", "PIN", "Role"]);
+    userSheet.getRange("A1:D1").setFontWeight("bold").setBackground("#1e293b").setFontColor("#ffffff");
+    userSheet.appendRow(["Plaza Indonesia", "Store Staff PI", "1234", "staff"]);
+    userSheet.appendRow(["Plaza Senayan", "Store Staff PS", "1234", "staff"]);
+    userSheet.appendRow(["Head Office", "IT Admin", "9999", "admin"]);
   }
 
-  if (!ss.getSheetByName('CATEGORIES')) {
-    var s = ss.insertSheet('CATEGORIES');
-    s.appendRow(['Label','Active']);
-    s.getRange('A1:B1').setFontWeight('bold');
-    var cats = [
-      'POS Hardware','POS Software','POS Account',
-      'Printer & Peripheral','Email & Ms Office',
-      'Network & Internet','Infrastruktur IT',
-      'CCTV & Security','ERP / SAP','Traffic Counter',
-      'Retailsoft','BSC','Permintaan Perangkat','Lainnya'
-    ];
-    for (var i = 0; i < cats.length; i++) {
-      s.appendRow([cats[i], 'TRUE']);
+  // ---- CATEGORIES (Master) ----
+  var catSheet = ss.getSheetByName(_sn('CATEGORIES'));
+  if (!catSheet) {
+    catSheet = ss.insertSheet(_sn('CATEGORIES'));
+    catSheet.appendRow(["Code", "Label", "Description", "Active"]);
+    catSheet.getRange("A1:D1").setFontWeight("bold").setBackground("#1e293b").setFontColor("#ffffff");
+    var cats = _getDefaultCategories();
+    for (var c = 0; c < cats.length; c++) {
+      catSheet.appendRow([cats[c].code, cats[c].label, cats[c].desc, "TRUE"]);
     }
+    catSheet.setColumnWidth(1, 120);
+    catSheet.setColumnWidth(2, 200);
+    catSheet.setColumnWidth(3, 350);
+    catSheet.setColumnWidth(4, 80);
   }
 
-  if (!ss.getSheetByName('IT_STAFF')) {
-    var s = ss.insertSheet('IT_STAFF');
-    s.appendRow(['Name','Active']);
-    s.getRange('A1:B1').setFontWeight('bold');
-    s.appendRow(['IT Admin','TRUE']);
+  // ---- IT_STAFF ----
+  var staffSheet = ss.getSheetByName(_sn('IT_STAFF'));
+  if (!staffSheet) {
+    staffSheet = ss.insertSheet(_sn('IT_STAFF'));
+    staffSheet.appendRow(["Name", "Role", "Active"]);
+    staffSheet.getRange("A1:C1").setFontWeight("bold").setBackground("#1e293b").setFontColor("#ffffff");
+    staffSheet.appendRow(["IT Admin", "Lead", "TRUE"]);
   }
 
-  if (!ss.getSheetByName('TICKETS')) {
-    var s = ss.insertSheet('TICKETS');
-    s.appendRow([
-      'Ticket ID','Tanggal','Store','Pelapor',
-      'Kategori','Deskripsi','Prioritas',
-      'Status','Assigned To','Catatan IT',
-      'Responded At','Resolved At'
+  // ---- TICKETS ----
+  var ticketSheet = ss.getSheetByName(_sn('TICKETS'));
+  if (!ticketSheet) {
+    ticketSheet = ss.insertSheet(_sn('TICKETS'));
+    ticketSheet.appendRow([
+      "Ticket ID", "Created At", "Store", "Reported By", "Issue Category",
+      "Description", "Priority", "Status", "Responded At", "Resolved At", 
+      "IT Notes", "Assigned To"
     ]);
-    s.getRange('A1:L1').setFontWeight('bold');
+    ticketSheet.getRange("A1:L1").setFontWeight("bold").setBackground("#1e293b").setFontColor("#ffffff");
   }
 }
 
 // ============================================================
-//  AUTH
+// AUTH
 // ============================================================
-function getUsers() {
+function getHelpdeskUserList() {
   try {
-    setupSheets();
-    var data = _ss().getSheetByName('USERS').getDataRange().getValues();
+    ensureHelpdeskSheets();
+    var ss = SpreadsheetApp.openById(_getSheetId());
+    var sheet = ss.getSheetByName(_sn('USERS'));
+    if (!sheet) return { success: true, users: [] };
+    var data = sheet.getDataRange().getValues();
+    
     var users = [];
     for (var i = 1; i < data.length; i++) {
       if (data[i][0] && data[i][1]) {
-        users.push({ store: String(data[i][0]), name: String(data[i][1]) });
+        users.push({
+          store: data[i][0].toString(),
+          name: data[i][1].toString()
+        });
       }
     }
-    return { ok: true, users: users };
+    return { success: true, users: users };
   } catch(e) {
-    return { ok: false, msg: e.message, users: [] };
+    return { success: false, message: e.message, users: [] };
   }
 }
 
-function login(name, pin) {
+function loginHelpdesk(name, pin) {
   try {
-    var data = _ss().getSheetByName('USERS').getDataRange().getValues();
+    var ss = SpreadsheetApp.openById(_getSheetId());
+    var sheet = ss.getSheetByName(_sn('USERS'));
+    if (!sheet) return { success: false, message: "Sheet USERS tidak ditemukan." };
+    var data = sheet.getDataRange().getValues();
+
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][1]) === String(name)) {
-        if (String(data[i][2]) === String(pin)) {
-          return { ok: true, user: { store: String(data[i][0]), name: String(data[i][1]), role: String(data[i][3]).toLowerCase() } };
+      if (data[i][1].toString() === name.toString()) {
+        if (data[i][2].toString() === pin.toString()) {
+          return {
+            success: true,
+            user: {
+              store: data[i][0].toString(),
+              name: data[i][1].toString(),
+              role: data[i][3].toString().toLowerCase()
+            }
+          };
+        } else {
+          return { success: false, message: "PIN Salah. Silakan coba lagi." };
         }
-        return { ok: false, msg: 'PIN salah.' };
       }
     }
-    return { ok: false, msg: 'Nama tidak ditemukan.' };
-  } catch(e) {
-    return { ok: false, msg: e.message };
+    return { success: false, message: "Nama tidak ditemukan." };
+  } catch (error) {
+    return { success: false, message: error.message };
   }
 }
 
 // ============================================================
-//  CATEGORIES & IT STAFF
+// CATEGORIES (Dynamic from Sheet)
 // ============================================================
-function getCategories() {
+function getHelpdeskCategories() {
   try {
-    var sheet = _ss().getSheetByName('CATEGORIES');
-    if (!sheet) return { ok: true, list: ['Lainnya'] };
+    var ss = SpreadsheetApp.openById(_getSheetId());
+    var sheet = ss.getSheetByName(_sn('CATEGORIES'));
+    if (!sheet) return { success: true, categories: _getDefaultCategories() };
+    
     var data = sheet.getDataRange().getValues();
-    var list = [];
+    var categories = [];
     for (var i = 1; i < data.length; i++) {
-      if (data[i][0] && String(data[i][1]).toUpperCase() === 'TRUE') {
-        list.push(String(data[i][0]));
+      var active = data[i][3] ? data[i][3].toString().toUpperCase() : "TRUE";
+      if (active === "TRUE" && data[i][0] && data[i][1]) {
+        categories.push({
+          code: data[i][0].toString(),
+          label: data[i][1].toString(),
+          desc: data[i][2] ? data[i][2].toString() : ''
+        });
       }
     }
-    return { ok: true, list: list.length ? list : ['Lainnya'] };
+    if (categories.length === 0) categories = _getDefaultCategories();
+    return { success: true, categories: categories };
   } catch(e) {
-    return { ok: true, list: ['Lainnya'] };
+    return { success: false, message: e.message, categories: _getDefaultCategories() };
   }
 }
 
-function getStaff() {
+// ============================================================
+// IT STAFF LIST (for Assign To)
+// ============================================================
+function getITStaffList() {
   try {
-    var sheet = _ss().getSheetByName('IT_STAFF');
-    if (!sheet) return { ok: true, list: [] };
+    var ss = SpreadsheetApp.openById(_getSheetId());
+    var sheet = ss.getSheetByName(_sn('IT_STAFF'));
+    if (!sheet) return { success: true, staff: [] };
+    
     var data = sheet.getDataRange().getValues();
-    var list = [];
+    var staff = [];
     for (var i = 1; i < data.length; i++) {
-      if (data[i][0] && String(data[i][1]).toUpperCase() === 'TRUE') {
-        list.push(String(data[i][0]));
+      var active = data[i][2] ? data[i][2].toString().toUpperCase() : "TRUE";
+      if (active === "TRUE" && data[i][0]) {
+        staff.push({
+          name: data[i][0].toString(),
+          role: data[i][1] ? data[i][1].toString() : ''
+        });
       }
     }
-    return { ok: true, list: list };
+    return { success: true, staff: staff };
   } catch(e) {
-    return { ok: true, list: [] };
+    return { success: false, message: e.message, staff: [] };
   }
 }
 
 // ============================================================
-//  TICKETS — Read
+// TICKETS — Get
 // ============================================================
-function getTickets(store, role, month, year) {
+function getHelpdeskTickets(store, role, paramMonth, paramYear) {
   try {
-    var sheet = _ss().getSheetByName('TICKETS');
-    if (!sheet) return { ok: true, tickets: [] };
+    ensureHelpdeskSheets();
+    var ss = SpreadsheetApp.openById(_getSheetId());
+    var sheet = ss.getSheetByName(_sn('TICKETS'));
+    if (!sheet) return { success: true, tickets: [] };
     var data = sheet.getDataRange().getValues();
-    var isAdmin = (role === 'admin' || role === 'it');
-    var tz = Session.getScriptTimeZone();
+    
     var tickets = [];
+    var isAdmin = (role === 'admin' || role === 'it');
 
     for (var i = 1; i < data.length; i++) {
-      var r = data[i];
-      if (!r[0] || !r[1]) continue;
-      var tStore = String(r[2] || '');
-      if (!isAdmin && tStore !== store) continue;
+      var row = data[i];
+      if (!row[0]) continue;
+      
+      var ticketStore = row[2] ? row[2].toString() : '';
+      if (!isAdmin && ticketStore !== store) continue;
 
-      var d = new Date(r[1]);
-      if (month !== undefined && month !== null && month !== '' && d.getMonth() !== parseInt(month)) continue;
-      if (year !== undefined && year !== null && year !== '' && d.getFullYear() !== parseInt(year)) continue;
+      var createdAt = row[1];
+      if (!createdAt) continue;
+      var tDate = new Date(createdAt);
+      
+      // Filter by month/year if provided
+      if (paramMonth !== undefined && paramMonth !== null && paramMonth !== '' && tDate.getMonth() !== parseInt(paramMonth)) continue;
+      if (paramYear !== undefined && paramYear !== null && paramYear !== '' && tDate.getFullYear() !== parseInt(paramYear)) continue;
 
-      var prio = String(r[6] || 'Low');
-      var status = String(r[7] || 'Open');
+      var priority = row[6] ? row[6].toString() : 'Low';
+      var status = row[7] ? row[7].toString() : 'Open';
+      var respondedAt = row[8];
+      var resolvedAt = row[9];
+      
+      var slaStatus = calculateSLAStatus(priority, status, createdAt, respondedAt, resolvedAt);
 
       tickets.push({
-        id:        String(r[0]),
-        date:      Utilities.formatDate(d, tz, 'dd MMM yyyy HH:mm'),
-        dateRaw:   r[1],
-        store:     tStore,
-        reporter:  String(r[3] || ''),
-        category:  String(r[4] || ''),
-        desc:      String(r[5] || ''),
-        priority:  prio,
-        status:    status,
-        assigned:  String(r[8] || ''),
-        notes:     String(r[9] || ''),
-        responded: r[10] ? Utilities.formatDate(new Date(r[10]), tz, 'dd MMM yyyy HH:mm') : '-',
-        resolved:  r[11] ? Utilities.formatDate(new Date(r[11]), tz, 'dd MMM yyyy HH:mm') : '-',
-        sla:       _sla(prio, status, r[1])
+        id: row[0].toString(),
+        createdAt: Utilities.formatDate(tDate, Session.getScriptTimeZone(), 'dd MMM yyyy HH:mm'),
+        createdAtRaw: createdAt,
+        store: ticketStore,
+        reportedBy: row[3] ? row[3].toString() : '',
+        category: row[4] ? row[4].toString() : '',
+        description: row[5] ? row[5].toString() : '',
+        priority: priority,
+        status: status,
+        respondedAt: respondedAt ? Utilities.formatDate(new Date(respondedAt), Session.getScriptTimeZone(), 'dd MMM yyyy HH:mm') : '-',
+        resolvedAt: resolvedAt ? Utilities.formatDate(new Date(resolvedAt), Session.getScriptTimeZone(), 'dd MMM yyyy HH:mm') : '-',
+        notes: row[10] ? row[10].toString() : '',
+        assignedTo: (row.length > 11 && row[11]) ? row[11].toString() : '',
+        sla: slaStatus
       });
     }
 
-    tickets.sort(function(a, b) { return new Date(b.dateRaw) - new Date(a.dateRaw); });
-    return { ok: true, tickets: tickets };
+    // Sort ascending: newest at bottom
+    tickets.sort(function(a,b) { return new Date(a.createdAtRaw) - new Date(b.createdAtRaw); });
+
+    return { success: true, tickets: tickets };
   } catch(e) {
-    return { ok: false, msg: e.message, tickets: [] };
+    return { success: false, message: e.message };
   }
 }
 
 // ============================================================
-//  TICKETS — Create
+// TICKETS — Stats (for Admin Dashboard)
 // ============================================================
-function createTicket(store, reporter, category, desc, priority) {
+function getTicketStats(paramMonth, paramYear) {
   try {
-    setupSheets();
-    var sheet = _ss().getSheetByName('TICKETS');
-    var ts = new Date();
-    var id = 'IT-' + Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
-    sheet.appendRow([id, ts, store, reporter, category, desc, priority, 'Open', '', '', '', '']);
-    SpreadsheetApp.flush();
-    return { ok: true, msg: 'Ticket ' + id + ' berhasil dibuat.', id: id };
-  } catch(e) {
-    return { ok: false, msg: e.message };
-  }
-}
-
-// ============================================================
-//  TICKETS — Update (Admin)
-// ============================================================
-function updateTicket(ticketId, newStatus, assignedTo, notes) {
-  try {
-    var sheet = _ss().getSheetByName('TICKETS');
+    ensureHelpdeskSheets();
+    var ss = SpreadsheetApp.openById(_getSheetId());
+    var sheet = ss.getSheetByName(_sn('TICKETS'));
+    var emptyStats = { open:0, responded:0, resolved:0, breached:0, total:0, byCategory:{}, byStore:{}, byPriority:{High:0,Medium:0,Low:0} };
+    if (!sheet) return { success: true, stats: emptyStats };
     var data = sheet.getDataRange().getValues();
+    
+    var stats = { open:0, responded:0, resolved:0, breached:0, total:0,
+                  byCategory:{}, byStore:{}, byPriority:{High:0, Medium:0, Low:0} };
+
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(ticketId)) {
-        var row = i + 1;
-        var oldStatus = String(data[i][7] || 'Open');
+      var row = data[i];
+      if (!row[0] || !row[1]) continue;
+      var tDate = new Date(row[1]);
 
-        if (newStatus) sheet.getRange(row, 8).setValue(newStatus);
-        if (assignedTo !== undefined) sheet.getRange(row, 9).setValue(assignedTo);
-        if (notes !== undefined) sheet.getRange(row, 10).setValue(notes);
+      if (paramMonth !== undefined && paramMonth !== null && paramMonth !== '' && tDate.getMonth() !== parseInt(paramMonth)) continue;
+      if (paramYear !== undefined && paramYear !== null && paramYear !== '' && tDate.getFullYear() !== parseInt(paramYear)) continue;
 
-        // Auto timestamps
-        if (oldStatus === 'Open' && (newStatus === 'In Progress' || newStatus === 'Responded')) {
-          if (!data[i][10]) sheet.getRange(row, 11).setValue(new Date());
+      stats.total++;
+      var status = row[7] ? row[7].toString() : 'Open';
+      var priority = row[6] ? row[6].toString() : 'Low';
+      var cat = row[4] ? row[4].toString() : 'Lainnya';
+      var store = row[2] ? row[2].toString() : 'Unknown';
+
+      if (status === 'Open') stats.open++;
+      else if (status === 'Responded' || status === 'In Progress') stats.responded++;
+      else if (status === 'Resolved') stats.resolved++;
+
+      stats.byCategory[cat] = (stats.byCategory[cat] || 0) + 1;
+      stats.byStore[store] = (stats.byStore[store] || 0) + 1;
+      stats.byPriority[priority] = (stats.byPriority[priority] || 0) + 1;
+
+      // SLA breach check
+      var sla = calculateSLAStatus(priority, status, row[1], row[8], row[9]);
+      if (sla.color === 'red') stats.breached++;
+    }
+
+    return { success: true, stats: stats };
+  } catch(e) {
+    return { success: false, message: e.message };
+  }
+}
+
+// ============================================================
+// TICKETS — Save / Update
+// ============================================================
+function saveHelpdeskTicket(store, reportedBy, category, description, priority, isUpdate, ticketId, updateStatus, updateNotes, assignedTo) {
+  try {
+    ensureHelpdeskSheets();
+    var ss = SpreadsheetApp.openById(_getSheetId());
+    var sheet = ss.getSheetByName(_sn('TICKETS'));
+    
+    if (isUpdate && ticketId) {
+      var data = sheet.getDataRange().getValues();
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][0].toString() === ticketId.toString()) {
+          var rowIdx = i + 1;
+          var currentStatus = data[i][7] ? data[i][7].toString() : 'Open';
+          
+          // Update status
+          if (updateStatus) sheet.getRange(rowIdx, 8).setValue(updateStatus);
+          // Update notes
+          if (updateNotes !== undefined) sheet.getRange(rowIdx, 11).setValue(updateNotes);
+          // Update assignedTo
+          if (assignedTo !== undefined) sheet.getRange(rowIdx, 12).setValue(assignedTo);
+          
+          // Auto-set respondedAt
+          if (currentStatus === "Open" && (updateStatus === "Responded" || updateStatus === "In Progress")) {
+            if (!data[i][8]) sheet.getRange(rowIdx, 9).setValue(new Date()); 
+          }
+          // Auto-set resolvedAt
+          if (updateStatus === "Resolved") {
+            if (!data[i][9]) sheet.getRange(rowIdx, 10).setValue(new Date());
+          }
+          break;
         }
-        if (newStatus === 'Resolved') {
-          if (!data[i][11]) sheet.getRange(row, 12).setValue(new Date());
-        }
-
-        SpreadsheetApp.flush();
-        return { ok: true, msg: 'Ticket ' + ticketId + ' updated.' };
       }
+      SpreadsheetApp.flush();
+      return { success: true, message: "Ticket " + ticketId + " berhasil diupdate." };
+    } else {
+      // Create New
+      var ts = new Date();
+      var id = "IT-" + Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+      sheet.appendRow([
+        id, ts, store, reportedBy, category, description, priority, "Open", "", "", "", ""
+      ]);
+      SpreadsheetApp.flush();
+      return { success: true, message: "Ticket berhasil dibuat: " + id, ticketId: id };
     }
-    return { ok: false, msg: 'Ticket tidak ditemukan.' };
   } catch(e) {
-    return { ok: false, msg: e.message };
+    return { success: false, message: e.message };
   }
 }
 
 // ============================================================
-//  STATS (Admin Dashboard)
+// SLA LOGIC (Mon - Fri)
 // ============================================================
-function getStats(month, year) {
-  try {
-    var sheet = _ss().getSheetByName('TICKETS');
-    if (!sheet) return { ok: true, s: { open:0, progress:0, resolved:0, total:0, byCat:{}, byStore:{} } };
-    var data = sheet.getDataRange().getValues();
-
-    var s = { open:0, progress:0, resolved:0, total:0, byCat:{}, byStore:{} };
-
-    for (var i = 1; i < data.length; i++) {
-      var r = data[i];
-      if (!r[0] || !r[1]) continue;
-      var d = new Date(r[1]);
-      if (month !== undefined && month !== null && month !== '' && d.getMonth() !== parseInt(month)) continue;
-      if (year !== undefined && year !== null && year !== '' && d.getFullYear() !== parseInt(year)) continue;
-
-      s.total++;
-      var st = String(r[7] || 'Open');
-      if (st === 'Open') s.open++;
-      else if (st === 'Resolved') s.resolved++;
-      else s.progress++;
-
-      var cat = String(r[4] || 'Lainnya');
-      var store = String(r[2] || 'Unknown');
-      s.byCat[cat] = (s.byCat[cat] || 0) + 1;
-      s.byStore[store] = (s.byStore[store] || 0) + 1;
-    }
-    return { ok: true, s: s };
-  } catch(e) {
-    return { ok: false, msg: e.message };
+function calculateSLAStatus(priority, status, createdAt, respondedAt, resolvedAt) {
+  if (!createdAt) return { text: "No Date", color: "gray" };
+  var created = new Date(createdAt);
+  var now = new Date();
+  
+  if (status === "Resolved") {
+    return { text: "Selesai", color: "emerald" };
   }
+
+  var hoursPassed = calculateWorkHoursPassed(created, now);
+
+  if (status === "Open") {
+    var maxH = 24;
+    if (priority === "High") maxH = 0.5;
+    else if (priority === "Medium") maxH = 4;
+    if (hoursPassed > maxH) return { text: "Response Overdue", color: "red" };
+    return { text: "Menunggu Respon", color: "amber" };
+  }
+
+  if (status === "In Progress" || status === "Responded") {
+    var maxH2 = 40;
+    if (priority === "High") maxH2 = 4;
+    else if (priority === "Medium") maxH2 = 16;
+    if (hoursPassed > maxH2) return { text: "Resolution Overdue", color: "red" };
+    return { text: "Dalam Penanganan", color: "blue" };
+  }
+  
+  return { text: "Unknown", color: "gray" };
 }
 
-// ============================================================
-//  SLA Helper
-// ============================================================
-function _sla(priority, status, createdAt) {
-  if (status === 'Resolved') return { text:'Selesai', color:'emerald' };
-  if (!createdAt) return { text:'—', color:'gray' };
-  var hours = (new Date() - new Date(createdAt)) / 3600000;
-  if (status === 'Open') {
-    var limit = priority === 'High' ? 0.5 : (priority === 'Medium' ? 4 : 24);
-    return hours > limit ? { text:'Response Overdue', color:'red' } : { text:'Menunggu Respon', color:'amber' };
+// Optimized: calculate work hours (Mon-Fri, 8h/day)
+function calculateWorkHoursPassed(start, end) {
+  if (start > end) return 0;
+  
+  var totalHours = 0;
+  var current = new Date(start.getTime());
+  
+  while (current < end) {
+    var day = current.getDay();
+    if (day !== 0 && day !== 6) {
+      var dayEnd = new Date(current);
+      dayEnd.setHours(23, 59, 59, 999);
+      var effectiveEnd = (end < dayEnd) ? end : dayEnd;
+      var diffMs = effectiveEnd.getTime() - current.getTime();
+      totalHours += Math.min(diffMs / (1000 * 60 * 60), 8);
+    }
+    current.setDate(current.getDate() + 1);
+    current.setHours(0, 0, 0, 0);
   }
-  // In Progress
-  var limit2 = priority === 'High' ? 4 : (priority === 'Medium' ? 48 : 120);
-  return hours > limit2 ? { text:'Resolution Overdue', color:'red' } : { text:'Dalam Penanganan', color:'blue' };
+  
+  return totalHours;
 }

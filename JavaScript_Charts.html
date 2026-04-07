@@ -104,6 +104,7 @@
             // 1. KPI Cards
             UI.setText('footfallTotalPI', HELPERS.formatIDR(res.kpis.totalPI));
             UI.setText('footfallTotalPS', HELPERS.formatIDR(res.kpis.totalPS));
+            UI.setText('footfallTotalBL', HELPERS.formatIDR(res.kpis.totalBL || 0));
             UI.setText('footfallCombined', HELPERS.formatIDR(res.kpis.combined));
 
             // 2. Trend Chart (Line)
@@ -112,9 +113,10 @@
                 if (STATE.charts.footfallTrend) STATE.charts.footfallTrend.destroy();
 
                 const labels = Array.from({ length: 31 }, (_, i) => i + 1);
-                const piInData = res.dailyTrend.map(d => d.PI_In);
-                const piOutData = res.dailyTrend.map(d => d.PI_Out);
-                const psInData = res.dailyTrend.map(d => d.PS_In);
+                const piInData = res.dailyTrend.map(d => d.PI_In || 0);
+                const piOutData = res.dailyTrend.map(d => d.PI_Out || 0);
+                const psInData = res.dailyTrend.map(d => d.PS_In || 0);
+                const blInData = res.dailyTrend.map(d => d.BL_In || 0);
 
                 // Helper to create gradient for lines
                 const createLineGradient = (context, colorStart, colorEnd) => {
@@ -142,6 +144,13 @@
                                 data: psInData,
                                 borderColor: '#10B981',
                                 backgroundColor: function (context) { return createLineGradient(context, 'rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0)'); },
+                                fill: true, tension: 0.4, borderWidth: 2, pointRadius: 2
+                            },
+                            {
+                                label: 'Bali Traffic (In)',
+                                data: blInData,
+                                borderColor: '#06b6d4',
+                                backgroundColor: function (context) { return createLineGradient(context, 'rgba(6, 182, 212, 0.2)', 'rgba(6, 182, 212, 0)'); },
                                 fill: true, tension: 0.4, borderWidth: 2, pointRadius: 2
                             }
                         ]
@@ -187,7 +196,9 @@
                     const piOut = dayData.PI_Out || 0;
                     const psIn = dayData.PS_In || 0;
                     const psOut = dayData.PS_Out || 0;
-                    const totalIn = piIn + psIn;
+                    const blIn = dayData.BL_In || 0;
+                    const blOut = dayData.BL_Out || 0;
+                    const totalIn = piIn + psIn + blIn;
 
                     // Only show rows that have at least some traffic to keep it clean, or all days? Let's show all days for a full month calendar feel.
                     const isWeekend = new Date(document.getElementById('yearSelect').value, document.getElementById('monthSelect').value - 1, dayNum).getDay() % 6 === 0;
@@ -200,6 +211,8 @@
                         <td class="py-2.5 px-5 text-right border-l border-slate-50">${formatNum(piOut)}</td>
                         <td class="py-2.5 px-5 text-right border-l border-slate-100">${formatNum(psIn)}</td>
                         <td class="py-2.5 px-5 text-right border-l border-slate-50">${formatNum(psOut)}</td>
+                        <td class="py-2.5 px-5 text-right border-l border-slate-100">${formatNum(blIn)}</td>
+                        <td class="py-2.5 px-5 text-right border-l border-slate-50">${formatNum(blOut)}</td>
                         <td class="py-2.5 px-5 text-right border-l border-slate-100 font-bold text-brand-dark bg-slate-50/50">${formatNum(totalIn)}</td>
                     </tr>`;
                 });

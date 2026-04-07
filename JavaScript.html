@@ -344,9 +344,19 @@
             if (subView === 'crossing') {
                 document.getElementById('crossingSalesSubView').classList.remove('hidden');
                 document.getElementById('crossingFootfallSubView').classList.add('hidden');
+                
+                const title = document.getElementById('crossingViewTitle');
+                if (title) title.innerText = 'Crossing Sales & Mobility';
+                const subtitle = document.getElementById('crossingViewSubtitle');
+                if (subtitle) subtitle.innerText = 'Monthly Analysis of Sales Advisor Inter-Boutique Operations';
             } else {
                 document.getElementById('crossingFootfallSubView').classList.remove('hidden');
                 document.getElementById('crossingSalesSubView').classList.add('hidden');
+                
+                const title = document.getElementById('crossingViewTitle');
+                if (title) title.innerText = 'Store Footfall';
+                const subtitle = document.getElementById('crossingViewSubtitle');
+                if (subtitle) subtitle.innerText = 'Door Counter Traffic & Demographic Data';
             }
 
             APP.loadDashboard();
@@ -490,7 +500,7 @@
             const month = document.getElementById('monthSelect').value;
             const year = document.getElementById('yearSelect').value;
 
-            let csvContent = "Date,PI In,PI Out,PS In,PS Out,Total Combined In\n";
+            let csvContent = "Date,PI In,PI Out,PS In,PS Out,BL In,BL Out,Total Combined In\n";
 
             STATE.footfallData.dailyTrend.forEach((d, idx) => {
                 const day = idx + 1;
@@ -499,9 +509,11 @@
                 const piOut = d.PI_Out || 0;
                 const psIn = d.PS_In || 0;
                 const psOut = d.PS_Out || 0;
-                const totalIn = piIn + psIn;
+                const blIn = d.BL_In || 0;
+                const blOut = d.BL_Out || 0;
+                const totalIn = piIn + psIn + blIn;
 
-                csvContent += `${fullDate},${piIn},${piOut},${psIn},${psOut},${totalIn}\n`;
+                csvContent += `${fullDate},${piIn},${piOut},${psIn},${psOut},${blIn},${blOut},${totalIn}\n`;
             });
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

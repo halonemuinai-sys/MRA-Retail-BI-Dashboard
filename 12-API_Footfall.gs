@@ -25,7 +25,7 @@ function getFootfallAnalytics(month, year) {
     
     // Define a map for grouping by Date -> { footfallPI, footfallPS, trafficPI, trafficPS }
     const insightMap = {};
-    let debugLogs = { pi_rows: 0, ps_rows: 0, trf_rows: 0 };
+    let debugLogs = { pi_rows: 0, ps_rows: 0, bl_rows: 0, trf_rows: 0 };
     
     // helper to initialize date key
     const initMapKey = (dateStr) => {
@@ -34,8 +34,10 @@ function getFootfallAnalytics(month, year) {
            date: dateStr,
            footfallPI: 0,
            footfallPS: 0,
+           footfallBL: 0,
            trafficPI: 0,
-           trafficPS: 0
+           trafficPS: 0,
+           trafficBL: 0
         };
       }
     };
@@ -55,6 +57,7 @@ function getFootfallAnalytics(month, year) {
         
         if (locType === 'PI') debugLogs.pi_rows++;
         if (locType === 'PS') debugLogs.ps_rows++;
+        if (locType === 'BL') debugLogs.bl_rows++;
 
         let d;
         try {
@@ -73,11 +76,13 @@ function getFootfallAnalytics(month, year) {
         const count = parseInt(row[2]) || 0; // Col C is Masuk
         if (locType === 'PI') insightMap[dateKey].footfallPI += count;
         if (locType === 'PS') insightMap[dateKey].footfallPS += count;
+        if (locType === 'BL') insightMap[dateKey].footfallBL += count;
       }
     };
 
     processFootfallSheet(CONFIG.SHEETS.FOOTFALL_PI, 'PI');
     processFootfallSheet(CONFIG.SHEETS.FOOTFALL_PS, 'PS');
+    processFootfallSheet(CONFIG.SHEETS.FOOTFALL_BL, 'BL');
 
     // 2. Process Traffic Sheet
     const extSS = SpreadsheetApp.openById(profilingId);
@@ -114,6 +119,8 @@ function getFootfallAnalytics(month, year) {
                 insightMap[dateKey].trafficPI += groupSize;
             } else if (loc.indexOf('PLAZA SENAYAN') !== -1 || loc === 'PS') {
                 insightMap[dateKey].trafficPS += groupSize;
+            } else if (loc.indexOf('BALI') !== -1 || loc === 'BL' || loc.indexOf('BALI BOUTIQUE') !== -1) {
+                insightMap[dateKey].trafficBL += groupSize;
             }
         }
     }
@@ -127,9 +134,11 @@ function getFootfallAnalytics(month, year) {
         
         const ratePIStr = item.footfallPI > 0 ? ((item.trafficPI / item.footfallPI) * 100).toFixed(1) : 0;
         const ratePSStr = item.footfallPS > 0 ? ((item.trafficPS / item.footfallPS) * 100).toFixed(1) : 0;
+        const rateBLStr = item.footfallBL > 0 ? ((item.trafficBL / item.footfallBL) * 100).toFixed(1) : 0;
         
         item.ratePI = parseFloat(ratePIStr);
         item.ratePS = parseFloat(ratePSStr);
+        item.rateBL = parseFloat(rateBLStr);
         
         chartData.push(item);
     }
@@ -142,6 +151,7 @@ function getFootfallAnalytics(month, year) {
             targetY: targetYear,
             piRowsEvaluated: debugLogs.pi_rows || 0,
             psRowsEvaluated: debugLogs.ps_rows || 0,
+            blRowsEvaluated: debugLogs.bl_rows || 0,
             trfRowsEvaluated: debugLogs.trf_rows || 0
         }
     };
@@ -160,9 +170,10 @@ function getFootfallData(monthName, year) {
     const targetYear = Number(year);
     
     // Result Structures
-    const dailyTrend = new Array(31).fill(null).map(() => ({ PI_In: 0, PI_Out: 0, PS_In: 0, PS_Out: 0 }));
+    const dailyTrend = new Array(31).fill(null).map(() => ({ PI_In: 0, PI_Out: 0, PS_In: 0, PS_Out: 0, BL_In: 0, BL_Out: 0 }));
     let totalFootfallPI = 0;
     let totalFootfallPS = 0;
+    let totalFootfallBL = 0;
     
     let piMen = 0;   // Estimated count based on %
     let piWomen = 0; 
@@ -177,6 +188,7 @@ function getFootfallData(monthName, year) {
       if (day >= 0 && day < 31) {
          if (store === 'PI') { dailyTrend[day].PI_In += inCount; dailyTrend[day].PI_Out += outCount; }
          if (store === 'PS') { dailyTrend[day].PS_In += inCount; dailyTrend[day].PS_Out += outCount; }
+         if (store === 'BL') { dailyTrend[day].BL_In += inCount; dailyTrend[day].BL_Out += outCount; }
       }
     };
     
@@ -256,6 +268,35 @@ function getFootfallData(monthName, year) {
          }
       });
     }
+
+    // 3. Process BL Footfall
+    const blSheet = ss.getSheetByName(CONFIG.SHEETS.FOOTFALL_BL);
+    if (!blSheet) {
+        Logger.log(`Sheet missing: ${CONFIG.SHEETS.FOOTFALL_BL}`);
+    } else {
+      const blData = blSheet.getDataRange().getValues();
+      blData.shift(); // remove header
+      
+      blData.forEach((row, index) => {
+         const rawDate = row[0];
+         if (!rawDate) return;
+         
+         let d = rawDate;
+         if (!(rawDate instanceof Date)) {
+             d = parseDateFix(rawDate);
+         }
+         
+         if (d && !isNaN(d.getMonth())) {
+           if (d.getMonth() === monthIndexTarget && d.getFullYear() === targetYear) {
+              const fIn = Number(row[2]) || 0; // Input
+              const fOut = Number(row[3]) || 0; // Output
+              
+              totalFootfallBL += fIn;
+              trackDay(d, 'BL', fIn, fOut);
+           }
+         }
+      });
+    }
     
     // Demographics Aggregation
     let finalMenPct = 0;
@@ -274,7 +315,8 @@ function getFootfallData(monthName, year) {
       kpis: {
         totalPI: totalFootfallPI,
         totalPS: totalFootfallPS,
-        combined: totalFootfallPI + totalFootfallPS
+        totalBL: totalFootfallBL,
+        combined: totalFootfallPI + totalFootfallPS + totalFootfallBL
       },
       demographicsPI: {
         menPct: finalMenPct,
@@ -283,6 +325,7 @@ function getFootfallData(monthName, year) {
       debug: {
         piRowsProcessed: piSheet ? piSheet.getLastRow() : 0,
         psRowsProcessed: psSheet ? psSheet.getLastRow() : 0,
+        blRowsProcessed: blSheet ? blSheet.getLastRow() : 0,
         parseLogs: parseLogs
       }
     };
@@ -311,24 +354,27 @@ function sendFootfallCaptureRateEmail(month, year) {
       return { success: false, message: 'Tidak ada data Footfall untuk periode ini.' };
     }
 
-    var sumFF_PI = 0, sumCRM_PI = 0, sumFF_PS = 0, sumCRM_PS = 0;
+    var sumFF_PI = 0, sumCRM_PI = 0, sumFF_PS = 0, sumCRM_PS = 0, sumFF_BL = 0, sumCRM_BL = 0;
     data.forEach(function(item) {
       sumFF_PI  += item.footfallPI  || 0;
       sumCRM_PI += item.trafficPI   || 0;
       sumFF_PS  += item.footfallPS  || 0;
       sumCRM_PS += item.trafficPS   || 0;
+      sumFF_BL  += item.footfallBL  || 0;
+      sumCRM_BL += item.trafficBL   || 0;
     });
 
     var ratePI = sumFF_PI > 0 ? ((sumCRM_PI / sumFF_PI) * 100).toFixed(1) : '0.0';
     var ratePS = sumFF_PS > 0 ? ((sumCRM_PS / sumFF_PS) * 100).toFixed(1) : '0.0';
-    var totalFF = sumFF_PI + sumFF_PS;
-    var totalCRM = sumCRM_PI + sumCRM_PS;
+    var rateBL = sumFF_BL > 0 ? ((sumCRM_BL / sumFF_BL) * 100).toFixed(1) : '0.0';
+    var totalFF = sumFF_PI + sumFF_PS + sumFF_BL;
+    var totalCRM = sumCRM_PI + sumCRM_PS + sumCRM_BL;
     var totalRate = totalFF > 0 ? ((totalCRM / totalFF) * 100).toFixed(1) : '0.0';
 
     // CSV Attachment
-    var csvContent = '\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%)\n';
+    var csvContent = '\uFEFFDate,PI Footfall,PI Captured,PI Rate (%),PS Footfall,PS Captured,PS Rate (%),BL Footfall,BL Captured,BL Rate (%)\n';
     data.forEach(function(row) {
-      csvContent += row.date + ',' + row.footfallPI + ',' + row.trafficPI + ',' + row.ratePI + ',' + row.footfallPS + ',' + row.trafficPS + ',' + row.ratePS + '\n';
+      csvContent += row.date + ',' + row.footfallPI + ',' + row.trafficPI + ',' + row.ratePI + ',' + row.footfallPS + ',' + row.trafficPS + ',' + row.ratePS + ',' + row.footfallBL + ',' + row.trafficBL + ',' + row.rateBL + '\n';
     });
     var csvBlob = Utilities.newBlob(csvContent, 'text/csv', 'Footfall_CaptureRate_' + month + '_' + year + '.csv');
 
@@ -404,6 +450,12 @@ function sendFootfallCaptureRateEmail(month, year) {
             <td class="t-cell num b" style="color:${rc(ratePS)};">${ratePS}%</td>
           </tr>
           <tr style="background:#eef2ff;">
+            <td class="t-cell">Bali</td>
+            <td class="t-cell num b">${fn(sumFF_BL)}</td>
+            <td class="t-cell num t-crm">${fn(sumCRM_BL)}</td>
+            <td class="t-cell num b" style="color:${rc(rateBL)};">${rateBL}%</td>
+          </tr>
+          <tr style="background:#eef2ff;">
             <td class="t-cell" style="font-weight:700;">TOTAL</td>
             <td class="t-cell num b">${fn(totalFF)}</td>
             <td class="t-cell num" style="color:#4f46e5;font-weight:700;">${fn(totalCRM)}</td>
@@ -417,14 +469,18 @@ function sendFootfallCaptureRateEmail(month, year) {
             <th class="t-head" style="text-align:left;" rowspan="2">Date</th>
             <th class="t-head" style="text-align:center;background:#e0f2e8;color:#065f46;" colspan="3">Plaza Indonesia</th>
             <th class="t-head" style="text-align:center;background:#fef3c7;color:#92400e;" colspan="3">Plaza Senayan</th>
+            <th class="t-head" style="text-align:center;background:#e0f2fe;color:#0369a1;" colspan="3">Bali</th>
           </tr>
           <tr>
-            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Door</th>
-            <th class="t-head num" style="font-size:9px;padding:4px 10px;">CRM</th>
-            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Rate</th>
-            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Door</th>
-            <th class="t-head num" style="font-size:9px;padding:4px 10px;">CRM</th>
-            <th class="t-head num" style="font-size:9px;padding:4px 10px;">Rate</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">Door</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">CRM</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">Rate</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">Door</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">CRM</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">Rate</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">Door</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">CRM</th>
+            <th class="t-head num" style="font-size:8px;padding:4px 6px;">Rate</th>
           </tr>`;
 
     // Process daily rows concisely
@@ -448,6 +504,9 @@ function sendFootfallCaptureRateEmail(month, year) {
             <td class="t-cell num">${item.footfallPS}</td>
             <td class="t-cell num t-crm">${item.trafficPS}</td>
             <td class="t-cell num b" style="color:${rc(item.ratePS)};">${item.ratePS}%</td>
+            <td class="t-cell num">${item.footfallBL}</td>
+            <td class="t-cell num t-crm">${item.trafficBL}</td>
+            <td class="t-cell num b" style="color:${rc(item.rateBL)};">${item.rateBL}%</td>
           </tr>`;
     });
 
@@ -460,6 +519,9 @@ function sendFootfallCaptureRateEmail(month, year) {
             <td class="t-cell num">${fn(sumFF_PS)}</td>
             <td class="t-cell num" style="color:#4f46e5;">${fn(sumCRM_PS)}</td>
             <td class="t-cell num" style="color:${rc(ratePS)};">${ratePS}%</td>
+            <td class="t-cell num">${fn(sumFF_BL)}</td>
+            <td class="t-cell num" style="color:#4f46e5;">${fn(sumCRM_BL)}</td>
+            <td class="t-cell num" style="color:${rc(rateBL)};">${rateBL}%</td>
           </tr>
         </table>
         

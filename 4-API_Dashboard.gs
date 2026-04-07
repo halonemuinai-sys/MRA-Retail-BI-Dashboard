@@ -1298,7 +1298,9 @@ function getStorePerformanceData(storeName, year) {
       if (!filterStore || filterStore === 'plaza senayan') {
         footfallSheets.push(CONFIG.SHEETS.FOOTFALL_PS);
       }
-      // Note: Bali doesn't have a footfall sensor sheet yet
+      if (!filterStore || filterStore === 'bali') {
+        footfallSheets.push(CONFIG.SHEETS.FOOTFALL_BL);
+      }
       
       for (var fi = 0; fi < footfallSheets.length; fi++) {
         var fSheet = ss.getSheetByName(footfallSheets[fi]);

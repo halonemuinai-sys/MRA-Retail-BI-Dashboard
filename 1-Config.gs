@@ -19,6 +19,7 @@ const CONFIG = {
     MASTER_STOCK: 'master_stock',
     FOOTFALL_PI: 'footfall_pi',
     FOOTFALL_PS: 'footfall_ps',
+    FOOTFALL_BL: 'footfall_bl',
     TRAFFIC_SUMMARY: 'Traffic_Summary',
     LOG_EMAIL: 'log_email_sent'
   },
