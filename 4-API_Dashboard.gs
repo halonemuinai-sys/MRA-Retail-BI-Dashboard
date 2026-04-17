@@ -15,8 +15,8 @@ function runDataSync() {
     const masters = loadMasters(ss);
     buildCleanMaster(ss, masters);
     
-    // Traffic Data Mart update dipindahkan ke cron trigger (tidak lagi dipicu manual via Tombol Sync)
-    // agar sinkronisasi dashboard kembali ringan.
+    // Update Traffic Data Mart
+    exportTrafficSummary();
 
     return {
       success: true,
@@ -40,7 +40,7 @@ function getDashboardData(monthName, year, forceRefresh = false) {
   const cacheKey = `DASH_${monthName}_${year}`;
   
   // Temporarily force refresh to bust the bad cache state
-  forceRefresh = true;
+  // forceRefresh = true;
 
   if (forceRefresh) {
     cache.remove(cacheKey);
@@ -96,79 +96,65 @@ function getDashboardData(monthName, year, forceRefresh = false) {
 
   const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
 
-  // Filter Data Bulanan
-  const monthlyData = data.filter(row => {
-    const d = parseDateFix(row[COL.DATE]);
-    return d.getMonth() === monthIndex && d.getFullYear() == year;
-  });
-
-  // Filter Data Tahunan
-  const yearlyData = data.filter(row => {
-    const d = parseDateFix(row[COL.DATE]);
-    return d.getFullYear() == year;
-  });
-
-  // 1. Multi-Year Trend Analysis (2023 - 2026)
+  // 1. Init Data Structures
+  const monthlyData = [];
+  
   const targetYears = [2023, 2024, 2025, 2026];
   const multiYearStats = {};
-  
-  targetYears.forEach(y => {
-    multiYearStats[y] = new Array(12).fill(0); // Only Net Sales for now
-    const yData = data.filter(row => {
-        const d = parseDateFix(row[COL.DATE]);
-        return d.getFullYear() == y;
-    });
-    
-    yData.forEach(row => {
-        const d = parseDateFix(row[COL.DATE]);
-        const m = d.getMonth();
-        const net = (Number(row[COL.NET_SALES]) || 0);
-        if (multiYearStats[y][m] !== undefined) {
-             multiYearStats[y][m] += net;
-        }
-    });
-  });
+  targetYears.forEach(y => multiYearStats[y] = new Array(12).fill(0));
 
-  // Current Year Details (for other charts)
   const trendStats = new Array(12).fill(null).map(() => ({ net: 0, qty: 0, transSet: new Set(), custSet: new Set() }));
   let annualSalesExcHO = 0;
-  
-
-
-  // 2. Annual Trend (Per Category)
   const categoryTrend = {};
 
-  yearlyData.forEach(row => {
+  // 2. SINGLE PASS DATA EXTRACTION (Replaces multiple filters)
+  data.forEach(row => {
     const d = parseDateFix(row[COL.DATE]);
-    const m = d.getMonth();
-    const day = d.getDate();
-    const net = (Number(row[COL.NET_SALES]) || 0);
-    const qty = (Number(row[COL.QTY]) || 0);
-    const cat = String(row[COL.MAIN_CAT] || "Other").trim();
-    const loc = String(row[COL.LOCATION]).trim();
-    const transNo = String(row[COL.TRANS_NO] || "");
-    const custName = String(row[COL.CUSTOMER] || "").trim();
+    if (isNaN(d.getTime())) return;
+    
+    const rYear = d.getFullYear();
+    const rMonth = d.getMonth();
+    const net = Number(row[COL.NET_SALES]) || 0;
+    const qty = Number(row[COL.QTY]) || 0;
 
-    if (trendStats[m]) {
-      trendStats[m].net += net;
-      trendStats[m].qty += qty;
-      if (transNo) trendStats[m].transSet.add(transNo);
-      if (custName && custName.toLowerCase() !== "customer") trendStats[m].custSet.add(custName);
+    // A: Multi-Year Stats
+    if (multiYearStats[rYear] && multiYearStats[rYear][rMonth] !== undefined) {
+       multiYearStats[rYear][rMonth] += net;
     }
 
-    // ROBUST CHECK: Use includes to catch "Head Office", "Head Office " etc.
-    if (!loc.toLowerCase().includes("head office")) {
-      annualSalesExcHO += net;
-      
+    // B: Current Year Processing
+    if (rYear == year) {
+        // Collect monthly data for later
+        if (rMonth === monthIndex) {
+            monthlyData.push(row);
+        }
 
-    }
+        const cat = String(row[COL.MAIN_CAT] || "Other").trim();
+        const loc = String(row[COL.LOCATION]).trim();
+        const transNo = String(row[COL.TRANS_NO] || "");
+        const custName = String(row[COL.CUSTOMER] || "").trim();
 
-    if (!categoryTrend[cat]) {
-      categoryTrend[cat] = { net: new Array(12).fill(0), qty: new Array(12).fill(0) };
-    }
-    if (categoryTrend[cat].net[m] !== undefined) {
-      categoryTrend[cat].net[m] += net;
-      categoryTrend[cat].qty[m] += qty;
+        // Trend Stats per month
+        if (trendStats[rMonth]) {
+            trendStats[rMonth].net += net;
+            trendStats[rMonth].qty += qty;
+            if (transNo) trendStats[rMonth].transSet.add(transNo);
+            if (custName && custName.toLowerCase() !== "customer") trendStats[rMonth].custSet.add(custName);
+        }
+
+        // Annual Sales Exc HO
+        if (!loc.toLowerCase().includes("head office")) {
+            annualSalesExcHO += net;
+        }
+
+        // Category Trend
+        if (!categoryTrend[cat]) {
+            categoryTrend[cat] = { net: new Array(12).fill(0), qty: new Array(12).fill(0) };
+        }
+        if (categoryTrend[cat].net[rMonth] !== undefined) {
+            categoryTrend[cat].net[rMonth] += net;
+            categoryTrend[cat].qty[rMonth] += qty;
+        }
     }
   });
   
@@ -384,8 +370,20 @@ function getDashboardData(monthName, year, forceRefresh = false) {
           const tSumData = trafficSummarySheet.getDataRange().getValues();
           tSumData.shift(); // remove header
           tSumData.forEach(row => {
-              // Col 0: Tahun, Col 1: Bulan (1-12)
+              // Col 0: Tahun, Col 1: Bulan (1-12), Col 2: Lokasi
               if (row[0] == year && row[1] == monthIndex + 1) {
+                  const tLoc = String(row[2] || '').trim().toLowerCase();
+                  
+                  // Filter by store (same logic as before)
+                  if (filterStore) {
+                      const lowerFilter = filterStore.toLowerCase();
+                      let matchStore = false;
+                      if (lowerFilter === 'plaza indonesia' && (tLoc.includes('plaza indonesia') || tLoc === 'pi')) matchStore = true;
+                      if (lowerFilter === 'plaza senayan' && (tLoc.includes('plaza senayan') || tLoc === 'ps')) matchStore = true;
+                      if (lowerFilter === 'bali' && tLoc.includes('bali')) matchStore = true;
+                      if (!matchStore) return;
+                  }
+
                   // Col 3: Penjualan Berhasil, Col 4: Gagal, Col 5: Menunggu
                   // Col 6: Potensial, Col 7: Nego, Col 8: Total
                   trafficFunnel.berhasil += Number(row[3]) || 0;
