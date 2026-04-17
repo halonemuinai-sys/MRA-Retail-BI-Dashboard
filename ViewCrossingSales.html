@@ -259,16 +259,16 @@
         </div>
 
         <!-- Footfall Charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Daily Trend Chart -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                 <div class="flex justify-between items-center mb-6">
                     <div>
                         <h3 class="text-base font-bold text-brand-dark">Daily Footfall Trend</h3>
                         <p class="text-xs text-slate-500 mt-0.5">Visits mapped throughout the selected month</p>
                     </div>
                 </div>
-                <div class="h-[300px] w-full relative">
+                <div class="h-[300px] w-full relative flex-grow">
                     <canvas id="chartFootfallTrend"></canvas>
                 </div>
             </div>
@@ -302,7 +302,43 @@
                         <div id="barFootfallWomen" class="bg-pink-500 h-full w-0 transition-all duration-1000"></div>
                     </div>
 
-                    <p class="text-[10px] text-slate-400 italic text-center mt-6 max-w-[80%] mx-auto">
+                    <p class="text-[10px] text-slate-400 italic text-center mt-6 max-w-[90%] mx-auto">
+                        Percentage is averaged across all populated days within the selected month.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bali Gender Demographics -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col relative overflow-hidden group">
+                <div class="absolute -right-4 -top-4 w-20 h-20 bg-cyan-50 rounded-full group-hover:scale-150 transition-transform duration-500 z-0"></div>
+                <div class="mb-4 relative z-10">
+                    <h3 class="text-base font-bold text-brand-dark">Bali Demographics</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Estimated Gender Distribution</p>
+                </div>
+                <!-- Custom Demographic UI -->
+                <div class="flex-grow flex flex-col justify-center items-center py-4 relative z-10">
+                    <div class="w-full flex justify-between items-end mb-2 px-2">
+                        <div class="text-center">
+                            <span class="text-3xl font-display font-black text-cyan-600 block leading-none"
+                                id="footfallPctMenBL">-</span>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 block">Men</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-3xl font-display font-black text-rose-500 block leading-none"
+                                id="footfallPctWomenBL">-</span>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 block">Women</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full h-4 bg-slate-100 rounded-full overflow-hidden flex shadow-inner mt-4">
+                        <div id="barFootfallMenBL" class="bg-cyan-500 h-full w-0 transition-all duration-1000"></div>
+                        <div id="barFootfallWomenBL" class="bg-rose-500 h-full w-0 transition-all duration-1000"></div>
+                    </div>
+
+                    <p class="text-[10px] text-slate-400 italic text-center mt-6 max-w-[90%] mx-auto">
                         Percentage is averaged across all populated days within the selected month.
                     </p>
                 </div>

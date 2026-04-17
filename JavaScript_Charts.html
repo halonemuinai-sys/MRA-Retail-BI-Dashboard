@@ -172,8 +172,8 @@
             }
 
             // 3. PI Demographics
-            const menPct = Math.round(res.demographicsPI.menPct || 0);
-            const womenPct = Math.round(res.demographicsPI.womenPct || 0);
+            const menPct = Math.round(res.demographicsPI?.menPct || 0);
+            const womenPct = Math.round(res.demographicsPI?.womenPct || 0);
 
             UI.setText('footfallPctMen', menPct + '%');
             UI.setText('footfallPctWomen', (+menPct + +womenPct > 0) ? womenPct + '%' : '0%');
@@ -183,6 +183,19 @@
 
             if (barMen) barMen.style.width = menPct + '%';
             if (barWomen) barWomen.style.width = womenPct + '%';
+
+            // 3b. Bali Demographics
+            const menPctBL = Math.round(res.demographicsBL?.menPct || 0);
+            const womenPctBL = Math.round(res.demographicsBL?.womenPct || 0);
+
+            UI.setText('footfallPctMenBL', menPctBL + '%');
+            UI.setText('footfallPctWomenBL', (+menPctBL + +womenPctBL > 0) ? womenPctBL + '%' : '0%');
+
+            const barMenBL = document.getElementById('barFootfallMenBL');
+            const barWomenBL = document.getElementById('barFootfallWomenBL');
+
+            if (barMenBL) barMenBL.style.width = menPctBL + '%';
+            if (barWomenBL) barWomenBL.style.width = womenPctBL + '%';
 
             // 4. Daily Detail Table
             const tbody = document.getElementById('footfallTableBody');

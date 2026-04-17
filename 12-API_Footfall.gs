@@ -178,6 +178,10 @@ function getFootfallData(monthName, year) {
     let piMen = 0;   // Estimated count based on %
     let piWomen = 0; 
     let piDemographicDays = 0; // Days with demographic info
+
+    let blMen = 0;
+    let blWomen = 0;
+    let blDemographicDays = 0;
     
     // Debug tracer
     let parseLogs = [];
@@ -290,9 +294,18 @@ function getFootfallData(monthName, year) {
            if (d.getMonth() === monthIndexTarget && d.getFullYear() === targetYear) {
               const fIn = Number(row[2]) || 0; // Input
               const fOut = Number(row[3]) || 0; // Output
+              const pMen = parseFloat(row[5]) || 0; 
+              const pWomen = parseFloat(row[6]) || 0;
               
               totalFootfallBL += fIn;
               trackDay(d, 'BL', fIn, fOut);
+
+              if (pMen > 0 || pWomen > 0) {
+                const totalOfDay = fIn; 
+                blMen += (totalOfDay * (pMen / 100));
+                blWomen += (totalOfDay * (pWomen / 100));
+                blDemographicDays++;
+              }
            }
          }
       });
@@ -309,6 +322,17 @@ function getFootfallData(monthName, year) {
        const diff = 100 - (finalMenPct + finalWomenPct);
        if (diff !== 0) finalMenPct += diff; 
     }
+
+    let finalBlMenPct = 0;
+    let finalBlWomenPct = 0;
+    const totalBlDemographic = blMen + blWomen;
+    if (totalBlDemographic > 0) {
+       finalBlMenPct = (blMen / totalBlDemographic) * 100;
+       finalBlWomenPct = (blWomen / totalBlDemographic) * 100;
+       
+       const diff = 100 - (finalBlMenPct + finalBlWomenPct);
+       if (diff !== 0) finalBlMenPct += diff; 
+    }
     
     return {
       dailyTrend: dailyTrend,
@@ -321,6 +345,10 @@ function getFootfallData(monthName, year) {
       demographicsPI: {
         menPct: finalMenPct,
         womenPct: finalWomenPct
+      },
+      demographicsBL: {
+        menPct: finalBlMenPct,
+        womenPct: finalBlWomenPct
       },
       debug: {
         piRowsProcessed: piSheet ? piSheet.getLastRow() : 0,
