@@ -59,11 +59,11 @@ function getFootfallAnalytics(month, year) {
         if (locType === 'PS') debugLogs.ps_rows++;
         if (locType === 'BL') debugLogs.bl_rows++;
 
-        let d;
-        try {
-            d = new Date(dStr);
-            if (isNaN(d.getTime())) continue;
-        } catch (e) { continue; }
+        let d = dStr;
+        if (!(dStr instanceof Date)) {
+            d = parseDateFix(dStr);
+        }
+        if (!d || isNaN(d.getTime())) continue;
 
         const rm = d.getMonth();
         const ry = d.getFullYear();
@@ -98,11 +98,11 @@ function getFootfallAnalytics(month, year) {
             
             debugLogs.trf_rows++;
             
-            let d;
-            try {
-                d = new Date(dStr);
-                if (isNaN(d.getTime())) continue;
-            } catch (e) { continue; }
+            let d = dStr;
+            if (!(dStr instanceof Date)) {
+                d = parseDateFix(dStr);
+            }
+            if (!d || isNaN(d.getTime())) continue;
 
             const rm = d.getMonth();
             const ry = d.getFullYear();
@@ -575,7 +575,8 @@ function sendFootfallCaptureRateEmail(month, year) {
     MailApp.sendEmail({
       to: recipients.join(','),
       subject: 'Footfall Capture Rate Report - ' + month + ' ' + year + ' | Bvlgari Indonesia',
-      htmlBody: html
+      htmlBody: html,
+      attachments: [csvBlob]
     });
 
     logEmailActivity('Footfall Rate Report', `${month} ${year}`, recipients.join(','), 'SUCCESS');
