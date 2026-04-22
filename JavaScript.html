@@ -243,8 +243,8 @@
 
             // Update Sidebar Menu Classes
             // Update Sidebar Menu Classes
-            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall', 'tabFootfallCrm', 'tabCRM', 'tabStore', 'tabAnnualSales', 'tabForecasting'];
-            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing', 'viewCRM', 'viewFootfallCrm', 'viewStore', 'viewAnnualSales', 'viewForecasting'];
+            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall', 'tabFootfallCrm', 'tabCRM', 'tabStore', 'tabAnnualSales', 'tabForecasting', 'tabClienteling'];
+            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing', 'viewCRM', 'viewFootfallCrm', 'viewStore', 'viewAnnualSales', 'viewForecasting', 'viewClienteling'];
             const pageTitles = {
                 'monthly': 'Monthly Overview',
                 'quarterlyStandard': 'Quarterly Standard',
@@ -262,7 +262,8 @@
                 'CRM': 'App Sheet (CRM)',
                 'store': 'Store Performance',
                 'annualSales': 'Annual Net Sales',
-                'forecasting': 'Forecasting & Projection'
+                'forecasting': 'Forecasting & Projection',
+                'clienteling': 'Clienteling & Loyalty Hub'
             };
 
             const baseClass = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group";
@@ -295,7 +296,7 @@
             if (actualView === 'daily') {
                 if (dailyFilter) dailyFilter.classList.remove('hidden');
                 if (monthlyFilter) monthlyFilter.classList.remove('hidden');
-            } else if (actualView === 'customer' || actualView === 'quarterly' || actualView === 'footfallCrm' || actualView === 'annualSales' || actualView === 'forecasting') {
+            } else if (actualView === 'customer' || actualView === 'quarterly' || actualView === 'footfallCrm' || actualView === 'annualSales' || actualView === 'forecasting' || actualView === 'clienteling') {
                 if (monthlyFilter) monthlyFilter.classList.add('hidden');
             } else {
                 if (monthlyFilter) monthlyFilter.classList.remove('hidden');
@@ -467,6 +468,10 @@
             } else if (currentMode === 'forecasting') {
                 if (typeof FORECAST !== 'undefined') {
                     FORECAST.loadData();
+                }
+            } else if (currentMode === 'clienteling') {
+                if (typeof CLIENTELING !== 'undefined') {
+                    CLIENTELING.loadData();
                 }
             }
         },

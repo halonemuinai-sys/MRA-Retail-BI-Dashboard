@@ -1,0 +1,331 @@
+<script>
+    /**
+     * CLIENTELING MODULE — Clienteling & Loyalty Hub
+     * Deep CRM analytics: tier pyramid, retention, lapsed alerts, RFM, tier migration.
+     */
+    const CLIENTELING = {
+        charts: { retention: null },
+        data: null,
+
+        loadData: () => {
+            if (typeof UI !== 'undefined' && UI.showLoader) UI.showLoader(true, 'Memproses CRM Intelligence...');
+
+            google.script.run
+                .withSuccessHandler(CLIENTELING.render)
+                .withFailureHandler(function(err) {
+                    if (typeof UI !== 'undefined') UI.showLoader(false);
+                    if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memuat data: ' + err.message, 'error');
+                })
+                .getClientelingData();
+        },
+
+        render: (res) => {
+            if (typeof UI !== 'undefined') UI.showLoader(false);
+            if (!res || res.status === 'error') {
+                if (typeof Swal !== 'undefined') Swal.fire('Error', res ? res.message : 'Empty response', 'error');
+                return;
+            }
+            CLIENTELING.data = res;
+            CLIENTELING.renderKpi(res);
+            CLIENTELING.renderTierPyramid(res);
+            CLIENTELING.renderRetentionChart(res);
+            CLIENTELING.renderTopClients(res);
+            CLIENTELING.renderLapsedAlerts(res);
+            CLIENTELING.renderRfm(res);
+            CLIENTELING.renderTierMigration(res);
+            CLIENTELING.renderLocationLoyalty(res);
+        },
+
+        renderKpi: (res) => {
+            const k = res.kpi;
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            document.getElementById('clKpiActive').textContent = k.totalActive.toLocaleString('id-ID');
+            document.getElementById('clKpiRetention').textContent = k.retentionRate.toFixed(1) + '%';
+            document.getElementById('clKpiLtv').textContent = fmt(k.avgLtv);
+            document.getElementById('clKpiLapsed').textContent = k.lapsedCount;
+        },
+
+        renderTierPyramid: (res) => {
+            const container = document.getElementById('clTierPyramid');
+            const tiers = res.tierCounts;
+            const revenue = res.tierRevenue;
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            const tierConfig = [
+                { key: 'Top', color: 'bg-amber-500', textColor: 'text-amber-700', bgLight: 'bg-amber-50', icon: '👑' },
+                { key: 'Elite', color: 'bg-indigo-500', textColor: 'text-indigo-700', bgLight: 'bg-indigo-50', icon: '💎' },
+                { key: 'High Potential', color: 'bg-blue-500', textColor: 'text-blue-700', bgLight: 'bg-blue-50', icon: '⭐' },
+                { key: 'Potential', color: 'bg-slate-400', textColor: 'text-slate-600', bgLight: 'bg-slate-50', icon: '🔵' },
+                { key: 'Inactive', color: 'bg-rose-400', textColor: 'text-rose-600', bgLight: 'bg-rose-50', icon: '💤' }
+            ];
+
+            const totalActive = res.kpi.totalActive + (tiers['Inactive'] || 0);
+            let html = '';
+
+            tierConfig.forEach(t => {
+                const count = tiers[t.key] || 0;
+                const rev = revenue[t.key] || 0;
+                const pct = totalActive > 0 ? (count / totalActive) * 100 : 0;
+                const barWidth = Math.max(8, pct);
+
+                html += '<div class="mb-3 last:mb-0">';
+                html += '<div class="flex justify-between items-center mb-1">';
+                html += '<span class="text-[11px] font-bold ' + t.textColor + '">' + t.icon + ' ' + t.key + '</span>';
+                html += '<span class="text-[10px] text-slate-500 font-mono">' + count + ' (' + pct.toFixed(0) + '%)</span>';
+                html += '</div>';
+                html += '<div class="w-full bg-slate-100 rounded-full h-3">';
+                html += '<div class="h-3 rounded-full ' + t.color + ' transition-all duration-500" style="width:' + barWidth.toFixed(0) + '%"></div>';
+                html += '</div>';
+                html += '<p class="text-[9px] text-slate-400 mt-0.5">Revenue: ' + fmt(rev) + '</p>';
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        },
+
+        renderRetentionChart: (res) => {
+            const ctxEl = document.getElementById('clRetentionChart');
+            if (!ctxEl) return;
+            if (CLIENTELING.charts.retention) CLIENTELING.charts.retention.destroy();
+
+            const rYear = document.getElementById('clRetentionYear');
+            if (rYear) rYear.textContent = res.year;
+
+            const ret = res.retention;
+
+            CLIENTELING.charts.retention = new Chart(ctxEl, {
+                type: 'bar',
+                data: {
+                    labels: ret.map(r => r.month),
+                    datasets: [
+                        {
+                            label: 'New Clients',
+                            data: ret.map(r => r.newCust),
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: '#3B82F6',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.7
+                        },
+                        {
+                            label: 'Returning Clients',
+                            data: ret.map(r => r.returning),
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: '#10B981',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.7
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: '#64748B' } },
+                        y: { stacked: true, grid: { color: '#F1F5F9', borderDash: [4, 4] }, border: { display: false }, ticks: { font: { size: 10 }, color: '#94A3B8' } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: '#0F172A', cornerRadius: 8, padding: 12 },
+                        datalabels: { display: false }
+                    }
+                }
+            });
+        },
+
+        renderTopClients: (res) => {
+            const container = document.getElementById('clTopList');
+            const countEl = document.getElementById('clTopCount');
+            const clients = res.topClients;
+            if (countEl) countEl.textContent = 'Top ' + clients.length;
+
+            if (!clients || clients.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 italic text-xs py-8">Tidak ada data.</p>';
+                return;
+            }
+
+            const fmt = (v) => HELPERS.formatIDR(v);
+            const tierBadge = (tier) => {
+                const colors = { 'Top': 'bg-amber-100 text-amber-700', 'Elite': 'bg-indigo-100 text-indigo-700', 'High Potential': 'bg-blue-100 text-blue-700', 'Potential': 'bg-slate-100 text-slate-600' };
+                return '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold ' + (colors[tier] || 'bg-slate-100 text-slate-500') + '">' + tier + '</span>';
+            };
+
+            let html = '<table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100">';
+            html += '<th class="text-left p-3 font-bold">#</th>';
+            html += '<th class="text-left p-3 font-bold">Client</th>';
+            html += '<th class="text-right p-3 font-bold">Total Spend</th>';
+            html += '<th class="text-center p-3 font-bold">Visits</th>';
+            html += '<th class="text-left p-3 font-bold">Tier</th>';
+            html += '</tr></thead><tbody>';
+
+            clients.forEach((c, idx) => {
+                const initials = c.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                const medalColors = ['bg-amber-500', 'bg-slate-400', 'bg-amber-700'];
+                const medal = idx < 3 ? '<span class="w-5 h-5 rounded-full text-white text-[9px] font-bold flex items-center justify-center ' + medalColors[idx] + '">' + (idx + 1) + '</span>' : '<span class="text-slate-400">' + (idx + 1) + '</span>';
+
+                html += '<tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">';
+                html += '<td class="p-3">' + medal + '</td>';
+                html += '<td class="p-3"><p class="font-bold text-slate-700">' + c.name + '</p><p class="text-[9px] text-slate-400">' + c.location + ' · Last: ' + c.lastVisit + '</p></td>';
+                html += '<td class="p-3 text-right font-mono font-bold text-slate-700">' + fmt(c.spend) + '</td>';
+                html += '<td class="p-3 text-center font-bold">' + c.visits + 'x</td>';
+                html += '<td class="p-3">' + tierBadge(c.tier) + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        },
+
+        renderLapsedAlerts: (res) => {
+            const container = document.getElementById('clLapsedList');
+            const countEl = document.getElementById('clLapsedCount');
+            const alerts = res.lapsedAlerts;
+            if (countEl) countEl.textContent = alerts.length;
+
+            if (!alerts || alerts.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 italic text-xs py-8">Tidak ada lapsed customer.</p>';
+                return;
+            }
+
+            const fmt = (v) => HELPERS.formatIDR(v);
+            let html = '<table class="w-full text-xs"><thead><tr class="text-rose-400 border-b border-rose-100">';
+            html += '<th class="text-left p-3 font-bold">Client</th>';
+            html += '<th class="text-right p-3 font-bold">Spend</th>';
+            html += '<th class="text-center p-3 font-bold">Days Since</th>';
+            html += '<th class="text-left p-3 font-bold">Tier</th>';
+            html += '</tr></thead><tbody>';
+
+            alerts.forEach(a => {
+                const urgency = a.daysSince > 365 ? 'text-rose-600 font-bold' : 'text-amber-600';
+                html += '<tr class="border-b border-rose-50 hover:bg-rose-50/50 transition-colors">';
+                html += '<td class="p-3"><p class="font-bold text-slate-700">' + a.name + '</p><p class="text-[9px] text-slate-400">' + a.location + ' · ' + a.lastVisit + '</p></td>';
+                html += '<td class="p-3 text-right font-mono font-bold">' + fmt(a.spend) + '</td>';
+                html += '<td class="p-3 text-center ' + urgency + '">' + a.daysSince + 'd</td>';
+                html += '<td class="p-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-600">' + a.tier + '</span></td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        },
+
+        renderRfm: (res) => {
+            const container = document.getElementById('clRfmContent');
+            const rec = res.recencyBuckets;
+            const freq = res.freqBuckets;
+            const totalActive = res.kpi.totalActive;
+
+            let html = '<h4 class="text-[10px] font-bold text-slate-500 uppercase mb-2">Recency (Last Visit)</h4>';
+
+            const recConfig = [
+                { key: '0-30', label: '< 30 days', color: 'bg-emerald-500' },
+                { key: '31-90', label: '31-90 days', color: 'bg-blue-500' },
+                { key: '91-180', label: '91-180 days', color: 'bg-amber-500' },
+                { key: '181-365', label: '6-12 months', color: 'bg-orange-500' },
+                { key: '365+', label: '> 12 months', color: 'bg-rose-500' }
+            ];
+
+            recConfig.forEach(r => {
+                const count = rec[r.key] || 0;
+                const pct = totalActive > 0 ? (count / totalActive) * 100 : 0;
+                html += '<div class="flex items-center gap-2 mb-1.5">';
+                html += '<span class="text-[9px] text-slate-500 w-20 text-right">' + r.label + '</span>';
+                html += '<div class="flex-grow bg-slate-100 rounded-full h-2"><div class="h-2 rounded-full ' + r.color + '" style="width:' + Math.max(2, pct).toFixed(0) + '%"></div></div>';
+                html += '<span class="text-[9px] font-mono font-bold text-slate-600 w-12 text-right">' + count + '</span>';
+                html += '</div>';
+            });
+
+            html += '<h4 class="text-[10px] font-bold text-slate-500 uppercase mb-2 mt-5">Frequency (Visits)</h4>';
+
+            const freqConfig = [
+                { key: '1x', label: '1 visit', color: 'bg-slate-400' },
+                { key: '2-3x', label: '2-3 visits', color: 'bg-blue-400' },
+                { key: '4-6x', label: '4-6 visits', color: 'bg-indigo-500' },
+                { key: '7-10x', label: '7-10 visits', color: 'bg-purple-500' },
+                { key: '10+', label: '10+ visits', color: 'bg-amber-500' }
+            ];
+
+            freqConfig.forEach(f => {
+                const count = freq[f.key] || 0;
+                const pct = totalActive > 0 ? (count / totalActive) * 100 : 0;
+                html += '<div class="flex items-center gap-2 mb-1.5">';
+                html += '<span class="text-[9px] text-slate-500 w-20 text-right">' + f.label + '</span>';
+                html += '<div class="flex-grow bg-slate-100 rounded-full h-2"><div class="h-2 rounded-full ' + f.color + '" style="width:' + Math.max(2, pct).toFixed(0) + '%"></div></div>';
+                html += '<span class="text-[9px] font-mono font-bold text-slate-600 w-12 text-right">' + count + '</span>';
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        },
+
+        renderTierMigration: (res) => {
+            const container = document.getElementById('clMigrationList');
+            const labelEl = document.getElementById('clMigrationLabel');
+            if (labelEl) labelEl.textContent = (res.year - 1) + ' → ' + res.year + ' Tier Changes';
+
+            const migs = res.tierMigration;
+            if (!migs || migs.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 italic text-xs py-8">Belum ada perubahan tier tahun ini.</p>';
+                return;
+            }
+
+            const fmt = (v) => HELPERS.formatIDR(v);
+            let html = '';
+
+            migs.forEach(m => {
+                const isUp = m.direction === 'up';
+                const arrow = isUp ? '↑' : '↓';
+                const arrowColor = isUp ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+                const borderColor = isUp ? 'border-emerald-100' : 'border-rose-100';
+
+                html += '<div class="flex items-center gap-3 py-3 border-b ' + borderColor + ' last:border-0">';
+                html += '<span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ' + arrowColor + '">' + arrow + '</span>';
+                html += '<div class="flex-grow">';
+                html += '<p class="text-xs font-bold text-slate-700">' + m.name + '</p>';
+                html += '<p class="text-[9px] text-slate-400"><span class="font-bold">' + m.from + '</span> → <span class="font-bold">' + m.to + '</span></p>';
+                html += '</div>';
+                html += '<div class="text-right">';
+                html += '<p class="text-[10px] font-mono font-bold text-slate-700">' + fmt(m.currSpend) + '</p>';
+                html += '<p class="text-[9px] text-slate-400">was ' + fmt(m.prevSpend) + '</p>';
+                html += '</div>';
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        },
+
+        renderLocationLoyalty: (res) => {
+            const container = document.getElementById('clLocationContent');
+            const locs = res.locationSummary;
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            if (!locs || locs.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 italic text-xs py-8">Tidak ada data.</p>';
+                return;
+            }
+
+            const maxSpend = locs[0].spend;
+            let html = '';
+
+            locs.forEach(l => {
+                const pct = maxSpend > 0 ? (l.spend / maxSpend) * 100 : 0;
+
+                html += '<div class="mb-4 last:mb-0">';
+                html += '<div class="flex justify-between items-center mb-1">';
+                html += '<span class="text-[11px] font-bold text-slate-700">' + l.name + '</span>';
+                html += '<span class="text-[10px] font-mono text-slate-500">' + l.active + ' clients</span>';
+                html += '</div>';
+                html += '<div class="w-full bg-slate-100 rounded-full h-2.5 mb-1">';
+                html += '<div class="h-2.5 rounded-full bg-gradient-to-r from-rose-400 to-rose-500 transition-all" style="width:' + pct.toFixed(0) + '%"></div>';
+                html += '</div>';
+                html += '<div class="flex justify-between text-[9px] text-slate-400">';
+                html += '<span>Total: ' + fmt(l.spend) + '</span>';
+                html += '<span>Avg LTV: ' + fmt(l.avgSpend) + '</span>';
+                html += '</div>';
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        }
+    };
+</script>

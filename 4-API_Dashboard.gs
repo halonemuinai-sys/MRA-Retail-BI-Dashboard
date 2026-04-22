@@ -1911,4 +1911,318 @@ function getForecastingData(year) {
     return { status: 'error', message: e.message };
   }
 }
+
+// ============================================================
+//  CLIENTELING & LOYALTY HUB — CRM Deep Dive Module
+// ============================================================
+
+/**
+ * Returns deep-dive CRM analytics: retention, tier migration,
+ * top clients, lapsed alerts, and repeat buyer analysis.
+ * @returns {Object} Comprehensive clienteling dataset
+ */
+function getClientelingData() {
+  try {
+    var ss = getSpreadsheet();
+    var COL = CONFIG.CLEAN_COLS;
+    var today = new Date();
+    var currentYear = today.getFullYear();
+    var currentMonth = today.getMonth();
+
+    var cleanSheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
+    if (!cleanSheet) throw new Error("Clean data tidak ditemukan.");
+
+    var data = cleanSheet.getDataRange().getValues();
+    data.shift();
+
+    // === 1. Build customer profiles from transaction data ===
+    var customers = {};
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var name = String(row[COL.CUSTOMER]).trim();
+      if (!name || name === '' || name.toLowerCase() === 'customer') continue;
+
+      var d = parseDateFix(row[COL.DATE]);
+      if (isNaN(d.getTime())) continue;
+
+      var net = Number(row[COL.NET_SALES]) || 0;
+      var qty = Number(row[COL.QTY]) || 0;
+      var loc = String(row[COL.LOCATION]).trim();
+      var cat = String(row[COL.MAIN_CAT] || 'Other').trim();
+      var transNo = String(row[COL.TRANS_NO] || '');
+      var rYear = d.getFullYear();
+      var rMonth = d.getMonth();
+
+      if (!customers[name]) {
+        customers[name] = {
+          name: name,
+          totalSpend: 0,
+          transSet: {},
+          totalQty: 0,
+          firstDate: d,
+          lastDate: d,
+          locations: {},
+          categories: {},
+          yearlySpend: {},
+          monthlyVisits: {},
+          visits: 0
+        };
+      }
+      var c = customers[name];
+      c.totalSpend += net;
+      c.totalQty += qty;
+
+      if (!c.transSet[transNo]) {
+        c.transSet[transNo] = true;
+        c.visits++;
+      }
+
+      if (d < c.firstDate) c.firstDate = d;
+      if (d > c.lastDate) c.lastDate = d;
+
+      if (!c.locations[loc]) c.locations[loc] = 0;
+      c.locations[loc] += net;
+
+      if (!c.categories[cat]) c.categories[cat] = 0;
+      c.categories[cat] += net;
+
+      if (!c.yearlySpend[rYear]) c.yearlySpend[rYear] = 0;
+      c.yearlySpend[rYear] += net;
+
+      var mvKey = rYear + '-' + rMonth;
+      if (!c.monthlyVisits[mvKey]) c.monthlyVisits[mvKey] = 0;
+      c.monthlyVisits[mvKey]++;
+    }
+
+    // === 2. Classify & Analyze each customer ===
+    var tierThresholds = [
+      { name: 'Top', min: 1350000000 },
+      { name: 'Elite', min: 200000000 },
+      { name: 'High Potential', min: 50000000 },
+      { name: 'Potential', min: 0 }
+    ];
+
+    function getTier(spend) {
+      for (var t = 0; t < tierThresholds.length; t++) {
+        if (spend >= tierThresholds[t].min) return tierThresholds[t].name;
+      }
+      return 'Prospect';
+    }
+
+    var topClients = [];
+    var lapsedAlerts = [];
+    var tierCounts = { 'Top': 0, 'Elite': 0, 'High Potential': 0, 'Potential': 0, 'Prospect': 0, 'Inactive': 0 };
+    var tierRevenue = { 'Top': 0, 'Elite': 0, 'High Potential': 0, 'Potential': 0, 'Prospect': 0, 'Inactive': 0 };
+    var totalActive = 0;
+    var totalRepeat = 0;
+    var totalNew = 0;
+    var repeatRevenue = 0;
+    var newRevenue = 0;
+
+    // Tier migration: compare prev year tier vs current year tier
+    var tierMigration = [];
+
+    // Retention: monthly new vs returning unique customers
+    var monthlyRetention = [];
+    for (var rm = 0; rm < 12; rm++) {
+      monthlyRetention.push({ month: rm, newCust: 0, returning: 0 });
+    }
+
+    // Recency distribution
+    var recencyBuckets = { '0-30': 0, '31-90': 0, '91-180': 0, '181-365': 0, '365+': 0 };
+
+    // Frequency distribution
+    var freqBuckets = { '1x': 0, '2-3x': 0, '4-6x': 0, '7-10x': 0, '10+': 0 };
+
+    // Location preference
+    var locationCustomers = {};
+
+    var prevYear = currentYear - 1;
+
+    for (var cName in customers) {
+      var cust = customers[cName];
+      var diffMs = Math.abs(today - cust.lastDate);
+      var recencyDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      var freq = cust.visits;
+      var isInactive = recencyDays > 730;
+
+      var currentTier = isInactive ? 'Inactive' : getTier(cust.totalSpend);
+      tierCounts[currentTier]++;
+      tierRevenue[currentTier] += cust.totalSpend;
+
+      if (!isInactive) {
+        totalActive++;
+
+        // Recency buckets
+        if (recencyDays <= 30) recencyBuckets['0-30']++;
+        else if (recencyDays <= 90) recencyBuckets['31-90']++;
+        else if (recencyDays <= 180) recencyBuckets['91-180']++;
+        else if (recencyDays <= 365) recencyBuckets['181-365']++;
+        else recencyBuckets['365+']++;
+
+        // Frequency buckets
+        if (freq === 1) freqBuckets['1x']++;
+        else if (freq <= 3) freqBuckets['2-3x']++;
+        else if (freq <= 6) freqBuckets['4-6x']++;
+        else if (freq <= 10) freqBuckets['7-10x']++;
+        else freqBuckets['10+']++;
+
+        // New vs Repeat
+        if (freq === 1) {
+          totalNew++;
+          newRevenue += cust.totalSpend;
+        } else {
+          totalRepeat++;
+          repeatRevenue += cust.totalSpend;
+        }
+
+        // Preferred location
+        var topLoc = '';
+        var topLocSpend = 0;
+        for (var lk in cust.locations) {
+          if (cust.locations[lk] > topLocSpend) {
+            topLocSpend = cust.locations[lk];
+            topLoc = lk;
+          }
+        }
+
+        if (topLoc) {
+          if (!locationCustomers[topLoc]) locationCustomers[topLoc] = { active: 0, spend: 0 };
+          locationCustomers[topLoc].active++;
+          locationCustomers[topLoc].spend += cust.totalSpend;
+        }
+
+        // Top category
+        var topCat = '';
+        var topCatSpend = 0;
+        for (var ck in cust.categories) {
+          if (cust.categories[ck] > topCatSpend) {
+            topCatSpend = cust.categories[ck];
+            topCat = ck;
+          }
+        }
+
+        // Top clients list (limit 50)
+        topClients.push({
+          name: cust.name,
+          spend: cust.totalSpend,
+          visits: freq,
+          recency: recencyDays,
+          tier: currentTier,
+          location: topLoc,
+          category: topCat,
+          firstVisit: cust.firstDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+          lastVisit: cust.lastDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+        });
+
+        // Tier migration
+        var prevSpend = cust.yearlySpend[prevYear] || 0;
+        var currSpend = cust.yearlySpend[currentYear] || 0;
+        if (prevSpend > 0 && currSpend > 0) {
+          var prevTier = getTier(prevSpend);
+          var currTierMig = getTier(currSpend);
+          if (prevTier !== currTierMig) {
+            tierMigration.push({
+              name: cust.name,
+              from: prevTier,
+              to: currTierMig,
+              prevSpend: prevSpend,
+              currSpend: currSpend,
+              direction: tierThresholds.map(function(t){return t.name;}).indexOf(currTierMig) < tierThresholds.map(function(t){return t.name;}).indexOf(prevTier) ? 'up' : 'down'
+            });
+          }
+        }
+
+        // Retention tracking — first visit month in current year
+        if (cust.firstDate.getFullYear() === currentYear) {
+          var fMonth = cust.firstDate.getMonth();
+          if (fMonth < 12) monthlyRetention[fMonth].newCust++;
+        }
+        if (cust.lastDate.getFullYear() === currentYear && freq > 1) {
+          var lMonth = cust.lastDate.getMonth();
+          if (lMonth < 12) monthlyRetention[lMonth].returning++;
+        }
+      }
+
+      // Lapsed alerts: VIP customers inactive 6-24 months
+      if (recencyDays >= 180 && recencyDays <= 730 && cust.totalSpend >= 50000000) {
+        lapsedAlerts.push({
+          name: cust.name,
+          spend: cust.totalSpend,
+          lastVisit: cust.lastDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+          daysSince: recencyDays,
+          tier: getTier(cust.totalSpend),
+          location: Object.keys(cust.locations).sort(function(a, b) { return cust.locations[b] - cust.locations[a]; })[0] || '-'
+        });
+      }
+    }
+
+    // Sort results
+    topClients.sort(function(a, b) { return b.spend - a.spend; });
+    topClients = topClients.slice(0, 50);
+
+    lapsedAlerts.sort(function(a, b) { return b.spend - a.spend; });
+    lapsedAlerts = lapsedAlerts.slice(0, 30);
+
+    tierMigration.sort(function(a, b) { return b.currSpend - a.currSpend; });
+    tierMigration = tierMigration.slice(0, 20);
+
+    // Location summary
+    var locationSummary = [];
+    for (var ls in locationCustomers) {
+      locationSummary.push({
+        name: ls,
+        active: locationCustomers[ls].active,
+        spend: locationCustomers[ls].spend,
+        avgSpend: locationCustomers[ls].active > 0 ? locationCustomers[ls].spend / locationCustomers[ls].active : 0
+      });
+    }
+    locationSummary.sort(function(a, b) { return b.spend - a.spend; });
+
+    // Retention rate
+    var retentionRate = totalActive > 0 ? (totalRepeat / totalActive) * 100 : 0;
+    var avgLtv = totalActive > 0 ? (repeatRevenue + newRevenue) / totalActive : 0;
+
+    // Month names for retention
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var retentionFormatted = [];
+    for (var rf = 0; rf < 12; rf++) {
+      retentionFormatted.push({
+        month: monthNames[rf],
+        newCust: monthlyRetention[rf].newCust,
+        returning: monthlyRetention[rf].returning
+      });
+    }
+
+    return {
+      status: 'ok',
+      kpi: {
+        totalActive: totalActive,
+        retentionRate: retentionRate,
+        avgLtv: avgLtv,
+        repeatPct: totalActive > 0 ? (totalRepeat / totalActive) * 100 : 0,
+        newPct: totalActive > 0 ? (totalNew / totalActive) * 100 : 0,
+        repeatRevenue: repeatRevenue,
+        newRevenue: newRevenue,
+        lapsedCount: lapsedAlerts.length
+      },
+      tierCounts: tierCounts,
+      tierRevenue: tierRevenue,
+      topClients: topClients,
+      lapsedAlerts: lapsedAlerts,
+      tierMigration: tierMigration,
+      recencyBuckets: recencyBuckets,
+      freqBuckets: freqBuckets,
+      locationSummary: locationSummary,
+      retention: retentionFormatted,
+      year: currentYear
+    };
+
+  } catch (e) {
+    Logger.log('getClientelingData Error: ' + e.message);
+    return { status: 'error', message: e.message };
+  }
+}
+
 

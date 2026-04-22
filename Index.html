@@ -258,6 +258,16 @@
                         </svg>
                         <span>App Sheet (CRM)</span>
                     </button>
+                    <button onclick="APP.switchTab('clienteling')" id="tabClienteling"
+                        class="sidebar-glow w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 hover:from-rose-100 hover:to-pink-100 border border-rose-200/60 group relative overflow-hidden">
+                        <svg class="w-5 h-5 text-rose-500 group-hover:text-rose-600 transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                        </svg>
+                        <span>Clienteling Hub</span>
+                        <span class="ml-auto bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide animate-pulse">NEW</span>
+                    </button>
                 </div>
             </div>
 
@@ -386,6 +396,7 @@
             <?!= include('ViewStore'); ?>
             <?!= include('ViewAnnualSales'); ?>
             <?!= include('ViewForecasting'); ?>
+            <?!= include('ViewClienteling'); ?>
 
             <div class="h-8"></div> <!-- Bottom empty margin for clean scrolling -->
         </main>
@@ -522,6 +533,7 @@
     <?!= include('JsStore'); ?>
     <?!= include('JsAnnualSales'); ?>
     <?!= include('JsForecasting'); ?>
+    <?!= include('JsClienteling'); ?>
     <?!= include('JavaScript_Charts'); ?>
     <?!= include('JavaScript'); ?>
     <?!= include('JavaScript_Projection'); ?>
