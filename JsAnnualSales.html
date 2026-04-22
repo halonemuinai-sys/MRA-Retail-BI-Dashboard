@@ -1,0 +1,207 @@
+<script>
+    /**
+     * ANNUAL SALES MODULE — Monthly Net Sales by Store Location
+     * Handles data loading, rendering, sparklines, and CSV export.
+     */
+    const ANNUAL_SALES = {
+        data: null,
+
+        init: () => {
+            const ySelect = document.getElementById('annualSalesYearSelect');
+            if (ySelect) ySelect.value = new Date().getFullYear().toString();
+        },
+
+        loadData: () => {
+            const year = document.getElementById('annualSalesYearSelect').value;
+            const sub = document.getElementById('annualSalesSubtitle');
+            if (sub) sub.textContent = 'Monthly Net Sales Breakdown — ' + year;
+
+            if (typeof UI !== 'undefined' && UI.showLoader) UI.showLoader(true);
+
+            google.script.run
+                .withSuccessHandler(ANNUAL_SALES.render)
+                .withFailureHandler(function(err) {
+                    if (typeof UI !== 'undefined') UI.showLoader(false);
+                    if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memuat data: ' + err.message, 'error');
+                })
+                .getAnnualNetSalesData(year);
+        },
+
+        render: (res) => {
+            if (typeof UI !== 'undefined') UI.showLoader(false);
+            if (!res || res.status === 'error') {
+                if (typeof Swal !== 'undefined') Swal.fire('Error', res ? res.message : 'Empty response', 'error');
+                return;
+            }
+
+            ANNUAL_SALES.data = res;
+            ANNUAL_SALES.renderKPI(res);
+            ANNUAL_SALES.renderTable(res);
+        },
+
+        renderKPI: (res) => {
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            // YTD
+            document.getElementById('annualKpi_ytd').textContent = fmt(res.grandTotal.ytd);
+
+            // Target
+            var gtTarget = 0;
+            for (var i = 0; i < res.grandTotal.targets.length; i++) gtTarget += res.grandTotal.targets[i];
+            document.getElementById('annualKpi_target').textContent = fmt(gtTarget);
+
+            // YoY
+            const yoyEl = document.getElementById('annualKpi_yoy');
+            const g = res.grandTotal.yoyGrowth;
+            const arrow = g >= 0 ? '↑' : '↓';
+            const color = g >= 0 ? 'text-emerald-600' : 'text-rose-600';
+            yoyEl.textContent = arrow + ' ' + Math.abs(g).toFixed(1) + '%';
+            yoyEl.className = 'text-xl font-bold font-mono ' + color;
+
+            // Stores count
+            document.getElementById('annualKpi_stores').textContent = res.stores.length;
+        },
+
+        renderTable: (res) => {
+            const tbody = document.getElementById('annualSalesTableBody');
+            const tfoot = document.getElementById('annualSalesTableFoot');
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            if (!res.stores || res.stores.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="18" class="py-16 text-center text-slate-400 italic">Tidak ada data untuk periode ini.</td></tr>';
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            // Render body rows
+            let html = '';
+            for (let idx = 0; idx < res.stores.length; idx++) {
+                const s = res.stores[idx];
+                html += '<tr class="hover:bg-slate-50/80 transition-colors group">';
+
+                // Rank
+                let medal = '';
+                if (idx === 0) medal = '<span class="text-amber-500">🥇</span>';
+                else if (idx === 1) medal = '<span class="text-slate-400">🥈</span>';
+                else if (idx === 2) medal = '<span class="text-amber-700">🥉</span>';
+                html += '<td class="py-3 px-4 text-center text-slate-400 text-xs font-bold">' + (medal || (idx + 1)) + '</td>';
+
+                // Store Name
+                html += '<td class="py-3 px-4 text-xs font-bold text-slate-700 whitespace-nowrap group-hover:text-brand-blue transition-colors">' + s.name + '</td>';
+
+                // Monthly cells
+                for (let m = 0; m < 12; m++) {
+                    const val = s.monthly[m];
+                    const target = s.targets[m];
+                    const isBest = (m === s.bestMonth && val > 0);
+
+                    let cellBg = '';
+                    if (val > 0 && target > 0) {
+                        cellBg = val >= target ? 'bg-emerald-50/60' : 'bg-rose-50/40';
+                    }
+                    if (isBest) cellBg = 'bg-amber-50';
+
+                    const cellText = val > 0 ? fmt(val) : '<span class="text-slate-300">—</span>';
+                    html += '<td class="py-3 px-3 text-right font-mono text-slate-600 text-[11px] ' + cellBg + '">' + cellText + '</td>';
+                }
+
+                // YTD Total
+                html += '<td class="py-3 px-3 text-right font-mono font-bold text-slate-800 bg-slate-50/80 text-xs">' + fmt(s.ytd) + '</td>';
+
+                // Sparkline
+                html += '<td class="py-3 px-3">' + ANNUAL_SALES.renderSparkline(s.monthly) + '</td>';
+
+                // YoY Growth
+                const yoy = s.yoyGrowth;
+                const yoyArrow = yoy >= 0 ? '↑' : '↓';
+                const yoyColor = yoy >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+                const yoyStr = s.prevYtd > 0 ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ' + yoyColor + '">' + yoyArrow + ' ' + Math.abs(yoy).toFixed(1) + '%</span>' : '<span class="text-slate-300 text-[10px]">N/A</span>';
+                html += '<td class="py-3 px-3 text-right">' + yoyStr + '</td>';
+
+                // Contribution
+                html += '<td class="py-3 px-3 text-right text-[11px] font-bold text-brand-blue">' + s.contribution.toFixed(1) + '%</td>';
+
+                html += '</tr>';
+            }
+
+            tbody.innerHTML = html;
+
+            // Render footer (Grand Total)
+            const gt = res.grandTotal;
+            let footHtml = '<tr>';
+            footHtml += '<td class="py-3.5 px-4 text-xs font-bold text-slate-600" colspan="2">GRAND TOTAL</td>';
+            for (let fm = 0; fm < 12; fm++) {
+                footHtml += '<td class="py-3.5 px-3 text-right font-mono font-bold text-slate-800 text-[11px]">' + (gt.monthly[fm] > 0 ? fmt(gt.monthly[fm]) : '—') + '</td>';
+            }
+            footHtml += '<td class="py-3.5 px-3 text-right font-mono font-bold text-brand-dark bg-slate-100 text-xs">' + fmt(gt.ytd) + '</td>';
+            footHtml += '<td class="py-3.5 px-3">' + ANNUAL_SALES.renderSparkline(gt.monthly) + '</td>';
+
+            const gtYoy = gt.yoyGrowth;
+            const gtArrow = gtYoy >= 0 ? '↑' : '↓';
+            const gtColor = gtYoy >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+            footHtml += '<td class="py-3.5 px-3 text-right"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ' + gtColor + '">' + gtArrow + ' ' + Math.abs(gtYoy).toFixed(1) + '%</span></td>';
+            footHtml += '<td class="py-3.5 px-3 text-right text-[11px] font-bold text-brand-dark">100%</td>';
+            footHtml += '</tr>';
+
+            tfoot.innerHTML = footHtml;
+        },
+
+        renderSparkline: (monthly) => {
+            const max = Math.max.apply(null, monthly);
+            if (max === 0) return '<span class="text-slate-300 text-[10px]">—</span>';
+
+            let bars = '<div class="flex items-end gap-px h-6 w-20">';
+            for (let i = 0; i < 12; i++) {
+                const pct = max > 0 ? Math.max(2, (monthly[i] / max) * 100) : 2;
+                const opacity = monthly[i] > 0 ? '1' : '0.2';
+                bars += '<div class="flex-1 rounded-sm bg-brand-blue transition-all" style="height:' + pct + '%;opacity:' + opacity + '" title="' + HELPERS.formatIDR(monthly[i]) + '"></div>';
+            }
+            bars += '</div>';
+            return bars;
+        },
+
+        exportCSV: () => {
+            if (!ANNUAL_SALES.data) {
+                if (typeof UI !== 'undefined') UI.showToast('Tidak ada data. Load data terlebih dahulu.');
+                return;
+            }
+
+            const res = ANNUAL_SALES.data;
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            let csv = 'Rank,Store,' + months.join(',') + ',YTD Total,YoY Growth %,Contribution %\n';
+
+            for (let i = 0; i < res.stores.length; i++) {
+                const s = res.stores[i];
+                const storeName = '"' + s.name.replace(/"/g, '""') + '"';
+                let row = (i + 1) + ',' + storeName;
+                for (let m = 0; m < 12; m++) {
+                    row += ',' + s.monthly[m];
+                }
+                row += ',' + s.ytd;
+                row += ',' + s.yoyGrowth.toFixed(1);
+                row += ',' + s.contribution.toFixed(1);
+                csv += row + '\n';
+            }
+
+            // Grand Total
+            const gt = res.grandTotal;
+            let gtRow = ',"GRAND TOTAL"';
+            for (let m = 0; m < 12; m++) gtRow += ',' + gt.monthly[m];
+            gtRow += ',' + gt.ytd;
+            gtRow += ',' + gt.yoyGrowth.toFixed(1);
+            gtRow += ',100';
+            csv += gtRow + '\n';
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Annual_Net_Sales_' + res.year + '.csv';
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            if (typeof UI !== 'undefined') UI.showToast('CSV downloaded successfully.');
+        }
+    };
+</script>

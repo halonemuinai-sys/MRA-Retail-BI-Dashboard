@@ -117,6 +117,15 @@
                         <span>Store Performance</span>
                         <span class="ml-auto bg-blue-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide animate-pulse">NEW</span>
                     </button>
+                    <button onclick="APP.switchTab('annualSales')" id="tabAnnualSales"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-brand-dark border-r-2 border-transparent group">
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-brand-blue transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Annual Net Sales</span>
+                    </button>
                 </div>
             </div>
 
@@ -365,6 +374,7 @@
             <?!= include('ViewCRM'); ?>
             <?!= include('ViewFootfall'); ?>
             <?!= include('ViewStore'); ?>
+            <?!= include('ViewAnnualSales'); ?>
 
             <div class="h-8"></div> <!-- Bottom empty margin for clean scrolling -->
         </main>
@@ -499,6 +509,7 @@
     <?!= include('JsCRM'); ?>
     <?!= include('JsFootfall'); ?>
     <?!= include('JsStore'); ?>
+    <?!= include('JsAnnualSales'); ?>
     <?!= include('JavaScript_Charts'); ?>
     <?!= include('JavaScript'); ?>
     <?!= include('JavaScript_Projection'); ?>

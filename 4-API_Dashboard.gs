@@ -1458,3 +1458,191 @@ function getMonthlyStoreTargets(ss, storeName, year) {
   }
   return monthTargets;
 }
+
+// ============================================================
+//  ANNUAL NET SALES — Per-Location Monthly Breakdown
+// ============================================================
+
+/**
+ * Returns annual net sales broken down by store and month.
+ * Used by the Annual Net Sales view.
+ * @param {number|string} year - The year to query
+ * @returns {Object} stores[], grandTotal, targets, year, prevYear
+ */
+function getAnnualNetSalesData(year) {
+  try {
+    var ss = getSpreadsheet();
+    var targetY = Number(year);
+    var prevY = targetY - 1;
+    var COL = CONFIG.CLEAN_COLS;
+
+    // 1. Resolve sheet for target year
+    var sheetName = CONFIG.SHEETS.CLEAN;
+    var currentYear = new Date().getFullYear();
+    if (targetY !== currentYear) {
+      var archiveName = 'Clean_Data_' + targetY;
+      if (ss.getSheetByName(archiveName)) sheetName = archiveName;
+    }
+
+    var cleanSheet = ss.getSheetByName(sheetName);
+    if (!cleanSheet) throw new Error("Sheet '" + sheetName + "' tidak ditemukan.");
+
+    var data = cleanSheet.getDataRange().getValues();
+    data.shift(); // Remove header
+
+    // 2. Structures: { storeName: [12 months] }
+    var storeMonthly = {};
+    var grandMonthly = new Array(12).fill(0);
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var d = parseDateFix(row[COL.DATE]);
+      if (d.getFullYear() !== targetY) continue;
+
+      var loc = String(row[COL.LOCATION]).trim();
+      if (!loc || loc.toLowerCase().includes('head office')) continue;
+
+      var m = d.getMonth();
+      var net = Number(row[COL.NET_SALES]) || 0;
+
+      if (!storeMonthly[loc]) storeMonthly[loc] = new Array(12).fill(0);
+      storeMonthly[loc][m] += net;
+      grandMonthly[m] += net;
+    }
+
+    // 3. Load previous year data for YoY
+    var prevStoreMonthly = {};
+    var prevGrandMonthly = new Array(12).fill(0);
+
+    var prevSheetName = CONFIG.SHEETS.CLEAN;
+    var prevArchive = 'Clean_Data_' + prevY;
+    if (ss.getSheetByName(prevArchive)) prevSheetName = prevArchive;
+
+    var prevSheet = ss.getSheetByName(prevSheetName);
+    if (prevSheet) {
+      var prevData = prevSheet.getDataRange().getValues();
+      prevData.shift();
+      for (var pi = 0; pi < prevData.length; pi++) {
+        var pRow = prevData[pi];
+        var pd = parseDateFix(pRow[COL.DATE]);
+        if (pd.getFullYear() !== prevY) continue;
+        var pLoc = String(pRow[COL.LOCATION]).trim();
+        if (!pLoc || pLoc.toLowerCase().includes('head office')) continue;
+
+        var pm = pd.getMonth();
+        var pNet = Number(pRow[COL.NET_SALES]) || 0;
+
+        if (!prevStoreMonthly[pLoc]) prevStoreMonthly[pLoc] = new Array(12).fill(0);
+        prevStoreMonthly[pLoc][pm] += pNet;
+        prevGrandMonthly[pm] += pNet;
+      }
+    }
+
+    // 4. Load monthly targets per store
+    var targetSheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_TARGET_STORE);
+    // targets = { storeName: [12 monthly targets] }
+    var storeTargets = {};
+    var grandTargets = new Array(12).fill(0);
+    var monthNamesEN = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    var monthNamesID = ['januari','februari','maret','april','mei','juni','juli','agustus','september','oktober','november','desember'];
+
+    if (targetSheet) {
+      var tData = targetSheet.getDataRange().getValues();
+      var tHeaders = tData[0];
+
+      for (var ti = 1; ti < tData.length; ti++) {
+        var tRow = tData[ti];
+        if (String(tRow[0]) != targetY) continue;
+
+        var tMonthStr = String(tRow[1]).trim().toLowerCase();
+        var tMonthIdx = -1;
+        for (var mk = 0; mk < monthNamesEN.length; mk++) {
+          if (tMonthStr === monthNamesEN[mk] || monthNamesEN[mk].startsWith(tMonthStr) || tMonthStr.startsWith(monthNamesEN[mk])) {
+            tMonthIdx = mk; break;
+          }
+        }
+        if (tMonthIdx === -1) {
+          for (var mk2 = 0; mk2 < monthNamesID.length; mk2++) {
+            if (tMonthStr === monthNamesID[mk2] || monthNamesID[mk2].startsWith(tMonthStr) || tMonthStr.startsWith(monthNamesID[mk2])) {
+              tMonthIdx = mk2; break;
+            }
+          }
+        }
+        if (tMonthIdx === -1) continue;
+
+        for (var tj = 2; tj < tRow.length; tj++) {
+          var tStoreName = String(tHeaders[tj]).trim();
+          if (tStoreName.toLowerCase() === 'head office') continue;
+          var val = Number(tRow[tj]) || 0;
+          if (!storeTargets[tStoreName]) storeTargets[tStoreName] = new Array(12).fill(0);
+          storeTargets[tStoreName][tMonthIdx] += val;
+          grandTargets[tMonthIdx] += val;
+        }
+      }
+    }
+
+    // 5. Compile results
+    var storeNames = Object.keys(storeMonthly).sort();
+    // Also add stores that appear only in targets
+    for (var tk in storeTargets) {
+      if (storeNames.indexOf(tk) === -1) storeNames.push(tk);
+    }
+    storeNames.sort();
+
+    var grandYtd = 0;
+    var prevGrandYtd = 0;
+    for (var gi = 0; gi < 12; gi++) { grandYtd += grandMonthly[gi]; prevGrandYtd += prevGrandMonthly[gi]; }
+
+    var storesResult = [];
+    for (var si = 0; si < storeNames.length; si++) {
+      var sName = storeNames[si];
+      var monthly = storeMonthly[sName] || new Array(12).fill(0);
+      var prevMonthly = prevStoreMonthly[sName] || new Array(12).fill(0);
+      var targets = storeTargets[sName] || new Array(12).fill(0);
+
+      var ytd = 0, prevYtd = 0, ytdTarget = 0;
+      for (var mi = 0; mi < 12; mi++) { ytd += monthly[mi]; prevYtd += prevMonthly[mi]; ytdTarget += targets[mi]; }
+
+      var yoyGrowth = prevYtd > 0 ? ((ytd - prevYtd) / prevYtd) * 100 : 0;
+      var bestMonth = 0, bestMonthVal = 0;
+      for (var bm = 0; bm < 12; bm++) {
+        if (monthly[bm] > bestMonthVal) { bestMonthVal = monthly[bm]; bestMonth = bm; }
+      }
+
+      storesResult.push({
+        name: sName,
+        monthly: monthly,
+        prevMonthly: prevMonthly,
+        targets: targets,
+        ytd: ytd,
+        prevYtd: prevYtd,
+        ytdTarget: ytdTarget,
+        yoyGrowth: yoyGrowth,
+        contribution: grandYtd > 0 ? (ytd / grandYtd) * 100 : 0,
+        bestMonth: bestMonth
+      });
+    }
+
+    // Sort by YTD descending
+    storesResult.sort(function(a, b) { return b.ytd - a.ytd; });
+
+    return {
+      status: 'ok',
+      stores: storesResult,
+      grandTotal: {
+        monthly: grandMonthly,
+        prevMonthly: prevGrandMonthly,
+        targets: grandTargets,
+        ytd: grandYtd,
+        prevYtd: prevGrandYtd,
+        yoyGrowth: prevGrandYtd > 0 ? ((grandYtd - prevGrandYtd) / prevGrandYtd) * 100 : 0
+      },
+      year: targetY,
+      prevYear: prevY
+    };
+
+  } catch (e) {
+    Logger.log('getAnnualNetSalesData Error: ' + e.message);
+    return { status: 'error', message: e.message };
+  }
+}

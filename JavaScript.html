@@ -243,8 +243,8 @@
 
             // Update Sidebar Menu Classes
             // Update Sidebar Menu Classes
-            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall', 'tabFootfallCrm', 'tabCRM', 'tabStore'];
-            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing', 'viewCRM', 'viewFootfallCrm', 'viewStore'];
+            const tabs = ['tabMonthly', 'tabDaily', 'tabMonthlyTransTable', 'tabHeatmapCalendar', 'tabQuarterlyStandard', 'tabQuarterlyBudget', 'tabSapTop', 'tabSapProjection', 'tabCustomer', 'tabAdvisor', 'tabCrossingSales', 'tabFootfall', 'tabFootfallCrm', 'tabCRM', 'tabStore', 'tabAnnualSales'];
+            const views = ['viewMonthly', 'viewDaily', 'viewMonthlyTransaction', 'viewQuarterly', 'viewSap', 'viewCustomer', 'viewAdvisor', 'viewCrossing', 'viewCRM', 'viewFootfallCrm', 'viewStore', 'viewAnnualSales'];
             const pageTitles = {
                 'monthly': 'Monthly Overview',
                 'quarterlyStandard': 'Quarterly Standard',
@@ -260,7 +260,8 @@
                 'advisor': 'Advisor Performance',
                 'customer': 'Customer Segmentation',
                 'CRM': 'App Sheet (CRM)',
-                'store': 'Store Performance'
+                'store': 'Store Performance',
+                'annualSales': 'Annual Net Sales'
             };
 
             const baseClass = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group";
@@ -293,7 +294,7 @@
             if (actualView === 'daily') {
                 if (dailyFilter) dailyFilter.classList.remove('hidden');
                 if (monthlyFilter) monthlyFilter.classList.remove('hidden');
-            } else if (actualView === 'customer' || actualView === 'quarterly' || actualView === 'footfallCrm') {
+            } else if (actualView === 'customer' || actualView === 'quarterly' || actualView === 'footfallCrm' || actualView === 'annualSales') {
                 if (monthlyFilter) monthlyFilter.classList.add('hidden');
             } else {
                 if (monthlyFilter) monthlyFilter.classList.remove('hidden');
@@ -458,6 +459,10 @@
             } else if (currentMode === 'footfallCrm') {
                 UI.showLoader(true, 'Menarik data Footfall & Capture Rate...');
                 FOOTFALL.loadData();
+            } else if (currentMode === 'annualSales') {
+                if (typeof ANNUAL_SALES !== 'undefined') {
+                    ANNUAL_SALES.loadData();
+                }
             }
         },
 

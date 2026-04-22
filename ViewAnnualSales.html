@@ -1,0 +1,100 @@
+<div id="viewAnnualSales" class="hidden animate-fade-in relative">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 px-2">
+        <div>
+            <h2 class="text-2xl font-display font-bold text-brand-dark tracking-tight flex items-center gap-3">
+                <svg class="w-7 h-7 text-brand-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Annual Net Sales
+            </h2>
+            <p class="text-sm text-slate-500 mt-1" id="annualSalesSubtitle">Monthly Net Sales Breakdown by Store Location</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Year Filter -->
+            <div class="relative w-28">
+                <select id="annualSalesYearSelect" onchange="ANNUAL_SALES.loadData()" title="Select Year"
+                    class="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-bold cursor-pointer shadow-sm hover:border-slate-300 transition-colors">
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+            </div>
+            <!-- CSV Export -->
+            <button onclick="ANNUAL_SALES.exportCSV()" title="Download CSV"
+                class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue hover:bg-brand-blueLight transition-all text-xs font-bold bg-white shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-2">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">YTD Net Sales</p>
+            <p class="text-xl font-bold text-slate-800 font-mono" id="annualKpi_ytd">-</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Annual Target</p>
+            <p class="text-xl font-bold text-indigo-700 font-mono" id="annualKpi_target">-</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">YoY Growth</p>
+            <p class="text-xl font-bold font-mono" id="annualKpi_yoy">-</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-bl-full"></div>
+            <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Active Stores</p>
+            <p class="text-xl font-bold text-amber-700 font-mono" id="annualKpi_stores">-</p>
+        </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mx-2">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-xs text-left min-w-[1200px]" id="annualSalesTable">
+                <thead class="bg-gradient-to-r from-slate-800 to-slate-900 text-white text-[10px] uppercase tracking-wider sticky top-0 z-10">
+                    <tr>
+                        <th class="py-3.5 px-4 font-bold w-10 text-center">#</th>
+                        <th class="py-3.5 px-4 font-bold whitespace-nowrap">Store Location</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Jan</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Feb</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Mar</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Apr</th>
+                        <th class="py-3.5 px-3 font-bold text-right">May</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Jun</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Jul</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Aug</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Sep</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Oct</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Nov</th>
+                        <th class="py-3.5 px-3 font-bold text-right">Dec</th>
+                        <th class="py-3.5 px-3 font-bold text-right whitespace-nowrap bg-slate-700/50">YTD Total</th>
+                        <th class="py-3.5 px-3 font-bold text-center whitespace-nowrap">Trend</th>
+                        <th class="py-3.5 px-3 font-bold text-right whitespace-nowrap">YoY</th>
+                        <th class="py-3.5 px-3 font-bold text-right whitespace-nowrap">Contrib</th>
+                    </tr>
+                </thead>
+                <tbody id="annualSalesTableBody" class="divide-y divide-slate-50">
+                    <tr><td colspan="18" class="py-16 text-center text-slate-400 italic">Memuat data...</td></tr>
+                </tbody>
+                <tfoot id="annualSalesTableFoot" class="bg-gradient-to-r from-slate-50 to-slate-100 border-t-2 border-slate-300 font-bold">
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="flex items-center gap-6 mt-4 px-4 text-[10px] text-slate-400 font-medium">
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-200 inline-block"></span> Above Target</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-50 border border-rose-200 inline-block"></span> Below Target</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-100 border border-amber-200 inline-block"></span> Best Month</span>
+    </div>
+</div>
