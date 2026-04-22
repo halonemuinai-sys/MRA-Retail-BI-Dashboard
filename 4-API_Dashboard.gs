@@ -1645,4 +1645,270 @@ function getAnnualNetSalesData(year) {
     Logger.log('getAnnualNetSalesData Error: ' + e.message);
     return { status: 'error', message: e.message };
   }
-}
+}
+
+// ============================================================
+//  FORECASTING & PROJECTION — Smart Planning Module
+// ============================================================
+
+/**
+ * Returns forecasting data: month-end projection, year-end projection,
+ * category momentum, holiday impact, seasonal patterns, and store projections.
+ * @param {number|string} year - The year to forecast
+ * @returns {Object} Comprehensive forecasting dataset
+ */
+function getForecastingData(year) {
+  try {
+    var ss = getSpreadsheet();
+    var targetY = Number(year);
+    var COL = CONFIG.CLEAN_COLS;
+    var today = new Date();
+    var currentMonth = today.getMonth();
+    var currentDay = today.getDate();
+
+    // 1. Resolve sheet
+    var sheetName = CONFIG.SHEETS.CLEAN;
+    var currentYear = today.getFullYear();
+    if (targetY !== currentYear) {
+      var archiveName = 'Clean_Data_' + targetY;
+      if (ss.getSheetByName(archiveName)) sheetName = archiveName;
+    }
+
+    var cleanSheet = ss.getSheetByName(sheetName);
+    if (!cleanSheet) throw new Error("Sheet '" + sheetName + "' tidak ditemukan.");
+
+    var data = cleanSheet.getDataRange().getValues();
+    data.shift();
+
+    // 2. Structures
+    var monthlyNet = new Array(12).fill(0);
+    var monthlyQty = new Array(12).fill(0);
+    var monthlyTrans = {};
+    for (var mi = 0; mi < 12; mi++) monthlyTrans[mi] = {};
+
+    var dailySales = {};
+    var categoryMonthly = {};
+    var storeMonthly = {};
+    var dayOfWeekSales = new Array(7).fill(0);
+    var dayOfWeekCount = new Array(7).fill(0);
+    var latestDataDate = null;
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var d = parseDateFix(row[COL.DATE]);
+      if (d.getFullYear() !== targetY) continue;
+
+      var loc = String(row[COL.LOCATION]).trim();
+      if (!loc || loc.toLowerCase().includes('head office')) continue;
+
+      var m = d.getMonth();
+      var day = d.getDate();
+      var net = Number(row[COL.NET_SALES]) || 0;
+      var qty = Number(row[COL.QTY]) || 0;
+      var cat = String(row[COL.MAIN_CAT] || 'Other').trim();
+      var transNo = String(row[COL.TRANS_NO] || '');
+
+      if (!latestDataDate || d > latestDataDate) latestDataDate = d;
+
+      monthlyNet[m] += net;
+      monthlyQty[m] += qty;
+      if (transNo) monthlyTrans[m][transNo] = true;
+
+      var dayKey = m + '-' + day;
+      if (!dailySales[dayKey]) dailySales[dayKey] = 0;
+      dailySales[dayKey] += net;
+
+      if (!categoryMonthly[cat]) categoryMonthly[cat] = new Array(12).fill(0);
+      categoryMonthly[cat][m] += net;
+
+      if (!storeMonthly[loc]) storeMonthly[loc] = new Array(12).fill(0);
+      storeMonthly[loc][m] += net;
+
+      var dow = d.getDay();
+      dayOfWeekSales[dow] += net;
+      dayOfWeekCount[dow]++;
+    }
+
+    // Determine active month
+    var activeMonth = latestDataDate ? latestDataDate.getMonth() : currentMonth;
+    var activeDay = latestDataDate ? latestDataDate.getDate() : currentDay;
+
+    // Holiday impact
+    var holidaySales = 0, holidayDays = 0, normalSales = 0, normalDays = 0;
+    for (var hm = 0; hm < 12; hm++) {
+      var daysInM = new Date(targetY, hm + 1, 0).getDate();
+      for (var hd = 1; hd <= daysInM; hd++) {
+        var hDateStr = targetY + '-' + String(hm + 1).padStart(2, '0') + '-' + String(hd).padStart(2, '0');
+        var hKey = hm + '-' + hd;
+        var dayNet = dailySales[hKey] || 0;
+        if (dayNet === 0) continue;
+        if (getIndonesianHoliday(hDateStr)) {
+          holidaySales += dayNet;
+          holidayDays++;
+        } else {
+          normalSales += dayNet;
+          normalDays++;
+        }
+      }
+    }
+
+    // 3. MONTH-END PROJECTION
+    var daysInActiveMonth = new Date(targetY, activeMonth + 1, 0).getDate();
+    var activeMtd = monthlyNet[activeMonth];
+    var sellingDays = 0;
+    for (var sd = 1; sd <= activeDay; sd++) {
+      if (dailySales[activeMonth + '-' + sd] > 0) sellingDays++;
+    }
+    var dailyRunRate = sellingDays > 0 ? activeMtd / sellingDays : 0;
+    var remainingDays = daysInActiveMonth - activeDay;
+    var remainingSellingDays = Math.round(remainingDays * (sellingDays / Math.max(1, activeDay)));
+    var monthEndProjection = activeMtd + (dailyRunRate * remainingSellingDays);
+    var monthProgress = (activeDay / daysInActiveMonth) * 100;
+    var confidence = monthProgress >= 75 ? 'High' : (monthProgress >= 40 ? 'Medium' : 'Low');
+
+    // 4. Load targets
+    var monthlyTargets = getMonthlyStoreTargets(ss, 'ALL', targetY);
+    var activeMonthTarget = monthlyTargets[activeMonth] || 0;
+    var annualTarget = 0;
+    for (var ti = 0; ti < 12; ti++) annualTarget += monthlyTargets[ti];
+
+    // 5. YEAR-END PROJECTION using seasonal pattern
+    var prevY = targetY - 1;
+    var prevMonthlyNet = new Array(12).fill(0);
+    var prevSheetName = CONFIG.SHEETS.CLEAN;
+    var prevArchive = 'Clean_Data_' + prevY;
+    if (ss.getSheetByName(prevArchive)) prevSheetName = prevArchive;
+
+    var prevSheet = ss.getSheetByName(prevSheetName);
+    if (prevSheet) {
+      var prevData = prevSheet.getDataRange().getValues();
+      prevData.shift();
+      for (var pi = 0; pi < prevData.length; pi++) {
+        var pRow = prevData[pi];
+        var pd = parseDateFix(pRow[COL.DATE]);
+        if (pd.getFullYear() !== prevY) continue;
+        var pLoc = String(pRow[COL.LOCATION]).trim();
+        if (!pLoc || pLoc.toLowerCase().includes('head office')) continue;
+        prevMonthlyNet[pd.getMonth()] += (Number(pRow[COL.NET_SALES]) || 0);
+      }
+    }
+
+    var ytdActual = 0;
+    var projectedMonthly = new Array(12).fill(0);
+    var completedMonthsActual = 0, completedMonthsPrev = 0;
+    for (var cm = 0; cm < activeMonth; cm++) {
+      completedMonthsActual += monthlyNet[cm];
+      completedMonthsPrev += prevMonthlyNet[cm];
+    }
+    var growthRate = completedMonthsPrev > 0 ? (completedMonthsActual / completedMonthsPrev) : 1;
+
+    for (var pm2 = 0; pm2 < 12; pm2++) {
+      if (pm2 < activeMonth) {
+        projectedMonthly[pm2] = monthlyNet[pm2];
+        ytdActual += monthlyNet[pm2];
+      } else if (pm2 === activeMonth) {
+        projectedMonthly[pm2] = monthEndProjection;
+        ytdActual += activeMtd;
+      } else {
+        projectedMonthly[pm2] = prevMonthlyNet[pm2] > 0 ? prevMonthlyNet[pm2] * growthRate : 0;
+      }
+    }
+    var yearEndProjection = 0;
+    for (var yp = 0; yp < 12; yp++) yearEndProjection += projectedMonthly[yp];
+
+    // 6. CATEGORY MOMENTUM (MoM)
+    var prevMonth = activeMonth > 0 ? activeMonth - 1 : 0;
+    var catMomentum = [];
+    for (var ck in categoryMonthly) {
+      var currVal = categoryMonthly[ck][activeMonth];
+      var prevVal = categoryMonthly[ck][prevMonth];
+      var momGrowth = prevVal > 0 ? ((currVal - prevVal) / prevVal) * 100 : 0;
+      catMomentum.push({ name: ck, current: currVal, previous: prevVal, growth: momGrowth });
+    }
+    catMomentum.sort(function(a, b) { return b.current - a.current; });
+
+    // 7. STORE PROJECTIONS
+    var storeProjections = [];
+    for (var sk in storeMonthly) {
+      var sActiveMtd = storeMonthly[sk][activeMonth];
+      var sProjected = sellingDays > 0 ? (sActiveMtd / sellingDays) * (sellingDays + remainingSellingDays) : 0;
+      storeProjections.push({ name: sk, mtd: sActiveMtd, projected: sProjected, target: 0 });
+    }
+    var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var activeMonthTargetMap = getTargetMap(ss, monthNames[activeMonth], targetY);
+    for (var spi = 0; spi < storeProjections.length; spi++) {
+      storeProjections[spi].target = activeMonthTargetMap[storeProjections[spi].name] || 0;
+    }
+    storeProjections.sort(function(a, b) { return b.projected - a.projected; });
+
+    // 8. DAY OF WEEK ANALYSIS
+    var dowLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var dayOfWeekAvg = [];
+    for (var dw = 0; dw < 7; dw++) {
+      dayOfWeekAvg.push({
+        day: dowLabels[dw],
+        avg: dayOfWeekCount[dw] > 0 ? dayOfWeekSales[dw] / dayOfWeekCount[dw] : 0,
+        total: dayOfWeekSales[dw],
+        count: dayOfWeekCount[dw]
+      });
+    }
+
+    // 9. SEASONAL PATTERN
+    var seasonalPattern = [];
+    for (var sp = 0; sp < 12; sp++) {
+      seasonalPattern.push({
+        month: monthNames[sp].substring(0, 3),
+        current: monthlyNet[sp],
+        prevYear: prevMonthlyNet[sp],
+        target: monthlyTargets[sp],
+        projected: projectedMonthly[sp]
+      });
+    }
+
+    return {
+      status: 'ok',
+      year: targetY,
+      activeMonth: activeMonth,
+      activeMonthName: monthNames[activeMonth],
+      activeDay: activeDay,
+      daysInMonth: daysInActiveMonth,
+      monthProgress: monthProgress,
+      monthEnd: {
+        mtd: activeMtd,
+        projected: monthEndProjection,
+        target: activeMonthTarget,
+        achievement: activeMonthTarget > 0 ? (monthEndProjection / activeMonthTarget) * 100 : 0,
+        runRate: dailyRunRate,
+        sellingDays: sellingDays,
+        remainingDays: remainingSellingDays,
+        confidence: confidence
+      },
+      yearEnd: {
+        ytdActual: ytdActual,
+        projected: yearEndProjection,
+        target: annualTarget,
+        achievement: annualTarget > 0 ? (yearEndProjection / annualTarget) * 100 : 0,
+        growthRate: (growthRate - 1) * 100,
+        projectedMonthly: projectedMonthly
+      },
+      categoryMomentum: catMomentum,
+      storeProjections: storeProjections,
+      dayOfWeek: dayOfWeekAvg,
+      seasonalPattern: seasonalPattern,
+      holidayImpact: {
+        holidayAvg: holidayDays > 0 ? holidaySales / holidayDays : 0,
+        normalAvg: normalDays > 0 ? normalSales / normalDays : 0,
+        uplift: (normalDays > 0 && holidayDays > 0)
+          ? (((holidaySales / holidayDays) - (normalSales / normalDays)) / (normalSales / normalDays)) * 100 : 0,
+        holidayDays: holidayDays,
+        normalDays: normalDays
+      },
+      prevYear: prevMonthlyNet
+    };
+
+  } catch (e) {
+    Logger.log('getForecastingData Error: ' + e.message);
+    return { status: 'error', message: e.message };
+  }
+}
+

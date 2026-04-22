@@ -126,6 +126,16 @@
                         </svg>
                         <span>Annual Net Sales</span>
                     </button>
+                    <button onclick="APP.switchTab('forecasting')" id="tabForecasting"
+                        class="sidebar-glow w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/60 group relative overflow-hidden">
+                        <svg class="w-5 h-5 text-indigo-500 group-hover:text-indigo-600 transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                        <span>Forecasting</span>
+                        <span class="ml-auto bg-indigo-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide animate-pulse">AI</span>
+                    </button>
                 </div>
             </div>
 
@@ -375,6 +385,7 @@
             <?!= include('ViewFootfall'); ?>
             <?!= include('ViewStore'); ?>
             <?!= include('ViewAnnualSales'); ?>
+            <?!= include('ViewForecasting'); ?>
 
             <div class="h-8"></div> <!-- Bottom empty margin for clean scrolling -->
         </main>
@@ -510,6 +521,7 @@
     <?!= include('JsFootfall'); ?>
     <?!= include('JsStore'); ?>
     <?!= include('JsAnnualSales'); ?>
+    <?!= include('JsForecasting'); ?>
     <?!= include('JavaScript_Charts'); ?>
     <?!= include('JavaScript'); ?>
     <?!= include('JavaScript_Projection'); ?>

@@ -1,0 +1,372 @@
+<script>
+    /**
+     * FORECAST MODULE — Forecasting & Projection Smart Planning
+     * Handles data loading, rendering projections, charts, and analytics.
+     */
+    const FORECAST = {
+        charts: { seasonal: null, dow: null },
+        data: null,
+
+        init: () => {
+            const ySelect = document.getElementById('forecastYearSelect');
+            if (ySelect) ySelect.value = new Date().getFullYear().toString();
+        },
+
+        loadData: () => {
+            const year = document.getElementById('forecastYearSelect').value;
+            if (typeof UI !== 'undefined' && UI.showLoader) UI.showLoader(true, 'Memproses Forecasting Data...');
+
+            google.script.run
+                .withSuccessHandler(FORECAST.render)
+                .withFailureHandler(function(err) {
+                    if (typeof UI !== 'undefined') UI.showLoader(false);
+                    if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memuat data: ' + err.message, 'error');
+                })
+                .getForecastingData(year);
+        },
+
+        render: (res) => {
+            if (typeof UI !== 'undefined') UI.showLoader(false);
+            if (!res || res.status === 'error') {
+                if (typeof Swal !== 'undefined') Swal.fire('Error', res ? res.message : 'Empty response', 'error');
+                return;
+            }
+            FORECAST.data = res;
+            FORECAST.renderMonthEnd(res);
+            FORECAST.renderYearEnd(res);
+            FORECAST.renderSeasonalChart(res);
+            FORECAST.renderStoreProjections(res);
+            FORECAST.renderCategoryMomentum(res);
+            FORECAST.renderDowChart(res);
+            FORECAST.renderHolidayImpact(res);
+        },
+
+        renderMonthEnd: (res) => {
+            const me = res.monthEnd;
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            document.getElementById('forecastMonthProjected').textContent = fmt(me.projected);
+            document.getElementById('forecastMonthLabel').textContent = 'Est. Finish ' + res.activeMonthName;
+
+            // Confidence badge
+            const confEl = document.getElementById('forecastConfBadge');
+            const confColors = { 'High': 'bg-emerald-400/30 text-emerald-100', 'Medium': 'bg-amber-400/30 text-amber-100', 'Low': 'bg-rose-400/30 text-rose-100' };
+            confEl.textContent = me.confidence + ' Confidence';
+            confEl.className = 'ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ' + (confColors[me.confidence] || 'bg-white/20');
+
+            // Progress bar
+            document.getElementById('forecastMtdLabel').textContent = 'MTD: ' + fmt(me.mtd);
+            document.getElementById('forecastTargetLabel').textContent = 'Target: ' + fmt(me.target);
+
+            const achvPct = me.target > 0 ? (me.projected / me.target) * 100 : 0;
+            const barEl = document.getElementById('forecastMonthBar');
+            barEl.style.width = Math.min(100, achvPct).toFixed(0) + '%';
+            barEl.className = 'h-3 rounded-full transition-all duration-700 bg-gradient-to-r ' +
+                (achvPct >= 100 ? 'from-blue-400 to-blue-300' : (achvPct >= 80 ? 'from-emerald-400 to-emerald-300' : 'from-rose-400 to-rose-300'));
+
+            // Time marker
+            document.getElementById('forecastTimeMarker').style.left = Math.min(100, res.monthProgress).toFixed(0) + '%';
+
+            document.getElementById('forecastProgressLabel').textContent = 'Day ' + res.activeDay + '/' + res.daysInMonth + ' (' + res.monthProgress.toFixed(0) + '% elapsed)';
+            document.getElementById('forecastAchvLabel').textContent = 'Projected Achv: ' + achvPct.toFixed(1) + '%';
+
+            // Run rate stats
+            document.getElementById('forecastRunRate').textContent = fmt(me.runRate);
+            document.getElementById('forecastSellingDays').textContent = me.sellingDays + ' / ' + res.daysInMonth;
+            document.getElementById('forecastDaysLeft').textContent = me.remainingDays;
+        },
+
+        renderYearEnd: (res) => {
+            const ye = res.yearEnd;
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            document.getElementById('forecastYearProjected').textContent = fmt(ye.projected);
+
+            // YoY badge
+            const yoyEl = document.getElementById('forecastYoyBadge');
+            const g = ye.growthRate;
+            const arrow = g >= 0 ? '↑' : '↓';
+            const yoyColor = g >= 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300';
+            yoyEl.textContent = arrow + ' ' + Math.abs(g).toFixed(1) + '% YoY';
+            yoyEl.className = 'ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ' + yoyColor;
+
+            // Year progress
+            document.getElementById('forecastYtdLabel').textContent = 'YTD Actual: ' + fmt(ye.ytdActual);
+            document.getElementById('forecastAnnualTargetLabel').textContent = 'Annual Target: ' + fmt(ye.target);
+
+            const yearAchv = ye.achievement;
+            document.getElementById('forecastYearBar').style.width = Math.min(100, yearAchv).toFixed(0) + '%';
+            document.getElementById('forecastYearAchvLabel').textContent = 'Projected Achv: ' + yearAchv.toFixed(1) + '%';
+            document.getElementById('forecastGrowthLabel').textContent = 'Growth Rate: ' + (g >= 0 ? '+' : '') + g.toFixed(1) + '%';
+
+            // Remaining
+            const remaining = Math.max(0, ye.target - ye.ytdActual);
+            document.getElementById('forecastRemaining').textContent = fmt(remaining);
+
+            // Monthly avg needed for remaining months
+            var remainingMonths = 12 - res.activeMonth - 1;
+            if (remainingMonths < 1) remainingMonths = 1;
+            var monthlyNeeded = remaining > 0 ? remaining / remainingMonths : 0;
+            document.getElementById('forecastMonthlyNeeded').textContent = fmt(monthlyNeeded);
+        },
+
+        renderSeasonalChart: (res) => {
+            const ctxEl = document.getElementById('forecastSeasonalChart');
+            if (!ctxEl) return;
+            if (FORECAST.charts.seasonal) FORECAST.charts.seasonal.destroy();
+
+            const sp = res.seasonalPattern;
+            const labels = sp.map(s => s.month);
+            const actualData = [];
+            const projectedData = [];
+
+            for (var i = 0; i < sp.length; i++) {
+                if (i <= res.activeMonth) {
+                    actualData.push(sp[i].current);
+                    projectedData.push(null);
+                } else {
+                    actualData.push(null);
+                    projectedData.push(sp[i].projected);
+                }
+            }
+            // Bridge: last actual month also in projected
+            if (res.activeMonth < 11) {
+                projectedData[res.activeMonth] = sp[res.activeMonth].current;
+            }
+
+            FORECAST.charts.seasonal = new Chart(ctxEl, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Actual',
+                            data: actualData,
+                            backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                            borderColor: '#6366F1',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            barPercentage: 0.5,
+                            order: 2
+                        },
+                        {
+                            label: 'Projected',
+                            data: projectedData,
+                            backgroundColor: 'rgba(199, 210, 254, 0.6)',
+                            borderColor: '#C7D2FE',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            borderDash: [3, 3],
+                            barPercentage: 0.5,
+                            order: 3
+                        },
+                        {
+                            label: 'Target',
+                            data: sp.map(s => s.target),
+                            type: 'line',
+                            borderColor: '#F43F5E',
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: false,
+                            tension: 0.3,
+                            order: 1
+                        },
+                        {
+                            label: 'Prev Year',
+                            data: sp.map(s => s.prevYear),
+                            type: 'line',
+                            borderColor: '#CBD5E1',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 3,
+                            fill: false,
+                            tension: 0.3,
+                            order: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: '#64748B' } },
+                        y: {
+                            grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                            border: { display: false },
+                            ticks: { font: { family: 'Inter', size: 10 }, color: '#94A3B8', callback: function(v) { return HELPERS.formatIDR(v); } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0F172A',
+                            titleFont: { family: 'Inter', size: 12, weight: '700' },
+                            bodyFont: { family: 'Inter', size: 11 },
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: { label: function(ctx) { return ' ' + ctx.dataset.label + ': ' + HELPERS.formatIDR(ctx.parsed.y); } }
+                        },
+                        datalabels: { display: false }
+                    }
+                }
+            });
+        },
+
+        renderStoreProjections: (res) => {
+            const container = document.getElementById('forecastStoreList');
+            const storeMonth = document.getElementById('forecastStoreMonth');
+            if (storeMonth) storeMonth.textContent = 'Projected for ' + res.activeMonthName + ' ' + res.year;
+
+            const stores = res.storeProjections;
+            if (!stores || stores.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 italic text-xs py-8">Tidak ada data store.</p>';
+                return;
+            }
+
+            const fmt = (v) => HELPERS.formatIDR(v);
+            let html = '';
+            stores.forEach((s, idx) => {
+                const achv = s.target > 0 ? (s.projected / s.target) * 100 : 0;
+                const achvColor = achv >= 100 ? 'text-blue-600' : (achv >= 80 ? 'text-emerald-600' : 'text-rose-600');
+                const barColor = achv >= 100 ? 'bg-blue-500' : (achv >= 80 ? 'bg-emerald-500' : 'bg-rose-500');
+                const barWidth = Math.min(100, achv);
+
+                html += '<div class="mb-4 last:mb-0">';
+                html += '<div class="flex justify-between items-center mb-1">';
+                html += '<span class="text-xs font-bold text-slate-700">' + s.name + '</span>';
+                html += '<span class="text-[10px] font-bold ' + achvColor + '">' + (s.target > 0 ? achv.toFixed(0) + '%' : 'N/A') + '</span>';
+                html += '</div>';
+                html += '<div class="w-full bg-slate-100 rounded-full h-2 mb-1">';
+                html += '<div class="h-2 rounded-full transition-all duration-500 ' + barColor + '" style="width:' + barWidth.toFixed(0) + '%"></div>';
+                html += '</div>';
+                html += '<div class="flex justify-between text-[10px] text-slate-400">';
+                html += '<span>MTD: ' + fmt(s.mtd) + '</span>';
+                html += '<span>Proj: ' + fmt(s.projected) + '</span>';
+                html += '</div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        },
+
+        renderCategoryMomentum: (res) => {
+            const container = document.getElementById('forecastCatList');
+            const cats = res.categoryMomentum;
+            if (!cats || cats.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 italic text-xs py-8">Tidak ada data.</p>';
+                return;
+            }
+
+            const fmt = (v) => HELPERS.formatIDR(v);
+            let html = '';
+            cats.forEach(c => {
+                const g = c.growth;
+                const arrow = g >= 0 ? '↑' : '↓';
+                const gColor = g >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+
+                html += '<div class="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">';
+                html += '<div>';
+                html += '<p class="text-xs font-bold text-slate-700">' + c.name + '</p>';
+                html += '<p class="text-[10px] text-slate-400">' + fmt(c.current) + ' <span class="text-slate-300">vs</span> ' + fmt(c.previous) + '</p>';
+                html += '</div>';
+                html += '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold ' + gColor + '">' + arrow + ' ' + Math.abs(g).toFixed(1) + '%</span>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        },
+
+        renderDowChart: (res) => {
+            const ctxEl = document.getElementById('forecastDowChart');
+            if (!ctxEl) return;
+            if (FORECAST.charts.dow) FORECAST.charts.dow.destroy();
+
+            const dow = res.dayOfWeek;
+            const maxAvg = Math.max.apply(null, dow.map(d => d.avg));
+            const colors = dow.map(d => {
+                if (d.avg === maxAvg && maxAvg > 0) return '#6366F1';
+                return d.day === 'Sun' || d.day === 'Sat' ? '#F59E0B' : '#94A3B8';
+            });
+
+            FORECAST.charts.dow = new Chart(ctxEl, {
+                type: 'bar',
+                data: {
+                    labels: dow.map(d => d.day),
+                    datasets: [{
+                        data: dow.map(d => d.avg),
+                        backgroundColor: colors,
+                        borderRadius: 8,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: '#64748B' } },
+                        y: {
+                            grid: { color: '#F1F5F9', borderDash: [4, 4] },
+                            border: { display: false },
+                            ticks: { font: { family: 'Inter', size: 10 }, color: '#94A3B8', callback: function(v) { return HELPERS.formatIDR(v); } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0F172A',
+                            callbacks: { label: function(ctx) { return ' Avg: ' + HELPERS.formatIDR(ctx.parsed.y); } }
+                        },
+                        datalabels: { display: false }
+                    }
+                }
+            });
+        },
+
+        renderHolidayImpact: (res) => {
+            const container = document.getElementById('forecastHolidayContent');
+            const hi = res.holidayImpact;
+            const fmt = (v) => HELPERS.formatIDR(v);
+
+            if (hi.holidayDays === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 italic text-xs py-8">Belum ada data hari libur dengan penjualan tahun ini.</p>';
+                return;
+            }
+
+            const upliftColor = hi.uplift >= 0 ? 'text-emerald-600' : 'text-rose-600';
+            const upliftBg = hi.uplift >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200';
+            const upliftArrow = hi.uplift >= 0 ? '↑' : '↓';
+
+            let html = '';
+
+            // Uplift badge
+            html += '<div class="text-center mb-5">';
+            html += '<p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Holiday Uplift</p>';
+            html += '<p class="text-3xl font-bold ' + upliftColor + '">' + upliftArrow + ' ' + Math.abs(hi.uplift).toFixed(1) + '%</p>';
+            html += '<p class="text-[10px] text-slate-400 mt-1">Avg holiday sales vs normal days</p>';
+            html += '</div>';
+
+            // Comparison bars
+            html += '<div class="space-y-3">';
+            const maxVal = Math.max(hi.holidayAvg, hi.normalAvg);
+            const hPct = maxVal > 0 ? (hi.holidayAvg / maxVal) * 100 : 0;
+            const nPct = maxVal > 0 ? (hi.normalAvg / maxVal) * 100 : 0;
+
+            html += '<div>';
+            html += '<div class="flex justify-between text-[10px] font-bold mb-1"><span class="text-amber-700">🎉 Holiday Avg</span><span class="text-slate-700">' + fmt(hi.holidayAvg) + '</span></div>';
+            html += '<div class="w-full bg-amber-100 rounded-full h-2.5"><div class="h-2.5 rounded-full bg-amber-500 transition-all" style="width:' + hPct.toFixed(0) + '%"></div></div>';
+            html += '<p class="text-[10px] text-slate-400 mt-0.5">' + hi.holidayDays + ' days</p>';
+            html += '</div>';
+
+            html += '<div>';
+            html += '<div class="flex justify-between text-[10px] font-bold mb-1"><span class="text-slate-600">📊 Normal Avg</span><span class="text-slate-700">' + fmt(hi.normalAvg) + '</span></div>';
+            html += '<div class="w-full bg-slate-100 rounded-full h-2.5"><div class="h-2.5 rounded-full bg-slate-400 transition-all" style="width:' + nPct.toFixed(0) + '%"></div></div>';
+            html += '<p class="text-[10px] text-slate-400 mt-0.5">' + hi.normalDays + ' days</p>';
+            html += '</div>';
+
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+    };
+</script>
