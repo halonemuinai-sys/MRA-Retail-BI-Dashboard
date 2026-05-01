@@ -14,7 +14,8 @@
 
         loadData: () => {
             const year = document.getElementById('forecastYearSelect').value;
-            if (typeof UI !== 'undefined' && UI.showLoader) UI.showLoader(true, 'Memproses Forecasting Data...');
+            const month = document.getElementById('forecastMonthSelect').value;
+            if (typeof UI !== 'undefined' && UI.showLoader) UI.showLoader(true, 'Memproses Data Forecasting...');
 
             google.script.run
                 .withSuccessHandler(FORECAST.render)
@@ -22,7 +23,7 @@
                     if (typeof UI !== 'undefined') UI.showLoader(false);
                     if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memuat data: ' + err.message, 'error');
                 })
-                .getForecastingData(year);
+                .getForecastingData(year, month);
         },
 
         render: (res) => {
@@ -46,7 +47,9 @@
             const fmt = (v) => HELPERS.formatIDR(v);
 
             document.getElementById('forecastMonthProjected').textContent = fmt(me.projected);
-            document.getElementById('forecastMonthLabel').textContent = 'Est. Finish ' + res.activeMonthName;
+            document.getElementById('forecastMonthDown').textContent = fmt(me.projectedDown);
+            document.getElementById('forecastMonthUp').textContent = fmt(me.projectedUp);
+            document.getElementById('forecastMonthLabel').textContent = 'Est. Selesai ' + res.activeMonthName;
 
             // Confidence badge
             const confEl = document.getElementById('forecastConfBadge');

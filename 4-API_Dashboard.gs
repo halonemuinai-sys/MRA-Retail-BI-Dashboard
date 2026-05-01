@@ -1652,12 +1652,12 @@ function getAnnualNetSalesData(year) {
 // ============================================================
 
 /**
- * Returns forecasting data: month-end projection, year-end projection,
- * category momentum, holiday impact, seasonal patterns, and store projections.
+ * Returns forecasting data with scenario analysis (Down, Mid, Up).
  * @param {number|string} year - The year to forecast
+ * @param {number|string} [month] - Specific month (0-11) or 'current'
  * @returns {Object} Comprehensive forecasting dataset
  */
-function getForecastingData(year) {
+function getForecastingData(year, month) {
   try {
     var ss = getSpreadsheet();
     var targetY = Number(year);
@@ -1730,8 +1730,11 @@ function getForecastingData(year) {
     }
 
     // Determine active month
-    var activeMonth = latestDataDate ? latestDataDate.getMonth() : currentMonth;
-    var activeDay = latestDataDate ? latestDataDate.getDate() : currentDay;
+    var requestedMonth = (month !== undefined && month !== 'current') ? Number(month) : null;
+    var activeMonth = requestedMonth !== null ? requestedMonth : (latestDataDate ? latestDataDate.getMonth() : currentMonth);
+    var activeDay = (requestedMonth !== null && requestedMonth !== currentMonth) 
+                    ? new Date(targetY, requestedMonth + 1, 0).getDate() 
+                    : (latestDataDate ? latestDataDate.getDate() : currentDay);
 
     // Holiday impact
     var holidaySales = 0, holidayDays = 0, normalSales = 0, normalDays = 0;
@@ -1752,27 +1755,13 @@ function getForecastingData(year) {
       }
     }
 
-    // 3. MONTH-END PROJECTION
-    var daysInActiveMonth = new Date(targetY, activeMonth + 1, 0).getDate();
-    var activeMtd = monthlyNet[activeMonth];
-    var sellingDays = 0;
-    for (var sd = 1; sd <= activeDay; sd++) {
-      if (dailySales[activeMonth + '-' + sd] > 0) sellingDays++;
-    }
-    var dailyRunRate = sellingDays > 0 ? activeMtd / sellingDays : 0;
-    var remainingDays = daysInActiveMonth - activeDay;
-    var remainingSellingDays = Math.round(remainingDays * (sellingDays / Math.max(1, activeDay)));
-    var monthEndProjection = activeMtd + (dailyRunRate * remainingSellingDays);
-    var monthProgress = (activeDay / daysInActiveMonth) * 100;
-    var confidence = monthProgress >= 75 ? 'High' : (monthProgress >= 40 ? 'Medium' : 'Low');
-
-    // 4. Load targets
+    // 3. Load targets FIRST (needed by early-month algorithm)
     var monthlyTargets = getMonthlyStoreTargets(ss, 'ALL', targetY);
     var activeMonthTarget = monthlyTargets[activeMonth] || 0;
     var annualTarget = 0;
     for (var ti = 0; ti < 12; ti++) annualTarget += monthlyTargets[ti];
 
-    // 5. YEAR-END PROJECTION using seasonal pattern
+    // 4. Load PREVIOUS YEAR data FIRST (needed by early-month algorithm)
     var prevY = targetY - 1;
     var prevMonthlyNet = new Array(12).fill(0);
     var prevSheetName = CONFIG.SHEETS.CLEAN;
@@ -1793,6 +1782,39 @@ function getForecastingData(year) {
       }
     }
 
+    // 5. MONTH-END PROJECTION (now safe — targets & prev year are loaded)
+    var daysInActiveMonth = new Date(targetY, activeMonth + 1, 0).getDate();
+    var activeMtd = monthlyNet[activeMonth];
+    var sellingDays = 0;
+    for (var sd = 1; sd <= activeDay; sd++) {
+      if (dailySales[activeMonth + '-' + sd] > 0) sellingDays++;
+    }
+    var dailyRunRate = sellingDays > 0 ? activeMtd / sellingDays : 0;
+    var remainingDays = daysInActiveMonth - activeDay;
+    var remainingSellingDays = Math.round(remainingDays * (sellingDays / Math.max(1, activeDay)));
+    
+    // Advanced Early-Month Algorithm: Use historical anchor if selling days < 4
+    var midProjection = 0;
+    if (sellingDays < 4 && targetY === currentYear && activeMonth === currentMonth) {
+      var historicalAnchor = prevMonthlyNet[activeMonth] || activeMonthTarget || 0;
+      var currentLinear = dailyRunRate * daysInActiveMonth;
+      // Weighted blend: 70% historical, 30% current run rate to dampen volatility
+      midProjection = historicalAnchor > 0 
+        ? (historicalAnchor * 0.7) + (currentLinear * 0.3)
+        : currentLinear; // Fallback if no history at all
+    } else {
+      midProjection = activeMtd + (dailyRunRate * remainingSellingDays);
+    }
+
+    // Scenario Analysis
+    var downProjection = midProjection * 0.85; // Pessimistic
+    var upProjection = midProjection * 1.15;   // Optimistic
+    
+    var monthProgress = (activeDay / daysInActiveMonth) * 100;
+    var confidence = monthProgress >= 75 ? 'High' : (monthProgress >= 40 ? 'Medium' : 'Low');
+
+    // 6. YEAR-END PROJECTION using seasonal pattern
+
     var ytdActual = 0;
     var projectedMonthly = new Array(12).fill(0);
     var completedMonthsActual = 0, completedMonthsPrev = 0;
@@ -1807,7 +1829,7 @@ function getForecastingData(year) {
         projectedMonthly[pm2] = monthlyNet[pm2];
         ytdActual += monthlyNet[pm2];
       } else if (pm2 === activeMonth) {
-        projectedMonthly[pm2] = monthEndProjection;
+        projectedMonthly[pm2] = midProjection;
         ytdActual += activeMtd;
       } else {
         projectedMonthly[pm2] = prevMonthlyNet[pm2] > 0 ? prevMonthlyNet[pm2] * growthRate : 0;
@@ -1875,12 +1897,14 @@ function getForecastingData(year) {
       monthProgress: monthProgress,
       monthEnd: {
         mtd: activeMtd,
-        projected: monthEndProjection,
+        projected: midProjection,
+        projectedDown: downProjection,
+        projectedUp: upProjection,
         target: activeMonthTarget,
-        achievement: activeMonthTarget > 0 ? (monthEndProjection / activeMonthTarget) * 100 : 0,
+        achievement: activeMonthTarget > 0 ? (midProjection / activeMonthTarget) * 100 : 0,
         runRate: dailyRunRate,
         sellingDays: sellingDays,
-        remainingDays: remainingSellingDays,
+        remainingDays: daysInActiveMonth - activeDay,
         confidence: confidence
       },
       yearEnd: {
