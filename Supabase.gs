@@ -1,9 +1,11 @@
 /**
  * File: Supabase.gs
- * Description: Core REST API helper for Supabase — Outer Sales Dashboard.
- * Uses CONFIG.SUPABASE.URL and CONFIG.SUPABASE.KEY from 1-Config.gs.
+ * Description: Modular Sync Engine for Supabase - BI Dashboard.
  */
 
+// ==========================================
+// --- 1. SUPABASE DATABASE CLIENT ---
+// ==========================================
 const SupabaseDB = {
     _getHeaders: function() {
         return {
@@ -14,78 +16,68 @@ const SupabaseDB = {
         };
     },
 
+    _buildUrl: function(table, query) {
+        let baseUrl = CONFIG.SUPABASE.URL;
+        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+        if (baseUrl.endsWith('/rest/v1')) baseUrl = baseUrl.slice(0, -8);
+        return baseUrl + "/rest/v1/" + table + (query || "");
+    },
+
     get: function(table, query) {
-        query = query || "";
         try {
-            const url = CONFIG.SUPABASE.URL + "/rest/v1/" + table + query;
+            const url = this._buildUrl(table, query);
             const res = UrlFetchApp.fetch(url, { method: "get", headers: this._getHeaders(), muteHttpExceptions: true });
-            const code = res.getResponseCode();
-            if (code >= 200 && code < 300) return { success: true, data: JSON.parse(res.getContentText()), code: code };
-            return { success: false, message: res.getContentText(), code: code };
-        } catch(e) { return { success: false, message: e.message, code: 500 }; }
+            const responseText = res.getContentText();
+            if (res.getResponseCode() >= 300) Logger.log("Error Get " + table + ": " + responseText);
+            return { success: res.getResponseCode() < 300, data: JSON.parse(responseText) };
+        } catch(e) { return { success: false, message: e.message }; }
     },
 
     insert: function(table, payload) {
         try {
-            const url = CONFIG.SUPABASE.URL + "/rest/v1/" + table;
+            const url = this._buildUrl(table, "");
             const res = UrlFetchApp.fetch(url, {
                 method: "post",
                 headers: this._getHeaders(),
                 payload: JSON.stringify(payload),
                 muteHttpExceptions: true
             });
-            const code = res.getResponseCode();
-            if (code >= 200 && code < 300) return { success: true, data: JSON.parse(res.getContentText()), code: code };
-            return { success: false, message: res.getContentText(), code: code };
-        } catch(e) { return { success: false, message: e.message, code: 500 }; }
+            const responseText = res.getContentText();
+            if (res.getResponseCode() >= 300) Logger.log("Error Insert " + table + ": " + responseText);
+            return { success: res.getResponseCode() < 300, data: JSON.parse(responseText) };
+        } catch(e) { return { success: false, message: e.message }; }
     },
 
     del: function(table, matchQuery) {
         try {
-            const url = CONFIG.SUPABASE.URL + "/rest/v1/" + table + matchQuery;
+            const url = this._buildUrl(table, matchQuery);
             const res = UrlFetchApp.fetch(url, { method: "delete", headers: this._getHeaders(), muteHttpExceptions: true });
-            const code = res.getResponseCode();
-            if (code >= 200 && code < 300) return { success: true, code: code };
-            return { success: false, message: res.getContentText(), code: code };
-        } catch(e) { return { success: false, message: e.message, code: 500 }; }
+            if (res.getResponseCode() >= 300) Logger.log("Error Delete " + table + ": " + res.getContentText());
+            return { success: res.getResponseCode() < 300 };
+        } catch(e) { return { success: false, message: e.message }; }
     }
 };
 
-/**
- * Sinkronisasi seluruh clean_master dari Google Sheet ke Supabase.
- * Strategi: Truncate + Re-insert (Full Replace).
- * Bisa dipanggil manual atau via Time-Based Trigger.
- */
-function syncCleanMasterToSupabase() {
-    try {
+// ==========================================
+// --- 2. DATA EXTRACTORS (TRANSFORM LAYER) ---
+// ==========================================
+const Extractors = {
+    /**
+     * Mengambil dan membersihkan data dari clean_master
+     */
+    cleanMaster: function() {
         const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
         const sheet = ss.getSheetByName(CONFIG.SHEETS.CLEAN);
-        if (!sheet) return { success: false, message: "Sheet clean_master tidak ditemukan." };
-
         const data = sheet.getDataRange().getValues();
-        if (data.length <= 1) return { success: false, message: "Data clean_master kosong." };
-
         const CC = CONFIG.CLEAN_COLS;
-        const payload = [];
-
-        for (let i = 1; i < data.length; i++) {
-            const row = data[i];
-            const transNo = String(row[CC.TRANS_NO] || "").trim();
-            if (!transNo) continue; // Lewati baris kosong
-
+        
+        return data.slice(1).filter(row => row[CC.TRANS_NO]).map(row => {
             let d = row[CC.DATE];
-            if (d && typeof d.getTime === "function" && !isNaN(d.getTime())) {
-                d = d.toISOString();
-            } else if (d) {
-                const parsed = new Date(d);
-                d = !isNaN(parsed.getTime()) ? parsed.toISOString() : null;
-            } else {
-                d = null;
-            }
-
-            payload.push({
-                trans_no:       transNo,
-                transaction_date: d,
+            let dateIso = (d instanceof Date && !isNaN(d.getTime())) ? d.toISOString() : null;
+            
+            return {
+                trans_no:       String(row[CC.TRANS_NO]),
+                transaction_date: dateIso,
                 customer:       String(row[CC.CUSTOMER] || ""),
                 salesman:       String(row[CC.SALESMAN] || ""),
                 location:       String(row[CC.LOCATION] || ""),
@@ -102,31 +94,164 @@ function syncCleanMasterToSupabase() {
                 type:           String(row[CC.TYPE] || ""),
                 qty:            parseInt(row[CC.QTY]) || 0,
                 catalogue_code: String(row[CC.CATALOGUE] || "")
+            };
+        });
+    },
+
+    /**
+     * Menggabungkan data footfall dari 3 toko
+     */
+    footfall: function() {
+        const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+        const stores = [
+            { name: CONFIG.SHEETS.FOOTFALL_PI, loc: "Plaza Indonesia" },
+            { name: CONFIG.SHEETS.FOOTFALL_PS, loc: "Plaza Senayan" },
+            { name: CONFIG.SHEETS.FOOTFALL_BL, loc: "Bali" }
+        ];
+        
+        let payload = [];
+        stores.forEach(store => {
+            const sheet = ss.getSheetByName(store.name);
+            if (!sheet) return;
+            const data = sheet.getDataRange().getValues();
+            data.slice(1).forEach(row => {
+                if (!row[0]) return;
+                let d = row[0] instanceof Date ? row[0] : new Date(row[0]);
+                if (isNaN(d.getTime())) return;
+
+                payload.push({
+                    date: d.toISOString(),
+                    location: store.loc,
+                    count_in: Number(row[2]) || 0,
+                    count_out: Number(row[3]) || 0
+                });
+            });
+        });
+        return payload;
+    },
+
+    /**
+     * Mengambil data Target Toko
+     */
+    targets: function() {
+        const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+        const sheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_TARGET_STORE);
+        if (!sheet) return [];
+        
+        const data = sheet.getDataRange().getValues();
+        const header = data[0];
+        const payload = [];
+        const currentYear = new Date().getFullYear();
+        
+        data.slice(1).forEach(row => {
+            const storeName = String(row[0] || "").trim();
+            if (!storeName) return;
+
+            for (let col = 1; col < header.length; col++) {
+                const monthName = String(header[col] || "").trim();
+                if (!monthName) continue;
+                payload.push({
+                    store_name: storeName,
+                    month: monthName,
+                    month_index: col,
+                    year: currentYear,
+                    target_value: Number(row[col]) || 0
+                });
+            }
+        });
+        return payload;
+    },
+
+    /**
+     * Mengambil data Stock dari master_stock
+     */
+    stock: function() {
+        const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+        const sheet = ss.getSheetByName(CONFIG.SHEETS.MASTER_STOCK);
+        if (!sheet) return [];
+        
+        const data = sheet.getDataRange().getValues();
+        const payload = [];
+        
+        // Skip header, loop rows
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (!row[0] || !row[1] || !row[2]) continue; // Year, Location, Category must exist
+            
+            payload.push({
+                year:       parseInt(row[0]) || 0,
+                location:   String(row[1]).trim(),
+                category:   String(row[2]).trim(),
+                jan:        Number(row[3]) || 0,
+                feb:        Number(row[4]) || 0,
+                mar:        Number(row[5]) || 0,
+                apr:        Number(row[6]) || 0,
+                may:        Number(row[7]) || 0,
+                jun:        Number(row[8]) || 0,
+                jul:        Number(row[9]) || 0,
+                aug:        Number(row[10]) || 0,
+                sep:        Number(row[11]) || 0,
+                oct:        Number(row[12]) || 0,
+                nov:        Number(row[13]) || 0,
+                dec:        Number(row[14]) || 0
             });
         }
+        return payload;
+    }
+};
 
-        if (payload.length === 0) return { success: false, message: "Tidak ada data valid untuk disinkronisasi." };
+// ==========================================
+// --- 3. SYNC ENGINE (ORCHESTRATOR) ---
+// ==========================================
 
-        // 1. Kosongkan tabel Supabase (Full Replace)
-        SupabaseDB.del("clean_master", "?id=not.is.null");
+/**
+ * Fungsi utama untuk menjalankan seluruh sinkronisasi
+ */
+function syncAllToSupabase() {
+    const results = [];
+    results.push(runSync("clean_master", Extractors.cleanMaster));
+    results.push(runSync("footfall_data", Extractors.footfall));
+    results.push(runSync("targets", Extractors.targets));
+    results.push(runSync("stock_store", Extractors.stock));
+    
+    Logger.log("Sync Results: " + JSON.stringify(results));
+    return results;
+}
 
-        // 2. Insert batch per 1000 baris
-        const BATCH = 1000;
-        let failedBatches = [];
-        for (let i = 0; i < payload.length; i += BATCH) {
-            const chunk = payload.slice(i, i + BATCH);
-            const res = SupabaseDB.insert("clean_master", chunk);
-            if (!res.success) {
-                failedBatches.push("Batch " + (Math.floor(i/BATCH)+1) + ": " + res.message);
-            }
+/**
+ * Fungsi khusus untuk sinkronisasi data Stock saja.
+ * Bisa dijalankan manual dari menu "Run" di Apps Script.
+ */
+function syncStockOnly() {
+  const result = runSync("stock_store", Extractors.stock);
+  Logger.log("Stock Sync Result: " + JSON.stringify(result));
+  return result;
+}
+
+/**
+ * Helper untuk menjalankan satu proses sinkronisasi (Truncate + Insert)
+ */
+function runSync(tableName, extractorFn) {
+    try {
+        const data = extractorFn();
+        if (data.length === 0) return { table: tableName, success: false, message: "No data to sync" };
+
+        // 1. Truncate Table
+        const delRes = SupabaseDB.del(tableName, "?id=not.is.null");
+        if (!delRes.success) return { table: tableName, success: false, message: "Failed to truncate" };
+
+        // 2. Insert Data in Batches (untuk menghindari payload too large)
+        const BATCH_SIZE = 500;
+        let successCount = 0;
+        for (let i = 0; i < data.length; i += BATCH_SIZE) {
+            const chunk = data.slice(i, i + BATCH_SIZE);
+            const res = SupabaseDB.insert(tableName, chunk);
+            if (res.success) successCount += chunk.length;
+            else Logger.log("Batch failed for " + tableName + ": " + JSON.stringify(res));
         }
 
-        if (failedBatches.length > 0) {
-            return { success: false, message: "Beberapa batch gagal: " + failedBatches.join(" | "), count: payload.length };
-        }
-
-        return { success: true, count: payload.length, message: "Sinkronisasi " + payload.length + " baris clean_master ke Supabase berhasil!" };
-    } catch(e) {
-        return { success: false, message: e.message };
+        return { table: tableName, success: true, count: successCount };
+    } catch (e) {
+        return { table: tableName, success: false, error: e.message };
     }
 }

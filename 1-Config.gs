@@ -5,7 +5,7 @@
  * STATUS: UPDATED (Sesuai "Refactored Version")
  */
 
-const SPREADSHEET_ID = '1jRFK1jPuK_-pVvJYNx1PbvDEJaeAK4ZUZ0QTxWJsxwQ';
+const SPREADSHEET_ID = '16iNC7zlcQvCmgR9vnX4HyZotG-zEpa3iOCVn2fSa8Xg';
 
 const CONFIG = {
   SHEETS: {
@@ -112,7 +112,7 @@ const CONFIG = {
 
   // Database Supabase Configuration (Sama dengan CRM-APP)
   SUPABASE: {
-      URL: 'ISI_DENGAN_URL_SUPABASE_ANDA_DISINI',
-      KEY: 'ISI_DENGAN_ANON_KEY_SUPABASE_ANDA_DISINI'
+      URL: 'https://vekgzcxorvdidjutuvrj.supabase.co/rest/v1/',
+      KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZla2d6Y3hvcnZkaWRqdXR1dnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTI2NzIsImV4cCI6MjA4OTg2ODY3Mn0.Kz9udMSBq9YbyFsCmQvAWYPjNhplFsNKcjtiDdIi04I'
   }
 };
